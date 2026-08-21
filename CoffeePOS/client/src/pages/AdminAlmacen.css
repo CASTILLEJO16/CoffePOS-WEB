@@ -1,0 +1,311 @@
+/* Estilos para la página de almacén - Mejorados para mayor claridad */
+
+.almacen-tabs {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--color-border);
+  padding-bottom: 0;
+}
+
+.almacen-tab {
+  padding: 12px 20px;
+  border: none;
+  border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  transition: all 0.2s ease;
+}
+
+.almacen-tab:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.almacen-tab.active {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border-bottom: 2px solid var(--color-primary);
+  margin-bottom: -2px;
+}
+
+.almacen-content {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.section-header h2 {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+  color: var(--color-text);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-table th {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-hover);
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stock-bajo td {
+  color: var(--color-danger);
+  background: rgba(255, 0, 0, 0.05);
+}
+
+.fw-bold {
+  font-weight: var(--font-weight-bold);
+}
+
+.badge-bajo {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-sm);
+  padding: 4px 8px;
+  border-radius: var(--border-radius-sm);
+  background: rgba(255, 0, 0, 0.1);
+}
+
+.badge-ok {
+  color: var(--color-success);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  padding: 4px 8px;
+  border-radius: var(--border-radius-sm);
+  background: rgba(0, 200, 0, 0.1);
+}
+
+.badge-category {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+  padding: 2px 6px;
+  border-radius: var(--border-radius-sm);
+  background: rgba(0, 100, 200, 0.1);
+  border: 1px solid rgba(0, 100, 200, 0.2);
+}
+
+.actions-cell {
+  display: flex;
+  gap: 8px;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  padding: 6px;
+  border-radius: var(--border-radius-sm);
+  transition: all 0.2s ease;
+}
+
+.icon-btn:hover {
+  color: var(--color-primary);
+  background: var(--color-surface-hover);
+}
+
+.text-danger {
+  color: var(--color-danger);
+}
+
+.text-danger:hover {
+  color: var(--color-danger-hover);
+  background: rgba(255, 0, 0, 0.1);
+}
+
+.primary-btn {
+  padding: 10px 20px;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border: none;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: var(--font-weight-medium);
+  transition: all 0.2s ease;
+}
+
+.primary-btn:hover {
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.recetas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.receta-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: var(--color-surface);
+  transition: all 0.2s ease;
+}
+
+.receta-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.receta-info h3 {
+  margin: 0 0 8px 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.receta-info p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.almacen-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.form-input {
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-md);
+  transition: border-color 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.form-input.small-input {
+  width: 80px;
+  padding: 6px 10px;
+}
+
+.help-text {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  margin-top: 4px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.secondary-btn {
+  padding: 10px 20px;
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.secondary-btn:hover {
+  background: var(--color-surface-active);
+  border-color: var(--color-primary);
+}
+
+/* Modal de receta */
+.receta-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.receta-info-box {
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  padding: 16px;
+  border-left: 4px solid var(--color-primary);
+}
+
+.receta-info-box p {
+  margin: 0 0 8px 0;
+  font-weight: var(--font-weight-semibold);
+}
+
+.receta-info-box ul {
+  margin: 0;
+}
+
+.receta-items {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.empty-text {
+  text-align: center;
+  color: var(--color-text-secondary);
+  padding: 40px 20px;
+  font-style: italic;
+}
+
+.mt-3 {
+  margin-top: 12px;
+}
+
+.mt-4 {
+  margin-top: 16px;
+}
+
+.text-center {
+  text-align: center;
+}
