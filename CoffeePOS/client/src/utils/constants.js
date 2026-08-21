@@ -1,8 +1,13 @@
 // In Electron production, there is no dev proxy, so use absolute URL
 const isElectron = typeof window !== 'undefined' && window.location.protocol === 'file:';
+const isProduction = import.meta.env.PROD;
 
+// En producción, usar la URL del backend de Render
+// En desarrollo, usar el proxy local
 export const API_BASE_URL = isElectron
   ? 'http://localhost:3000/api'
+  : isProduction
+  ? import.meta.env.VITE_API_URL || 'https://tu-backend.onrender.com/api'
   : '/api';
 
 export const DEFAULT_CATEGORIES = [
