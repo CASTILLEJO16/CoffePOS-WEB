@@ -4,10 +4,14 @@
 - **Frontend**: React + Vite desplegado en Vercel
 - **Backend**: Node.js + Express + MongoDB desplegado en Render
 
+## Repositorios
+- **Frontend + Backend**: https://github.com/CASTILLEJO16/CoffePOS-WEB (todo junto)
+- **Backend (opcional)**: https://github.com/CASTILLEJO16/CoffePOS-WEB-backend (repositorio separado)
+
 ## Despliegue del Backend (Render)
 
 ### 1. Preparar el Repositorio
-El backend está en la carpeta `CoffeePOS/server/`
+El backend está en la carpeta `CoffeePOS/server/` dentro del repositorio principal.
 
 ### 2. Crear cuenta en Render
 - Ve a [render.com](https://render.com)
@@ -36,6 +40,10 @@ Click en "Create Web Service" y espera el despliegue.
 
 **Guarda la URL de tu backend** (ejemplo: `https://coffeepos-backend.onrender.com`)
 
+**Nota**: El repositorio del backend ya tiene los archivos de configuración necesarios:
+- `.env.example` - Plantilla de variables de entorno
+- `render.yaml` - Configuración de despliegue (opcional)
+
 ## Despliegue del Frontend (Vercel)
 
 ### 1. Preparar el Repositorio
@@ -53,6 +61,11 @@ El frontend está en la carpeta `CoffeePOS/client/`
    - **Root Directory**: `CoffeePOS/client`
    - **Build Command**: `npm run build`
    - **Output Directory**: `dist`
+
+**Nota**: El repositorio del frontend ya tiene los archivos de configuración necesarios:
+- `.env.example` - Plantilla de variables de entorno
+- `vercel.json` - Configuración de despliegue
+- `vite.config.js` - Configuración de Vite actualizada
 
 ### 4. Variables de Entorno
 Agrega esta variable en Vercel:
@@ -78,13 +91,15 @@ Regresa a Render y actualiza la variable `FRONTEND_URL` con la URL de tu fronten
 ## Estructura de Archivos de Configuración
 
 ### Backend (Render)
-- `CoffeePOS/server/.env.example` - Plantilla de variables de entorno
-- `CoffeePOS/server/render.yaml` - Configuración de despliegue (opcional)
+- Ubicación: `CoffeePOS/server/` dentro del repositorio principal
+- `.env.example` - Plantilla de variables de entorno
+- `render.yaml` - Configuración de despliegue (opcional)
 
 ### Frontend (Vercel)
-- `CoffeePOS/client/.env.example` - Plantilla de variables de entorno
-- `CoffeePOS/client/vercel.json` - Configuración de despliegue
-- `CoffeePOS/client/vite.config.js` - Configuración de Vite actualizada
+- Ubicación: `CoffeePOS/client/` dentro del repositorio principal
+- `.env.example` - Plantilla de variables de entorno
+- `vercel.json` - Configuración de despliegue
+- `vite.config.js` - Configuración de Vite actualizada
 
 ## Troubleshooting
 
