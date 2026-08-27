@@ -1,0 +1,73 @@
+# ==============================
+# Archivos del sistema
+# ==============================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==============================
+# Variables de entorno
+# ==============================
+.env
+.env.*
+!.env.example
+
+# ==============================
+# Node modules (NUNCA subir esto)
+# ==============================
+node_modules/
+**/node_modules/
+
+# ==============================
+# Build outputs
+# ==============================
+dist/
+build/
+out/
+**/dist/
+
+# ==============================
+# Electron
+# ==============================
+release/
+dist_electron/
+*.exe
+*.msi
+*.AppImage
+*.dmg
+*.zip
+*.blockmap
+latest.yml
+
+# ==============================
+# Uploads y bases de datos locales
+# ==============================
+**/uploads/
+**/*.db
+**/*.sqlite
+
+# ==============================
+# Logs
+# ==============================
+logs/
+*.log
+
+# ==============================
+# IDE / Editor
+# ==============================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==============================
+# Temporal
+# ==============================
+tmp/
+temp/
