@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: coffeepos-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: PORT
+        value: 3001
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
