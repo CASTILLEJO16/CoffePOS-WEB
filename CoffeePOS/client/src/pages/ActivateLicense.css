@@ -1,0 +1,147 @@
+.activate-license-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-background);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition-theme);
+}
+
+.activate-license-background-decoration {
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 800px;
+  height: 800px;
+  background: radial-gradient(circle, var(--color-primary-light) 0%, transparent 70%);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.activate-license-card {
+  background: var(--color-surface);
+  border-radius: var(--border-radius-2xl);
+  padding: 48px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--color-border);
+  position: relative;
+  z-index: 1;
+  animation: slideUp var(--transition-base) ease-out;
+}
+
+.activate-license-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.activate-license-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.activate-license-logo-icon {
+  color: var(--color-primary);
+}
+
+.activate-license-title {
+  margin: 0 0 8px 0;
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+}
+
+.activate-license-subtitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-normal);
+}
+
+.activate-license-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.activate-license-error {
+  padding: 12px 16px;
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-sm);
+  text-align: center;
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--color-danger);
+  animation: slideDown var(--transition-base) ease-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.activate-license-button {
+  width: 100%;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.activate-license-footer {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.activate-license-hint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-normal);
+  text-align: center;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

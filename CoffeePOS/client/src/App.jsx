@@ -4,6 +4,8 @@ import { OrderProvider } from './context/OrderContext.jsx';
 import { AdminOrderProvider } from './context/AdminOrderContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import Login from './pages/Login.jsx';
+import ActivateLicense from './pages/ActivateLicense.jsx';
+import LicenseCheck from './components/LicenseCheck.jsx';
 import POS from './pages/POS.jsx';
 import AdminPOS from './pages/AdminPOS.jsx';
 import Admin from './pages/Admin.jsx';
@@ -69,7 +71,12 @@ function App() {
         <ErrorBoundary>
           <BrowserRouter>
             <Routes>
-            <Route path="/login" element={<Login />} />
+            <Route path="/activate" element={<ActivateLicense />} />
+            <Route path="/login" element={
+              <LicenseCheck>
+                <Login />
+              </LicenseCheck>
+            } />
 
             {/* Ruta de apertura de caja (SIN CashRegisterCheck) */}
             <Route
