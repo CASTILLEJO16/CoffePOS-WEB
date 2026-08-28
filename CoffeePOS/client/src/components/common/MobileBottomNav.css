@@ -1,0 +1,195 @@
+/* Floating Bottom Nav - only visible on mobile/tablet */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 50%;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    z-index: var(--z-fixed);
+    width: calc(100% - 32px);
+    max-width: 440px;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .mobile-bottom-nav-inner {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 4px;
+    width: 100%;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 24px;
+    padding: 6px 8px;
+    box-shadow: 0 8px 32px rgba(15,23,42,0.12), 0 2px 8px rgba(15,23,42,0.08);
+    backdrop-filter: blur(12px);
+  }
+
+  .mobile-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 4px;
+    border-radius: 16px;
+    text-decoration: none;
+    color: var(--color-text-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition: all 180ms ease;
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .mobile-nav-item:active {
+    transform: scale(0.96);
+  }
+
+  .mobile-nav-item.active {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .mobile-nav-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  .mobile-nav-label {
+    white-space: nowrap;
+    line-height: 1;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* More sheet */
+  .mobile-more-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,23,42,0.32);
+    backdrop-filter: blur(2px);
+    z-index: calc(var(--z-fixed) + 1);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 16px;
+    animation: fadeIn 180ms ease-out;
+  }
+
+  .mobile-more-sheet {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 24px;
+    width: 100%;
+    max-width: 440px;
+    padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+    box-shadow: var(--shadow-xl);
+    animation: slideUp 220ms ease-out;
+  }
+
+  .mobile-more-handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--color-border);
+    margin: 4px auto 12px;
+  }
+
+  .mobile-more-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .mobile-more-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+
+  .mobile-more-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    cursor: pointer;
+  }
+
+  .mobile-more-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .mobile-more-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 8px;
+    border-radius: 16px;
+    background: var(--color-surface-hover);
+    border: 1px solid var(--color-border);
+    text-decoration: none;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    transition: all 150ms ease;
+  }
+
+  .mobile-more-link.active {
+    background: var(--color-primary-light);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .mobile-more-icon-wrap {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-more-link.active .mobile-more-icon-wrap {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    border-color: var(--color-primary);
+  }
+}
+
+@media (max-width: 360px) {
+  .mobile-bottom-nav {
+    width: calc(100% - 16px);
+  }
+  .mobile-more-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

@@ -136,3 +136,20 @@
   background: var(--color-surface-hover);
   border-color: var(--color-primary);
 }
+
+@media (max-width: 1024px) {
+  .ventas-content { padding: 16px; overflow-x: auto; }
+  .ventas-content .data-table { min-width: 640px; }
+}
+
+@media (max-width: 768px) {
+  .ventas-page { gap: 16px; }
+  .ventas-title { font-size: 20px; }
+  .ventas-content { padding: 0; border-radius: 12px; overflow: hidden; overflow-x: auto; }
+  .ventas-content .data-table { min-width: 720px; }
+  .ventas-content::-webkit-scrollbar { height: 6px; }
+}
+
+@media (max-width: 480px) {
+  .ventas-title { font-size: 18px; }
+}

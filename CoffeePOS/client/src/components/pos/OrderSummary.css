@@ -56,4 +56,10 @@
   height: 56px;
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
+  min-height: 52px;
+}
+
+@media (max-width: 768px) {
+  .checkout-button { height: 52px; font-size: 16px; }
+  .summary-value-total { font-size: 20px; }
 }

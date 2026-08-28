@@ -5,6 +5,7 @@ import { getOpenCashRegister } from '../services/cashRegisterService.js';
 import { useState, useEffect, useCallback } from 'react';
 import { Coffee, ShoppingCart, BarChart3, Sun, Moon, LogOut, Package } from 'lucide-react';
 import Swal from 'sweetalert2';
+import MobileBottomNav from '../components/common/MobileBottomNav.jsx';
 import './MainLayout.css';
 
 export default function MainLayout({ children }) {
@@ -106,6 +107,7 @@ export default function MainLayout({ children }) {
       <main className="main-content">
         {children || <Outlet />}
       </main>
+      <MobileBottomNav variant="seller" />
     </div>
   );
 }

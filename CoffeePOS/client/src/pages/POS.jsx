@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatBusinessTime } from '../utils/dateTime.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
-import { Coffee, Search, DollarSign, CreditCard, Smartphone, X, Sun, Moon, LogOut } from 'lucide-react';
+import { Coffee, Search, DollarSign, CreditCard, Smartphone, X, Sun, Moon, LogOut, ShoppingBag } from 'lucide-react';
 import { useOrder } from '../context/OrderContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { getProducts } from '../services/productService.js';
@@ -51,6 +51,7 @@ export default function POS() {
   const [tipoCambio, setTipoCambio] = useState(20.00);
   const [ivaRate, setIvaRate] = useState(0.16);
   const [imprimirEtiquetas, setImprimirEtiquetas] = useState(true);
+  const [showMobileCart, setShowMobileCart] = useState(false);
   const { toast, showToast, hideToast } = useToast();
 
   // Log inicial para depurar
@@ -694,6 +695,48 @@ export default function POS() {
           )}
         </div>
       </div>
+
+      {/* Mobile cart floating bar */}
+      <div className="pos-mobile-cart-bar">
+        <div className="pos-mobile-cart-info">
+          <span className="pos-mobile-cart-count">{items.length} {items.length === 1 ? 'producto' : 'productos'}</span>
+          <span className="pos-mobile-cart-total">{formatCurrency(total)}</span>
+        </div>
+        <button className="pos-mobile-cart-btn" onClick={() => setShowMobileCart(true)} disabled={items.length===0}>
+          <ShoppingBag size={18} />
+          Ver orden
+          {items.length>0 && <span className="pos-mobile-cart-badge">{items.reduce((a,b)=>a+b.cantidad,0)}</span>}
+        </button>
+      </div>
+
+      {/* Mobile drawer */}
+      {showMobileCart && (
+        <>
+          <div className="pos-drawer-overlay" onClick={()=>setShowMobileCart(false)} />
+          <div className="pos-drawer">
+            <div className="pos-drawer-handle" />
+            <div className="pos-drawer-header">
+              <span className="pos-drawer-title">Orden Actual · {items.length} {items.length===1?'producto':'productos'}</span>
+              <button className="pos-drawer-close" onClick={()=>setShowMobileCart(false)} aria-label="Cerrar"><X size={16} /></button>
+            </div>
+            <div className="pos-drawer-body">
+              <div className="customer-name-input">
+                <input type="text" placeholder="Nombre del cliente (para etiqueta)" className="form-input" value={customerName} onChange={(e)=>setCustomerName(e.target.value)} style={{ width:'100%', padding:'10px', fontSize:'14px' }} />
+              </div>
+              {items.length===0 ? <div className="order-empty"><p>No hay productos en la orden</p></div> : (
+                <>
+                  <div className="order-items" style={{flex:'none'}}>
+                    {items.map(item=>(
+                      <OrderItem key={item.uniqueId} item={item} onRemove={(id)=>{handleRemoveItem(id); if(items.length<=1) setShowMobileCart(false);}} onUpdateQuantity={(id,qty)=>updateQuantity(id,qty)} onEdit={handleEditItem} />
+                    ))}
+                  </div>
+                  <OrderSummary subtotal={subtotal} impuestos={impuestos} total={total} onCheckout={()=>{setShowMobileCart(false); handleCheckout();}} onCancel={()=>{handleCancelSale(); setShowMobileCart(false);}} onClear={()=>{handleClearOrder(); setShowMobileCart(false);}} disabled={processing} />
+                </>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} title="Seleccionar Método de Pago">
         <div className="payment-selection-modal">

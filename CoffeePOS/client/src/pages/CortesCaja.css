@@ -299,21 +299,30 @@
   margin-bottom: 1rem;
 }
 
+@media (max-width: 1024px) {
+  .cortes-grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+  .filters-section { padding: 16px; }
+}
+
 @media (max-width: 768px) {
   .cortes-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
   }
-
   .filter-group,
   .cortes-grid {
     grid-template-columns: 1fr;
   }
+  .cortes-title { font-size: var(--font-size-2xl); }
+  .corte-card-body { padding: 16px; }
+  .cortes-caja-container { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+}
 
-  .cortes-title {
-    font-size: var(--font-size-2xl);
-  }
+@media (max-width: 430px) {
+  .cortes-grid { gap: 12px; }
+  .corte-card-header { padding: 12px 14px; }
+  .filters-section { padding: 12px; }
 }
 
 @media print {

@@ -15,6 +15,12 @@
   transition: var(--transition-theme);
 }
 
+@media (max-width: 1024px) {
+  .admin-sidebar {
+    display: none;
+  }
+}
+
 /* Brand */
 .sidebar-brand {
   display: flex;

@@ -278,3 +278,92 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-text);
 }
+
+/* ===== Responsive ===== */
+@media (max-width: 1024px) {
+  .data-table {
+    font-size: 13px;
+  }
+  .data-table th,
+  .data-table td {
+    padding: 10px 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .product-list {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 12px;
+  }
+  .product-list::-webkit-scrollbar { height: 6px; }
+  .data-table {
+    min-width: 680px;
+  }
+  .data-table th,
+  .data-table td {
+    padding: 10px 12px;
+    white-space: nowrap;
+  }
+  .bulk-actions {
+    border-radius: 12px;
+    margin-bottom: 0;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .actions-cell .btn {
+    min-height: 36px;
+    padding: 6px 10px;
+  }
+}
+
+/* Card alternative for very small 430 where scroll is heavy - stack price etc */
+@media (max-width: 480px) {
+  .product-list {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+  .data-table {
+    min-width: 0;
+    display: block;
+  }
+  .data-table thead { display: none; }
+  .data-table tbody { display: flex; flex-direction: column; gap: 10px; }
+  .data-table tbody tr {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+  .data-table td {
+    padding: 0 !important;
+    border: none;
+    white-space: normal;
+  }
+  .data-table td::before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .product-img-cell { display: none; }
+  .actions-cell { gap: 6px; }
+  .actions-cell .btn { flex: 1; }
+}
+
+/* For very small cards keep 1 column */
+@media (max-width: 390px) {
+  .data-table tbody tr {
+    padding: 10px;
+  }
+}

@@ -23,3 +23,25 @@
   margin: 0 auto;
   width: 100%;
 }
+
+/* Tablet */
+@media (max-width: 1024px) {
+  .admin-main {
+    padding: 20px;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Mobile - sidebar hidden, bottom nav visible */
+@media (max-width: 1024px) {
+  .admin-layout {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-main {
+    padding: 12px;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+}

@@ -181,6 +181,7 @@
   padding: var(--spacing-6);
   background: var(--color-background);
   transition: var(--transition-theme);
+  padding-bottom: var(--spacing-6);
 }
 
 .main-content > * {
@@ -189,17 +190,77 @@
   width: 100%;
 }
 
-@media (max-width: 900px) {
-  .user-name,
-  .nav-label {
+/* Tablet - 1024 */
+@media (max-width: 1024px) {
+  .main-header {
+    padding: 0 var(--spacing-4);
+    height: 60px;
+  }
+  .header-content {
+    gap: var(--spacing-3);
+  }
+  .main-content {
+    padding: var(--spacing-4);
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+  .top-nav {
+    gap: 4px;
+  }
+  .top-nav-link {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+}
+
+/* Mobile - 768 bottom nav visible, top nav hidden */
+@media (max-width: 768px) {
+  .top-nav {
     display: none;
   }
-
+  .main-header {
+    padding: 0 12px;
+    height: 56px;
+  }
   .header-left {
     gap: var(--spacing-3);
   }
-
+  .header-logo {
+    font-size: 16px;
+  }
+  .user-name,
+  .user-role {
+    display: none;
+  }
+  .cash-register-status .status-text {
+    font-size: 11px;
+  }
+  .logout-button span {
+    display: none;
+  }
+  .logout-button {
+    padding: 8px 10px;
+    min-width: 40px;
+    min-height: 40px;
+    justify-content: center;
+  }
+  .theme-toggle-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
   .main-content {
-    padding: var(--spacing-4);
+    padding: 12px;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 480px) {
+  .main-header {
+    padding: 0 10px;
+  }
+  .header-user {
+    gap: 8px;
+  }
+  .cash-register-status {
+    padding: 4px 8px;
   }
 }
