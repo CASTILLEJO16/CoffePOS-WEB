@@ -73,7 +73,10 @@ const apiLimiter = rateLimit({
 app.use('/api', apiLimiter);
 
 // Servir imágenes de productos como archivos estáticos
-const uploadsPath = path.join(__dirname, '../uploads');
+// Debe coincidir con la lógica de src/config/upload.js (soporte para ELECTRON_USER_DATA)
+const uploadsPath = process.env.ELECTRON_USER_DATA
+  ? path.join(process.env.ELECTRON_USER_DATA, 'uploads')
+  : path.join(__dirname, '../../uploads');
 app.use('/uploads', express.static(uploadsPath));
 
 // Rutas API

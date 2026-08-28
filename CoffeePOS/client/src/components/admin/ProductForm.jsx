@@ -3,10 +3,10 @@ import { Camera, Upload, X, Check, Plus } from 'lucide-react';
 import Input from '../common/Input.jsx';
 import Button from '../common/Button.jsx';
 import { getCategories, createCategory } from '../../services/categoryService.js';
+import { getImageUrl } from '../../utils/constants.js';
 import './ProductForm.css';
 
 const DEFAULT_CATEGORIES = ['Cafés Calientes', 'Cafés Fríos', 'Frappés', 'Especiales', 'Tés'];
-const SERVER_URL = 'http://localhost:3000';
 
 export default function ProductForm({ product, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
@@ -38,9 +38,7 @@ export default function ProductForm({ product, onSubmit, onCancel }) {
       });
       // Mostrar imagen actual si existe
       if (product.imagen) {
-        const url = product.imagen.startsWith('/uploads/')
-          ? `${SERVER_URL}${product.imagen}`
-          : product.imagen;
+        const url = getImageUrl(product.imagen);
         setImagePreview(url);
       }
     } else {

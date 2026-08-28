@@ -2,17 +2,7 @@ import { useState } from 'react';
 import { Coffee } from 'lucide-react';
 import './ProductCard.css';
 import { formatCurrency } from '../../utils/formatCurrency.js';
-
-const SERVER_URL = 'http://localhost:3000';
-
-function getImageSrc(imagen) {
-  if (!imagen) return null;
-  if (imagen.startsWith('http')) return imagen;
-  
-  // Si la imagen no empieza con / (como los nombres antiguos 'latte.png'), agregamos /uploads/
-  const imgPath = imagen.startsWith('/') ? imagen : `/uploads/${imagen}`;
-  return `${SERVER_URL}${imgPath}`;
-}
+import { getImageUrl as getImageSrc } from '../../utils/constants.js';
 
 export default function ProductCard({ product, onClick }) {
   const [imgError, setImgError] = useState(false);

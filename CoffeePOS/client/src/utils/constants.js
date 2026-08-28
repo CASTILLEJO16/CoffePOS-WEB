@@ -10,6 +10,27 @@ export const API_BASE_URL = isElectron
   ? import.meta.env.VITE_API_URL || 'https://coffeepos-backend-1.onrender.com/api'
   : '/api';
 
+// Base URL sin /api - para imágenes y recursos estáticos
+export const SERVER_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '');
+
+// Helper centralizado para construir URLs de imágenes
+// En desarrollo (API_BASE_URL='/api') retorna path relativo -> Vite lo proxea a :3001
+// En producción retorna URL absoluta del backend
+export function getImageUrl(imagen) {
+  if (!imagen) return null;
+  if (imagen.startsWith('http')) return imagen;
+  const imgPath = imagen.startsWith('/') ? imagen : `/uploads/${imagen}`;
+  // Si SERVER_BASE_URL es relativo (/ o vacío), devolver path relativo para que use el proxy
+  if (!SERVER_BASE_URL || SERVER_BASE_URL === '/api' || SERVER_BASE_URL === '') {
+    return imgPath;
+  }
+  // Si es una ruta relativa (empieza con /) y SERVER_BASE_URL es relativo, usar path directo
+  if (SERVER_BASE_URL.startsWith('/')) {
+    return imgPath;
+  }
+  return `${SERVER_BASE_URL}${imgPath}`;
+}
+
 export const DEFAULT_CATEGORIES = [
   'Todas',
   'Cafés Calientes',

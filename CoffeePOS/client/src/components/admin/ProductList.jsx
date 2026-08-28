@@ -2,19 +2,11 @@ import { useState, useEffect } from 'react';
 import { Package, Edit, Power, PowerOff, Trash2, AlertTriangle, Coffee, Percent, CheckSquare, Square } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatCurrency.js';
 import { getAllProducts, activateProduct, deactivateProduct, deleteProduct, applyProductDiscount } from '../../services/productService.js';
+import { getImageUrl as getImageSrc } from '../../utils/constants.js';
 import Modal from '../common/Modal.jsx';
 import Button from '../common/Button.jsx';
 import Input from '../common/Input.jsx';
 import './ProductList.css';
-
-const SERVER_URL = 'http://localhost:3000';
-
-function getImageSrc(imagen) {
-  if (!imagen) return null;
-  if (imagen.startsWith('http')) return imagen;
-  const imgPath = imagen.startsWith('/') ? imagen : `/uploads/${imagen}`;
-  return `${SERVER_URL}${imgPath}`;
-}
 
 export default function ProductList({ onEdit, onRefresh }) {
   const [products, setProducts] = useState([]);
