@@ -8,10 +8,13 @@ import Category from '../models/Category.js';
 /**
  * Obtiene todas las categorías activas
  */
-export async function getAllCategories() {
+export async function getAllCategories(clientId = null) {
   try {
-    const categories = await Category.find({ activo: true })
-      .sort({ nombre: 1 });
+    const filter = { activo: true };
+    if (clientId) {
+      filter.clientId = clientId;
+    }
+    const categories = await Category.find(filter).sort({ nombre: 1 });
     return categories;
   } catch (error) {
     console.error('Error al obtener categorías:', error);
@@ -35,9 +38,9 @@ export async function getCategoryById(id) {
 /**
  * Crea una nueva categoría
  */
-export async function createCategory(nombre) {
+export async function createCategory(nombre, clientId = null) {
   try {
-    const newCategory = await Category.create({ nombre });
+    const newCategory = await Category.create({ nombre, clientId });
     return newCategory;
   } catch (error) {
     console.error('Error al crear categoría:', error);

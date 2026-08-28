@@ -26,11 +26,14 @@ import Personalization from '../models/Personalization.js';
  * @param {string} usuarioId - ID del usuario (opcional, para filtrar)
  * @returns {Array} Lista de ventas
  */
-export async function getSales(limit = 100, offset = 0, usuarioId = null) {
+export async function getSales(limit = 100, offset = 0, usuarioId = null, clientId = null) {
   try {
     const query = { cancelada: { $ne: true } };
     if (usuarioId) {
       query.usuario_id = usuarioId;
+    }
+    if (clientId) {
+      query.clientId = clientId;
     }
 
     const sales = await Sale.find(query)
@@ -104,7 +107,7 @@ export async function getSaleById(id) {
  * @param {string} usuarioId - ID del usuario
  * @returns {Object} Venta creada con detalles
  */
-export async function createSale(saleData, usuarioId = null) {
+export async function createSale(saleData, usuarioId = null, clientId = null) {
   try {
     const session = await Sale.startSession();
     session.startTransaction();
@@ -331,6 +334,7 @@ export async function createSale(saleData, usuarioId = null) {
     const nextNumeroVenta = lastSale && lastSale.numero_venta ? lastSale.numero_venta + 1 : 1;
 
     const newSale = await Sale.create([{
+      clientId,
       numero_venta: nextNumeroVenta,
       subtotal,
       impuestos,
@@ -359,6 +363,7 @@ export async function createSale(saleData, usuarioId = null) {
       const descuento = product ? (product.descuento || 0) : 0;
 
       await SaleDetail.create([{
+        clientId,
         venta_id: ventaId,
         producto_id: item.producto_id,
         cantidad: item.cantidad,
@@ -469,7 +474,7 @@ export async function cancelSale(id, usuarioId = null) {
  * @param {string|null} usuarioId - Filtrar por vendedor
  * @returns {Array} Lista de ventas del día
  */
-export async function getSalesByDate(date, usuarioId = null) {
+export async function getSalesByDate(date, usuarioId = null, clientId = null) {
   try {
     const startDate = new Date(date);
     const endDate = new Date(date);
@@ -482,6 +487,9 @@ export async function getSalesByDate(date, usuarioId = null) {
 
     if (usuarioId) {
       query.usuario_id = usuarioId;
+    }
+    if (clientId) {
+      query.clientId = clientId;
     }
 
     const sales = await Sale.find(query)
@@ -534,7 +542,7 @@ export async function getDailySummary(date) {
  * @param {string|null} usuarioId - Filtrar por vendedor
  * @returns {Array} Lista de ventas en el rango
  */
-export async function getSalesByDateRange(startDate, endDate, usuarioId = null) {
+export async function getSalesByDateRange(startDate, endDate, usuarioId = null, clientId = null) {
   try {
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -547,6 +555,9 @@ export async function getSalesByDateRange(startDate, endDate, usuarioId = null) 
 
     if (usuarioId) {
       query.usuario_id = usuarioId;
+    }
+    if (clientId) {
+      query.clientId = clientId;
     }
 
     const sales = await Sale.find(query)

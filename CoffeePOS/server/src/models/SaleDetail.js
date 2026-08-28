@@ -6,6 +6,12 @@
 import mongoose from 'mongoose';
 
 const SaleDetailSchema = new mongoose.Schema({
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: true,
+    index: true
+  },
   venta_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Sale',

@@ -18,7 +18,7 @@ import { logAction } from './logService.js';
 export async function login(username, password) {
   try {
     const normalizedUsername = String(username).toLowerCase();
-    // Buscar usuario por nombre de usuario
+    // Buscar usuario por nombre de usuario (sin clientId para login global)
     const user = await User.findOne({ 
       usuario: normalizedUsername, 
       activo: true 
@@ -40,7 +40,8 @@ export async function login(username, password) {
       {
         userId: user._id,
         username: user.usuario,
-        role: user.rol
+        role: user.rol,
+        clientId: user.clientId
       },
       config.jwtSecret,
       { expiresIn: '8h' }
@@ -96,7 +97,7 @@ export async function logout(userId) {
  * @param {string} creatorId - ID del usuario que crea
  * @returns {Object} Usuario creado
  */
-export async function createUser(userData, creatorId = null) {
+export async function createUser(userData, creatorId = null, clientId = null) {
   try {
     let { nombre, usuario, contraseña, rol = 'cajero' } = userData;
     usuario = String(usuario).toLowerCase();
@@ -106,11 +107,15 @@ export async function createUser(userData, creatorId = null) {
       throw new Error('Rol inválido');
     }
 
-    // Verificar si el usuario ya existe
-    const existingUser = await User.findOne({ usuario });
+    // Verificar si el usuario ya existe (considerando clientId)
+    const filter = { usuario };
+    if (clientId) {
+      filter.clientId = clientId;
+    }
+    const existingUser = await User.findOne(filter);
 
     if (existingUser) {
-      throw new Error('El nombre de usuario ya existe');
+      throw new Error('El nombre de usuario ya existe en esta cafetería');
     }
 
     // Hash de la contraseña
@@ -118,6 +123,7 @@ export async function createUser(userData, creatorId = null) {
 
     // Crear usuario
     const newUser = await User.create({
+      clientId,
       nombre,
       usuario,
       contraseña_hash: hashedPassword,
@@ -197,9 +203,13 @@ export async function updateUser(id, userData, updaterId = null) {
  * Obtiene todos los usuarios
  * @returns {Array} Lista de usuarios
  */
-export async function getUsers() {
+export async function getUsers(clientId = null) {
   try {
-    const users = await User.find({}).sort({ nombre: 1 });
+    const filter = {};
+    if (clientId) {
+      filter.clientId = clientId;
+    }
+    const users = await User.find(filter).sort({ nombre: 1 });
     return users.map(user => user.toJSON());
   } catch (error) {
     console.error('Error al obtener usuarios:', error);

@@ -6,14 +6,19 @@
 import mongoose from 'mongoose';
 
 const UserSchema = new mongoose.Schema({
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: true,
+    index: true
+  },
   nombre: {
     type: String,
     required: true
   },
   usuario: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
   contraseña_hash: {
     type: String,
@@ -31,6 +36,9 @@ const UserSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Índice compuesto único para usuario + clientId
+UserSchema.index({ usuario: 1, clientId: 1 }, { unique: true });
 
 // Método para verificar contraseña
 UserSchema.methods.verifyPassword = function(password) {

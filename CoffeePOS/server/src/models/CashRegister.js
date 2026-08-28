@@ -6,6 +6,12 @@
 import mongoose from 'mongoose';
 
 const CashRegisterSchema = new mongoose.Schema({
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: true,
+    index: true
+  },
   usuario_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

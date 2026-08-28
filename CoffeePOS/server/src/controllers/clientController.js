@@ -3,6 +3,7 @@ import License from '../models/License.js';
 import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
 import licenseService from '../services/licenseService.js';
+import { initializeClientData } from '../services/clientInitializationService.js';
 
 // Crear cliente
 export const createClient = async (req, res) => {
@@ -43,9 +44,11 @@ export const createClient = async (req, res) => {
       existingUser.contraseña_hash = hashedPassword;
       existingUser.rol = 'admin';
       existingUser.activo = true;
+      existingUser.clientId = client._id;
       await existingUser.save();
     } else {
       await User.create({
+        clientId: client._id,
         nombre: name || businessName || 'Administrador',
         usuario: usuarioHandle,
         contraseña_hash: hashedPassword,
@@ -53,6 +56,9 @@ export const createClient = async (req, res) => {
         activo: true
       });
     }
+
+    // Inicializar datos por defecto para el nuevo cliente
+    await initializeClientData(client._id);
 
     res.status(201).json({
       success: true,

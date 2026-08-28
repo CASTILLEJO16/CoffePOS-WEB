@@ -15,18 +15,20 @@ export async function getSales(req, res) {
   try {
     const { limit, offset, date, startDate, endDate } = req.query;
     const userId = req.user?.userId;
+    const clientId = req.user?.clientId;
 
     let sales;
 
     if (date) {
-      sales = await saleService.getSalesByDate(date, userId);
+      sales = await saleService.getSalesByDate(date, userId, clientId);
     } else if (startDate && endDate) {
-      sales = await saleService.getSalesByDateRange(startDate, endDate, userId);
+      sales = await saleService.getSalesByDateRange(startDate, endDate, userId, clientId);
     } else {
       sales = await saleService.getSales(
         parseInt(limit) || 100,
         parseInt(offset) || 0,
-        userId
+        userId,
+        clientId
       );
     }
 
@@ -106,8 +108,9 @@ export async function createSale(req, res) {
   try {
     const saleData = req.body;
     const userId = req.user?.userId;
+    const clientId = req.user?.clientId;
 
-    const sale = await saleService.createSale(saleData, userId);
+    const sale = await saleService.createSale(saleData, userId, clientId);
 
     res.status(201).json({
       success: true,

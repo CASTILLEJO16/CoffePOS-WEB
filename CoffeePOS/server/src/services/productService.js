@@ -10,9 +10,13 @@ import { logAction } from './logService.js';
  * Obtiene todos los productos activos
  * @returns {Array} Lista de productos activos
  */
-export async function getActiveProducts() {
+export async function getActiveProducts(clientId = null) {
   try {
-    const products = await Product.find({ activo: true })
+    const filter = { activo: true };
+    if (clientId) {
+      filter.clientId = clientId;
+    }
+    const products = await Product.find(filter)
       .sort({ categoria: 1, nombre: 1 });
     return products;
   } catch (error) {
@@ -25,9 +29,13 @@ export async function getActiveProducts() {
  * Obtiene todos los productos (incluyendo inactivos)
  * @returns {Array} Lista de todos los productos
  */
-export async function getAllProducts() {
+export async function getAllProducts(clientId = null) {
   try {
-    const products = await Product.find({})
+    const filter = {};
+    if (clientId) {
+      filter.clientId = clientId;
+    }
+    const products = await Product.find(filter)
       .sort({ categoria: 1, nombre: 1 });
     return products;
   } catch (error) {
@@ -162,15 +170,19 @@ export async function deleteProduct(id, usuarioId = null) {
  * @param {string} searchTerm - Término de búsqueda
  * @returns {Array} Lista de productos que coinciden
  */
-export async function searchProducts(searchTerm) {
+export async function searchProducts(searchTerm, clientId = null) {
   try {
-    const products = await Product.find({
+    const filter = {
       $or: [
         { nombre: { $regex: searchTerm, $options: 'i' } },
         { categoria: { $regex: searchTerm, $options: 'i' } }
       ],
       activo: true
-    }).sort({ categoria: 1, nombre: 1 });
+    };
+    if (clientId) {
+      filter.clientId = clientId;
+    }
+    const products = await Product.find(filter).sort({ categoria: 1, nombre: 1 });
     return products;
   } catch (error) {
     console.error('Error al buscar productos:', error);
@@ -183,12 +195,16 @@ export async function searchProducts(searchTerm) {
  * @param {string} categoria - Nombre de la categoría
  * @returns {Array} Lista de productos de la categoría
  */
-export async function getProductsByCategory(categoria) {
+export async function getProductsByCategory(categoria, clientId = null) {
   try {
-    const products = await Product.find({ 
+    const filter = { 
       categoria, 
       activo: true 
-    }).sort({ nombre: 1 });
+    };
+    if (clientId) {
+      filter.clientId = clientId;
+    }
+    const products = await Product.find(filter).sort({ nombre: 1 });
     return products;
   } catch (error) {
     console.error('Error al obtener productos por categoría:', error);
@@ -200,9 +216,13 @@ export async function getProductsByCategory(categoria) {
  * Obtiene todas las categorías únicas
  * @returns {Array} Lista de categorías
  */
-export async function getCategories() {
+export async function getCategories(clientId = null) {
   try {
-    const categories = await Product.distinct('categoria', { activo: true });
+    const filter = { activo: true };
+    if (clientId) {
+      filter.clientId = clientId;
+    }
+    const categories = await Product.distinct('categoria', filter);
     return categories.sort();
   } catch (error) {
     console.error('Error al obtener categorías:', error);

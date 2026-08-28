@@ -12,15 +12,16 @@ import { logAction } from '../services/logService.js';
 export async function getProducts(req, res) {
   try {
     const { search, categoria } = req.query;
+    const clientId = req.user?.clientId;
 
     let products;
     
     if (search) {
-      products = await productService.searchProducts(search);
+      products = await productService.searchProducts(search, clientId);
     } else if (categoria) {
-      products = await productService.getProductsByCategory(categoria);
+      products = await productService.getProductsByCategory(categoria, clientId);
     } else {
-      products = await productService.getActiveProducts();
+      products = await productService.getActiveProducts(clientId);
     }
 
     res.json({
@@ -41,7 +42,8 @@ export async function getProducts(req, res) {
  */
 export async function getAllProducts(req, res) {
   try {
-    const products = await productService.getAllProducts();
+    const clientId = req.user?.clientId;
+    const products = await productService.getAllProducts(clientId);
 
     res.json({
       success: true,
@@ -91,6 +93,10 @@ export async function createProduct(req, res) {
   try {
     const productData = req.body;
     const userId = req.user?.userId;
+    const clientId = req.user?.clientId;
+
+    // Agregar clientId al producto
+    productData.clientId = clientId;
 
     // Si se subió una imagen, usar la ruta del archivo
     if (req.file) {
@@ -225,7 +231,8 @@ export async function deleteProduct(req, res) {
  */
 export async function getCategories(req, res) {
   try {
-    const categories = await productService.getCategories();
+    const clientId = req.user?.clientId;
+    const categories = await productService.getCategories(clientId);
 
     res.json({
       success: true,

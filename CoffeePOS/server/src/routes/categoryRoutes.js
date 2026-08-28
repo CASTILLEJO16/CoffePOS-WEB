@@ -9,8 +9,8 @@ import { authenticateToken } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// Obtener todas las categorías (público)
-router.get('/', getCategories);
+// Obtener todas las categorías (requiere autenticación)
+router.get('/', authenticateToken, getCategories);
 
 // Crear categoría (requiere autenticación)
 router.post('/', authenticateToken, createCategory);

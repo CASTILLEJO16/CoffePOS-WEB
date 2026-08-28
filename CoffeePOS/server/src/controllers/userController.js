@@ -11,7 +11,8 @@ import { logAction } from '../services/logService.js';
  */
 export async function getUsers(req, res) {
   try {
-    const users = await authService.getUsers();
+    const clientId = req.user?.clientId;
+    const users = await authService.getUsers(clientId);
 
     res.json({
       success: true,
@@ -61,8 +62,9 @@ export async function createUser(req, res) {
   try {
     const userData = req.body;
     const creatorId = req.user?.userId;
+    const clientId = req.user?.clientId;
 
-    const user = await authService.createUser(userData, creatorId);
+    const user = await authService.createUser(userData, creatorId, clientId);
 
     // Registrar creación de usuario
     await logAction(creatorId, 'CREAR_USUARIO', `Usuario creado: ${userData.nombre} (${userData.usuario})`);
