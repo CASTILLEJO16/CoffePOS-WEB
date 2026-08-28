@@ -156,6 +156,17 @@ async function migrateLegacyData() {
       } catch (e) { console.warn(`[migración] ${name} skip:`, e.message); }
     }
 
+    // Eliminar índices únicos legacy que bloquean multi-tenant (clave, usuario, nombre)
+    for (const [model, idxName] of [[Config, 'clave_1'], [Category, 'nombre_1'], [User, 'usuario_1']]) {
+      try {
+        const indexes = await model.collection.getIndexes();
+        if (indexes[idxName]) {
+          await model.collection.dropIndex(idxName);
+          console.log(`[migración] Índice legacy ${idxName} eliminado`);
+        }
+      } catch (e) { /* índice no existe */ }
+    }
+
     // Config legacy sin clientId: asignar solo si no existe duplicado por clave+clientId
     const legacyConfigs = await Config.find({ $or: [{ clientId: { $exists: false } }, { clientId: null }] });
     for (const cfg of legacyConfigs) {
