@@ -309,8 +309,13 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
       await Ingredient.findOneAndUpdate({ _id: ingId, clientId }, { $inc: { stock_actual: -need.cantidad } });
     }
 
-    // Manejar pagos en dólar
-    let tipoCambio = null;
+    // Manejar pagos en dólar y guardar tipoCambio del sistema para todos los tickets
+    let systemTipoCambio = 20.00;
+    try {
+      const tcRow = await Config.findOne({ clave: 'tipo_cambio_dolar', clientId });
+      if (tcRow && tcRow.valor) systemTipoCambio = parseFloat(tcRow.valor);
+    } catch {}
+    let tipoCambio = systemTipoCambio;
     let montoDolar = null;
     let dolarRecibido = null;
     let cambioPesos = null;
@@ -320,12 +325,12 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     let tarjetaDebito = 0;
 
     if (metodo_pago === 'dolar') {
-      tipoCambio = saleData.tipo_cambio || 20.00;
+      tipoCambio = saleData.tipo_cambio ? parseFloat(saleData.tipo_cambio) : systemTipoCambio;
       montoDolar = Number((total / tipoCambio).toFixed(2));
       dolarRecibido = saleData.dolar_recibido || montoDolar;
       cambioPesos = Number(((dolarRecibido - montoDolar) * tipoCambio).toFixed(2));
     } else if (metodo_pago === 'mixto') {
-      tipoCambio = saleData.tipo_cambio || 20.00;
+      tipoCambio = saleData.tipo_cambio ? parseFloat(saleData.tipo_cambio) : systemTipoCambio;
       efectivoMxn = saleData.efectivo_mxn || 0;
       efectivoUsd = saleData.efectivo_usd || 0;
       tarjetaCredito = saleData.tarjeta_credito || 0;

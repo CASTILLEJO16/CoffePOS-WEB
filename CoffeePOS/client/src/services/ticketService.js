@@ -18,8 +18,8 @@ export function generateTicketHTML(sale, customerName = null) {
     return `$${value.toFixed(2)}`;
   };
 
-  // Config defaults (can be injected later)
-  const tipoCambio = Number(sale.tipo_cambio || 18);
+  // Usar tipo de cambio guardado en la venta, si no existe usar el del sistema (no hardcodear 18)
+  const tipoCambio = Number(sale.tipo_cambio || 20);
 
   // Redondeo a 0.05 (típico efectivo MXN). Ajusta si quieres 0.10
   const roundCash = (amount) => {
@@ -35,18 +35,23 @@ export function generateTicketHTML(sale, customerName = null) {
     const extras = getCustomizationItems(detail.personalizaciones);
     const hasDiscount = detail.descuento && detail.descuento > 0;
 
-    // línea principal del producto
+    // Calcular base sin extras (detail.precio ya incluye extras)
+    const extrasPerUnit = extras.reduce((s, e) => s + (e.price || 0), 0);
+    const basePrecioUnit = detail.precio - extrasPerUnit;
+    const baseImporte = basePrecioUnit * detail.cantidad;
+
+    // línea principal del producto (precio base sin extras)
     let rows = `
     <tr class="ticket-item">
       <td class="ticket-qty">${detail.cantidad}</td>
       <td class="ticket-name">${detail.producto_nombre || 'Producto'}${hasDiscount ? ` <span style="color: var(--color-warning); font-size: 0.8em;">(-${detail.descuento}%)</span>` : ''}</td>
-      <td class="ticket-price">${formatCurrency(detail.precio)}</td>
-      <td class="ticket-total">${formatCurrency(detail.precio * detail.cantidad)}</td>
+      <td class="ticket-price">${formatCurrency(basePrecioUnit)}</td>
+      <td class="ticket-total">${formatCurrency(baseImporte)}</td>
     </tr>`;
 
-    // línea de descuento si aplica
+    // línea de descuento si aplica (sobre base)
     if (hasDiscount) {
-      const discountAmount = detail.precio * (detail.descuento / 100) * detail.cantidad;
+      const discountAmount = basePrecioUnit * (detail.descuento / 100) * detail.cantidad;
       rows += `
       <tr class="ticket-item">
         <td></td>
@@ -56,11 +61,9 @@ export function generateTicketHTML(sale, customerName = null) {
       </tr>`;
     }
 
-    // líneas separadas de extras
-    let extrasTotal = 0;
+    // líneas separadas de extras (ya no duplica en total, solo desglose)
     if (extras.length > 0) {
       extras.forEach(extra => {
-        extrasTotal += extra.price * detail.cantidad;
         rows += `
         <tr class="ticket-item">
           <td></td>
@@ -69,15 +72,6 @@ export function generateTicketHTML(sale, customerName = null) {
           <td class="ticket-total">${formatCurrency(extra.price * detail.cantidad)}</td>
         </tr>`;
       });
-
-      // línea resumen de extras
-      rows += `
-      <tr class="ticket-item">
-        <td></td>
-        <td class="ticket-name ticket-extra">Extras</td>
-        <td></td>
-        <td class="ticket-total">${formatCurrency(extrasTotal)}</td>
-      </tr>`;
     }
 
     return rows;
