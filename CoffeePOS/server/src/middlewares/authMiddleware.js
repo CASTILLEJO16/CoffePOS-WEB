@@ -1,5 +1,6 @@
 import { verifyToken as verifyJWT } from '../services/authService.js';
 import User from '../models/User.js';
+import Client from '../models/Client.js';
 
 /**
  * Middleware de autenticación
@@ -28,7 +29,7 @@ export function authenticateToken(req, res, next) {
 
     // Verificar que el usuario siga activo
     User.findById(decoded.userId)
-      .then(user => {
+      .then(async user => {
         if (!user || !user.activo) {
           return res.status(403).json({
             success: false,
@@ -36,17 +37,40 @@ export function authenticateToken(req, res, next) {
           });
         }
 
+        // Auto-reparación: si el usuario no tiene clientId (migración legacy), asignar uno
+        let clientId = user.clientId || decoded.clientId;
+        if (!clientId) {
+          try {
+            let defaultClient = await Client.findOne().sort({ createdAt: 1 });
+            if (!defaultClient) {
+              defaultClient = await Client.create({
+                name: 'Default Client',
+                email: `default-${Date.now()}@coffeepos.local`,
+                status: 'active'
+              });
+              console.log(`[authMiddleware] Cliente por defecto creado: ${defaultClient._id}`);
+            }
+            clientId = defaultClient._id;
+            // Actualizar usuario con clientId faltante
+            await User.findByIdAndUpdate(user._id, { clientId });
+            console.log(`[authMiddleware] Usuario ${user.usuario} migrado a clientId ${clientId}`);
+          } catch (e) {
+            console.error('[authMiddleware] Error auto-asignando clientId:', e.message);
+          }
+        }
+
         req.user = {
           ...decoded,
           userId: decoded.userId,
           role: user.rol,
           rol: user.rol,
-          clientId: user.clientId
+          clientId: clientId
         };
 
         next();
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('[authMiddleware] Error verificando usuario:', err?.message);
         return res.status(500).json({
           success: false,
           error: 'Error verificando usuario'

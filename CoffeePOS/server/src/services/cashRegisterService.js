@@ -54,8 +54,12 @@ export async function getCashRegisterById(id) {
  */
 export async function openCashRegister(data) {
   try {
-    const { usuario_id, nombre_caja, fondo_inicial, observaciones } = data;
+    const { usuario_id, nombre_caja, fondo_inicial, observaciones, clientId } = data;
     const fecha_apertura = new Date();
+
+    if (!clientId) {
+      throw new Error('clientId es requerido para abrir caja. Vuelve a iniciar sesión.');
+    }
 
     const existing = await getOpenCashRegisterByUser(usuario_id);
     if (existing) {
@@ -75,6 +79,7 @@ export async function openCashRegister(data) {
     }
 
     const newCashRegister = await CashRegister.create({
+      clientId,
       usuario_id,
       nombre_caja,
       fondo_inicial,

@@ -6,6 +6,12 @@
 import mongoose from 'mongoose';
 
 const RecipePersonalizationSchema = new mongoose.Schema({
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: true,
+    index: true
+  },
   personalizacion_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Personalization',

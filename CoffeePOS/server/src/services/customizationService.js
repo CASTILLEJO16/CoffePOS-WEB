@@ -11,12 +11,11 @@ import { logAction } from './logService.js';
  * @param {string} tipo - Tipo de personalización (milk, topping, cold_foam, syrup, tea_option, sweetness)
  * @returns {Array} Lista de personalizaciones
  */
-export async function getCustomizationsByType(tipo) {
+export async function getCustomizationsByType(tipo, clientId = null) {
   try {
-    const customizations = await Personalization.find({ 
-      tipo, 
-      activo: true 
-    }).sort({ createdAt: 1 });
+    const filter = { tipo, activo: true };
+    if (clientId) filter.clientId = clientId;
+    const customizations = await Personalization.find(filter).sort({ createdAt: 1 });
     return customizations;
   } catch (error) {
     console.error('Error al obtener personalizaciones:', error);
@@ -28,9 +27,11 @@ export async function getCustomizationsByType(tipo) {
  * Obtiene todas las personalizaciones
  * @returns {Array} Lista de todas las personalizaciones
  */
-export async function getAllCustomizations() {
+export async function getAllCustomizations(clientId = null) {
   try {
-    const customizations = await Personalization.find({})
+    const filter = {};
+    if (clientId) filter.clientId = clientId;
+    const customizations = await Personalization.find(filter)
       .sort({ tipo: 1, createdAt: 1 });
     return customizations;
   } catch (error) {
@@ -60,15 +61,17 @@ export async function getCustomizationById(id) {
  * @param {string} usuarioId - ID del usuario
  * @returns {Object} Personalización creada
  */
-export async function createCustomization(customizationData, usuarioId = null) {
+export async function createCustomization(customizationData, usuarioId = null, clientId = null) {
   try {
     const { tipo, nombre, precio_adicional = 0 } = customizationData;
 
     if (!tipo || !nombre) {
       throw new Error('Tipo y nombre son requeridos');
     }
+    if (!clientId) throw new Error('clientId requerido');
 
     const newCustomization = await Personalization.create({
+      clientId,
       tipo,
       nombre,
       precio_adicional
@@ -144,11 +147,13 @@ export async function deleteCustomization(id, usuarioId = null) {
 /**
  * Inicializa las personalizaciones por defecto
  */
-export async function initializeDefaultCustomizations() {
+export async function initializeDefaultCustomizations(clientId = null) {
   try {
-    const existing = await Personalization.countDocuments();
+    const filter = {};
+    if (clientId) filter.clientId = clientId;
+    const existing = await Personalization.countDocuments(filter);
     if (existing > 0) {
-      console.log('Las personalizaciones ya están inicializadas');
+      console.log('Las personalizaciones ya están inicializadas para', clientId || 'global');
       return;
     }
 
@@ -198,7 +203,8 @@ export async function initializeDefaultCustomizations() {
       { tipo: 'sweetness', nombre: '100%', precio_adicional: 0 },
     ];
 
-    await Personalization.insertMany(defaultCustomizations);
+    const withClient = defaultCustomizations.map(c => ({ ...c, clientId }));
+    await Personalization.insertMany(withClient);
 
     console.log('Personalizaciones por defecto inicializadas');
   } catch (error) {

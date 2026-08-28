@@ -6,6 +6,12 @@
 import mongoose from 'mongoose';
 
 const RecipeSchema = new mongoose.Schema({
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: true,
+    index: true
+  },
   producto_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',

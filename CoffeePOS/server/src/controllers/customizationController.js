@@ -11,12 +11,13 @@ import * as customizationService from '../services/customizationService.js';
 export async function getCustomizations(req, res) {
   try {
     const { tipo } = req.query;
+    const clientId = req.user?.clientId;
 
     let customizations;
     if (tipo) {
-      customizations = await customizationService.getCustomizationsByType(tipo);
+      customizations = await customizationService.getCustomizationsByType(tipo, clientId);
     } else {
-      customizations = await customizationService.getAllCustomizations();
+      customizations = await customizationService.getAllCustomizations(clientId);
     }
 
     res.json({
@@ -67,8 +68,9 @@ export async function createCustomization(req, res) {
   try {
     const customizationData = req.body;
     const userId = req.user?.userId;
+    const clientId = req.user?.clientId;
 
-    const customization = await customizationService.createCustomization(customizationData, userId);
+    const customization = await customizationService.createCustomization(customizationData, userId, clientId);
 
     res.status(201).json({
       success: true,

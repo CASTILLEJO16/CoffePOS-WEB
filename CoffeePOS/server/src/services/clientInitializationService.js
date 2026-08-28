@@ -1,4 +1,5 @@
 import Category from '../models/Category.js';
+import { initializeDefaultCustomizations } from './customizationService.js';
 
 /**
  * Servicio de Inicialización de Clientes
@@ -48,6 +49,7 @@ export async function initializeDefaultCategories(clientId) {
 export async function initializeClientData(clientId) {
   try {
     const categories = await initializeDefaultCategories(clientId);
+    try { await initializeDefaultCustomizations(clientId); } catch (e) { console.warn('No se pudieron inicializar personalizaciones:', e.message); }
 
     return {
       success: true,

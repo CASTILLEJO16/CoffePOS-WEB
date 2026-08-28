@@ -6,6 +6,12 @@
 import mongoose from 'mongoose';
 
 const PersonalizationSchema = new mongoose.Schema({
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: true,
+    index: true
+  },
   tipo: {
     type: String,
     required: true

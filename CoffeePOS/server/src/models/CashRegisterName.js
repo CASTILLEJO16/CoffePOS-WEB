@@ -6,6 +6,11 @@
 import mongoose from 'mongoose';
 
 const CashRegisterNameSchema = new mongoose.Schema({
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    index: true
+  },
   nombre: {
     type: String,
     required: true

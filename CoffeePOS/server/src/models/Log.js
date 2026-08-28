@@ -6,6 +6,11 @@
 import mongoose from 'mongoose';
 
 const LogSchema = new mongoose.Schema({
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    index: true
+  },
   usuario_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

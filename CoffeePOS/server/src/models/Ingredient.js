@@ -6,6 +6,12 @@
 import mongoose from 'mongoose';
 
 const IngredientSchema = new mongoose.Schema({
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: true,
+    index: true
+  },
   nombre: {
     type: String,
     required: true

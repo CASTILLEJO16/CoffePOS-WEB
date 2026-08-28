@@ -95,6 +95,13 @@ export async function createProduct(req, res) {
     const userId = req.user?.userId;
     const clientId = req.user?.clientId;
 
+    if (!clientId) {
+      return res.status(400).json({
+        success: false,
+        error: 'clientId no encontrado. Por favor cierra sesión y vuelve a iniciar sesión.'
+      });
+    }
+
     // Agregar clientId al producto
     productData.clientId = clientId;
 

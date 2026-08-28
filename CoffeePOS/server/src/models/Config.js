@@ -6,10 +6,14 @@
 import mongoose from 'mongoose';
 
 const ConfigSchema = new mongoose.Schema({
+  clientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    index: true
+  },
   clave: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
   valor: {
     type: String,
@@ -18,5 +22,7 @@ const ConfigSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+ConfigSchema.index({ clave: 1, clientId: 1 }, { unique: true });
 
 export default mongoose.model('Config', ConfigSchema);

@@ -12,9 +12,14 @@ import User from '../models/User.js';
  * @param {string} accion - Descripción de la acción
  * @param {string} detalles - Detalles adicionales (opcional)
  */
-export async function logAction(usuarioId, accion, detalles = null) {
+export async function logAction(usuarioId, accion, detalles = null, clientId = null) {
   try {
+    // resolver clientId desde usuario si no se pasa
+    if (!clientId && usuarioId) {
+      try { const u = await User.findById(usuarioId); if (u) clientId = u.clientId; } catch {}
+    }
     await Log.create({
+      clientId,
       usuario_id: usuarioId,
       accion,
       detalles
@@ -29,9 +34,11 @@ export async function logAction(usuarioId, accion, detalles = null) {
  * @param {number} limit - Límite de registros a retornar
  * @returns {Array} Lista de logs
  */
-export async function getLogs(limit = 100) {
+export async function getLogs(limit = 100, clientId = null) {
   try {
-    const logs = await Log.find({})
+    const filter = {};
+    if (clientId) filter.clientId = clientId;
+    const logs = await Log.find(filter)
       .populate('usuario_id', 'nombre usuario')
       .sort({ createdAt: -1 })
       .limit(limit);
@@ -47,9 +54,11 @@ export async function getLogs(limit = 100) {
  * @param {string} usuarioId - ID del usuario
  * @returns {Array} Lista de logs del usuario
  */
-export async function getLogsByUser(usuarioId) {
+export async function getLogsByUser(usuarioId, clientId = null) {
   try {
-    const logs = await Log.find({ usuario_id: usuarioId })
+    const filter = { usuario_id: usuarioId };
+    if (clientId) filter.clientId = clientId;
+    const logs = await Log.find(filter)
       .sort({ createdAt: -1 });
     return logs;
   } catch (error) {
@@ -65,9 +74,10 @@ export async function getLogsByUser(usuarioId) {
  */
 export async function getLogsWithFilters(filters = {}) {
   try {
-    const { accion, usuarioId, startDate, endDate, limit = 100 } = filters;
+    const { accion, usuarioId, clientId, startDate, endDate, limit = 100 } = filters;
     
     const query = {};
+    if (clientId) query.clientId = clientId;
     
     if (accion) {
       query.accion = accion;
@@ -102,16 +112,16 @@ export async function getLogsWithFilters(filters = {}) {
  * Obtiene el resumen de actividades por tipo
  * @returns {Object} Resumen de actividades
  */
-export async function getActivitySummary() {
+export async function getActivitySummary(clientId = null) {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
+    const match = { createdAt: { $gte: today } };
+    if (clientId) match.clientId = clientId;
     const summary = await Log.aggregate([
       {
-        $match: {
-          createdAt: { $gte: today }
-        }
+        $match: match
       },
       {
         $group: {

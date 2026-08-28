@@ -67,9 +67,14 @@ export async function getProductById(id) {
  */
 export async function createProduct(productData, usuarioId = null) {
   try {
-    const { nombre, precio, categoria, imagen } = productData;
+    const { nombre, precio, categoria, imagen, clientId } = productData;
+
+    if (!clientId) {
+      throw new Error('clientId es requerido para crear producto. Vuelve a iniciar sesión.');
+    }
     
     const newProduct = await Product.create({
+      clientId,
       nombre,
       precio,
       categoria,

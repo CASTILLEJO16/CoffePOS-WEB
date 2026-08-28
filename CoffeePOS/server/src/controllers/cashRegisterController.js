@@ -10,7 +10,11 @@ import mongoose from 'mongoose';
 
 export async function getCashRegisterNames(req, res) {
   try {
-    const nombres = await CashRegisterName.find({ activo: true });
+    const clientId = req.user?.clientId;
+    const filter = { activo: true };
+    // Si tiene clientId, incluir globales + específicos; priorizar específicos
+    if (clientId) filter.$or = [{ clientId }, { clientId: null }, { clientId: { $exists: false } }];
+    const nombres = await CashRegisterName.find(filter);
     res.json({ success: true, data: nombres });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -19,10 +23,11 @@ export async function getCashRegisterNames(req, res) {
 
 export async function createCashRegisterName(req, res) {
   try {
+    const clientId = req.user?.clientId;
     const { nombre } = req.body;
     if (!nombre) throw new Error('El nombre es requerido');
     
-    await CashRegisterName.create({ nombre });
+    await CashRegisterName.create({ nombre, clientId });
     res.json({ success: true, message: 'Caja agregada correctamente' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -82,7 +87,9 @@ export async function openCashRegister(req, res) {
       });
     }
 
+    const clientId = req.user?.clientId;
     const cashRegister = await cashRegisterService.openCashRegister({
+      clientId,
       usuario_id: userId,
       nombre_caja,
       fondo_inicial: fondo_inicial || 0,

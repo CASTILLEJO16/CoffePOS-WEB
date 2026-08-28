@@ -5,7 +5,8 @@ import RecipePersonalization from '../models/RecipePersonalization.js';
 
 export async function getIngredientes(req, res) {
   try {
-    const ingredientes = await Ingredient.find({ activo: true }).sort({ nombre: 1 });
+    const clientId = req.user?.clientId;
+    const ingredientes = await Ingredient.find({ clientId, activo: true }).sort({ nombre: 1 });
     res.json({ success: true, data: ingredientes });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -14,10 +15,13 @@ export async function getIngredientes(req, res) {
 
 export async function createIngrediente(req, res) {
   try {
+    const clientId = req.user?.clientId;
+    if (!clientId) return res.status(400).json({ success: false, error: 'clientId requerido' });
     const { nombre, unidad_medida, stock_minimo, categoria_reemplazo } = req.body;
     if (!nombre || !unidad_medida) throw new Error('Nombre y unidad de medida requeridos');
     
     const newIngrediente = await Ingredient.create({
+      clientId,
       nombre,
       unidad_medida,
       stock_minimo: stock_minimo || 0,
@@ -32,6 +36,7 @@ export async function createIngrediente(req, res) {
 
 export async function updateIngrediente(req, res) {
   try {
+    const clientId = req.user?.clientId;
     const { id } = req.params;
     const { nombre, unidad_medida, stock_minimo, categoria_reemplazo } = req.body;
     
@@ -39,6 +44,10 @@ export async function updateIngrediente(req, res) {
       return res.status(400).json({ success: false, error: 'ID inválido' });
     }
     
+    // Verificar ownership
+    const existing = await Ingredient.findOne({ _id: id, clientId });
+    if (!existing) return res.status(404).json({ success: false, error: 'Ingrediente no encontrado' });
+
     const updatedIngrediente = await Ingredient.findByIdAndUpdate(
       id,
       { nombre, unidad_medida, stock_minimo, categoria_reemplazo },
@@ -57,13 +66,14 @@ export async function updateIngrediente(req, res) {
 
 export async function deleteIngrediente(req, res) {
   try {
+    const clientId = req.user?.clientId;
     const { id } = req.params;
     
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, error: 'ID inválido' });
     }
     
-    const result = await Ingredient.findByIdAndUpdate(id, { activo: false });
+    const result = await Ingredient.findOneAndUpdate({ _id: id, clientId }, { activo: false });
     
     if (!result) {
       return res.status(404).json({ success: false, error: 'Ingrediente no encontrado' });
@@ -77,6 +87,7 @@ export async function deleteIngrediente(req, res) {
 
 export async function ajustarStock(req, res) {
   try {
+    const clientId = req.user?.clientId;
     const { id } = req.params;
     const { cantidad, tipo, observaciones } = req.body;
     
@@ -84,6 +95,9 @@ export async function ajustarStock(req, res) {
       return res.status(400).json({ success: false, error: 'ID inválido' });
     }
     
+    const ing = await Ingredient.findOne({ _id: id, clientId });
+    if (!ing) return res.status(404).json({ success: false, error: 'Ingrediente no encontrado' });
+
     if (tipo === 'agregar') {
       await Ingredient.findByIdAndUpdate(id, { $inc: { stock_actual: cantidad } });
     } else {
@@ -98,15 +112,19 @@ export async function ajustarStock(req, res) {
 
 export async function getRecetaProducto(req, res) {
   try {
+    const clientId = req.user?.clientId;
     const { id } = req.params;
-    console.log('Buscando receta para producto ID:', id);
-    console.log('ID es ObjectId válido?', mongoose.Types.ObjectId.isValid(id));
     
+    // Verificar que el producto pertenezca al cliente
+    const Product = (await import('../models/Product.js')).default;
+    const prod = await Product.findOne({ _id: id, clientId });
+    if (!prod) return res.status(404).json({ success: false, error: 'Producto no encontrado' });
+
     const receta = await Recipe.aggregate([
-      { $match: { producto_id: mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id }},
+      { $match: { producto_id: mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id, clientId: new mongoose.Types.ObjectId(clientId) }},
       { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' }},
       { $unwind: '$ingrediente' },
-      { $match: { 'ingrediente.activo': true }},
+      { $match: { 'ingrediente.activo': true, 'ingrediente.clientId': new mongoose.Types.ObjectId(clientId) }},
       { $project: {
         ingrediente_id: 1,
         cantidad: 1,
@@ -125,14 +143,20 @@ export async function getRecetaProducto(req, res) {
 
 export async function saveRecetaProducto(req, res) {
   try {
+    const clientId = req.user?.clientId;
+    if (!clientId) return res.status(400).json({ success: false, error: 'clientId requerido' });
     const { id } = req.params;
     const { ingredientes } = req.body;
     
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, error: 'ID de producto inválido' });
     }
+
+    const Product = (await import('../models/Product.js')).default;
+    const prod = await Product.findOne({ _id: id, clientId });
+    if (!prod) return res.status(404).json({ success: false, error: 'Producto no encontrado' });
     
-    // Validar que cada ingrediente tenga un ID válido
+    // Validar que cada ingrediente tenga un ID válido y pertenezca al cliente
     if (ingredientes && ingredientes.length > 0) {
       for (const ing of ingredientes) {
         if (!mongoose.Types.ObjectId.isValid(ing.ingrediente_id)) {
@@ -141,14 +165,17 @@ export async function saveRecetaProducto(req, res) {
         if (!ing.cantidad || ing.cantidad <= 0) {
           return res.status(400).json({ success: false, error: 'La cantidad debe ser mayor a 0' });
         }
+        const ingDoc = await Ingredient.findOne({ _id: ing.ingrediente_id, clientId });
+        if (!ingDoc) return res.status(400).json({ success: false, error: 'Ingrediente no pertenece a este negocio' });
       }
     }
     
-    await Recipe.deleteMany({ producto_id: new mongoose.Types.ObjectId(id) });
+    await Recipe.deleteMany({ producto_id: new mongoose.Types.ObjectId(id), clientId });
     
     if (ingredientes && ingredientes.length > 0) {
       await Recipe.insertMany(
         ingredientes.map(ing => ({
+          clientId,
           producto_id: new mongoose.Types.ObjectId(id),
           ingrediente_id: new mongoose.Types.ObjectId(ing.ingrediente_id),
           cantidad: ing.cantidad
@@ -164,17 +191,21 @@ export async function saveRecetaProducto(req, res) {
 
 export async function getRecetaPersonalizacion(req, res) {
   try {
+    const clientId = req.user?.clientId;
     const { id } = req.params;
     
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, error: 'ID inválido' });
     }
+
+    const pers = await (await import('../models/Personalization.js')).default.findOne({ _id: id, clientId });
+    if (!pers) return res.status(404).json({ success: false, error: 'Personalización no encontrada' });
     
     const receta = await RecipePersonalization.aggregate([
-      { $match: { personalizacion_id: new mongoose.Types.ObjectId(id) }},
+      { $match: { personalizacion_id: new mongoose.Types.ObjectId(id), clientId: new mongoose.Types.ObjectId(clientId) }},
       { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' }},
       { $unwind: '$ingrediente' },
-      { $match: { 'ingrediente.activo': true }},
+      { $match: { 'ingrediente.activo': true, 'ingrediente.clientId': new mongoose.Types.ObjectId(clientId) }},
       { $project: {
         ingrediente_id: 1,
         cantidad: 1,
@@ -190,12 +221,17 @@ export async function getRecetaPersonalizacion(req, res) {
 
 export async function saveRecetaPersonalizacion(req, res) {
   try {
+    const clientId = req.user?.clientId;
+    if (!clientId) return res.status(400).json({ success: false, error: 'clientId requerido' });
     const { id } = req.params;
     const { ingredientes } = req.body;
     
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, error: 'ID de personalización inválido' });
     }
+
+    const pers = await (await import('../models/Personalization.js')).default.findOne({ _id: id, clientId });
+    if (!pers) return res.status(404).json({ success: false, error: 'Personalización no encontrada' });
     
     // Validar que cada ingrediente tenga un ID válido
     if (ingredientes && ingredientes.length > 0) {
@@ -206,14 +242,17 @@ export async function saveRecetaPersonalizacion(req, res) {
         if (!ing.cantidad || ing.cantidad <= 0) {
           return res.status(400).json({ success: false, error: 'La cantidad debe ser mayor a 0' });
         }
+        const ingDoc = await Ingredient.findOne({ _id: ing.ingrediente_id, clientId });
+        if (!ingDoc) return res.status(400).json({ success: false, error: 'Ingrediente no pertenece a este negocio' });
       }
     }
     
-    await RecipePersonalization.deleteMany({ personalizacion_id: new mongoose.Types.ObjectId(id) });
+    await RecipePersonalization.deleteMany({ personalizacion_id: new mongoose.Types.ObjectId(id), clientId });
     
     if (ingredientes && ingredientes.length > 0) {
       await RecipePersonalization.insertMany(
         ingredientes.map(ing => ({
+          clientId,
           personalizacion_id: new mongoose.Types.ObjectId(id),
           ingrediente_id: new mongoose.Types.ObjectId(ing.ingrediente_id),
           cantidad: ing.cantidad

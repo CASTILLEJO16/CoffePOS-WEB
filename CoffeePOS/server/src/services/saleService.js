@@ -188,11 +188,15 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
         ivaRate = parsed;
       }
     } else {
-      // fallback: configuración en BD
+      // fallback: configuración en BD POR CLIENTE
       try {
-        const ivaRow = await Config.findOne({ clave: 'iva_rate' });
+        const ivaRow = await Config.findOne({ clave: 'iva_rate', clientId });
         if (ivaRow && ivaRow.valor) {
           ivaRate = parseFloat(ivaRow.valor);
+        } else {
+          // fallback global si no hay config por cliente
+          const globalIva = await Config.findOne({ clave: 'iva_rate', clientId: { $exists: false } });
+          if (globalIva && globalIva.valor) ivaRate = parseFloat(globalIva.valor);
         }
       } catch {}
     }
@@ -200,8 +204,8 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     const impuestos = Number((subtotal * ivaRate).toFixed(2));
     const total = Number((subtotal + impuestos).toFixed(2));
 
-    // Lógica de almacén
-    const configRow = await Config.findOne({ clave: 'permitir_stock_negativo' });
+    // Lógica de almacén POR CLIENTE
+    const configRow = await Config.findOne({ clave: 'permitir_stock_negativo', clientId });
     const allowNegativeStock = configRow ? (configRow.valor === '1' || configRow.valor === 'true') : false;
     
     const ingredientNeeds = {};
@@ -209,12 +213,12 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     for (const item of items) {
       const qty = item.cantidad;
       
-      // Obtener la receta base del producto
+      // Obtener la receta base del producto (aislada por clientId)
       const baseRecipe = await Recipe.aggregate([
-        { $match: { producto_id: mongoose.Types.ObjectId.isValid(item.producto_id) ? new mongoose.Types.ObjectId(item.producto_id) : item.producto_id }},
+        { $match: { producto_id: mongoose.Types.ObjectId.isValid(item.producto_id) ? new mongoose.Types.ObjectId(item.producto_id) : item.producto_id, clientId: new mongoose.Types.ObjectId(clientId) }},
         { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' }},
         { $unwind: '$ingrediente' },
-        { $match: { 'ingrediente.activo': true }},
+        { $match: { 'ingrediente.activo': true, 'ingrediente.clientId': new mongoose.Types.ObjectId(clientId) }},
         { $project: { 
           ingrediente_id: 1, 
           cantidad: 1, 
@@ -240,14 +244,14 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
           if (!opcion?.id) continue;
           
           // Obtener la personalización para identificar su tipo
-          const customDb = await Personalization.findOne({ _id: opcion.id, activo: true });
+          const customDb = await Personalization.findOne({ _id: opcion.id, activo: true, clientId });
           if (customDb && customDb.tipo) {
             categoriesToReplace.add(customDb.tipo);
           }
 
           // Obtener la receta de la personalización (ingredientes adicionales)
           const custRecipe = await RecipePersonalization.aggregate([
-            { $match: { personalizacion_id: mongoose.Types.ObjectId.isValid(opcion.id) ? new mongoose.Types.ObjectId(opcion.id) : opcion.id }},
+            { $match: { personalizacion_id: mongoose.Types.ObjectId.isValid(opcion.id) ? new mongoose.Types.ObjectId(opcion.id) : opcion.id, clientId: new mongoose.Types.ObjectId(clientId) }},
             { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' }},
             { $unwind: '$ingrediente' },
             { $match: { 'ingrediente.activo': true }},
@@ -290,7 +294,7 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     const faltantes = [];
     for (const [ingId, need] of Object.entries(ingredientNeeds)) {
       if (need.cantidad <= 0) continue;
-      const ingRow = await Ingredient.findById(ingId);
+      const ingRow = await Ingredient.findOne({ _id: ingId, clientId });
       if (ingRow && ingRow.stock_actual < need.cantidad && !allowNegativeStock) {
         faltantes.push(`${need.nombre} (tiene ${ingRow.stock_actual}${need.unidad_medida}, necesita ${need.cantidad}${need.unidad_medida})`);
       }
@@ -302,7 +306,7 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     // Descontar stocks
     for (const [ingId, need] of Object.entries(ingredientNeeds)) {
       if (need.cantidad <= 0) continue;
-      await Ingredient.findByIdAndUpdate(ingId, { $inc: { stock_actual: -need.cantidad } });
+      await Ingredient.findOneAndUpdate({ _id: ingId, clientId }, { $inc: { stock_actual: -need.cantidad } });
     }
 
     // Manejar pagos en dólar
@@ -329,8 +333,8 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
       cambioPesos = saleData.cambio_pesos || 0;
     }
 
-    // Generar número de venta secuencial
-    const lastSale = await Sale.findOne().sort({ numero_venta: -1 });
+    // Generar número de venta secuencial POR CLIENTE
+    const lastSale = await Sale.findOne({ clientId }).sort({ numero_venta: -1 });
     const nextNumeroVenta = lastSale && lastSale.numero_venta ? lastSale.numero_venta + 1 : 1;
 
     const newSale = await Sale.create([{
@@ -451,7 +455,7 @@ export async function cancelSale(id, usuarioId = null) {
 
     // Regresar stock
     for (const [ingId, cantidad] of Object.entries(ingredientMap)) {
-      await Ingredient.findByIdAndUpdate(ingId, { $inc: { stock_actual: cantidad } });
+      await Ingredient.findOneAndUpdate({ _id: ingId, clientId }, { $inc: { stock_actual: cantidad } });
     }
 
     // Marcar como cancelada
@@ -845,14 +849,14 @@ export async function refundSale(saleId, userId, motivo = '') {
           if (!opcion?.id) continue;
           
           // Obtener la personalización para identificar su tipo
-          const customDb = await Personalization.findOne({ _id: opcion.id, activo: true });
+          const customDb = await Personalization.findOne({ _id: opcion.id, activo: true, clientId });
           if (customDb && customDb.tipo) {
             categoriesToReplace.add(customDb.tipo);
           }
 
           // Obtener la receta de la personalización (ingredientes adicionales)
           const custRecipe = await RecipePersonalization.aggregate([
-            { $match: { personalizacion_id: mongoose.Types.ObjectId.isValid(opcion.id) ? new mongoose.Types.ObjectId(opcion.id) : opcion.id }},
+            { $match: { personalizacion_id: mongoose.Types.ObjectId.isValid(opcion.id) ? new mongoose.Types.ObjectId(opcion.id) : opcion.id, clientId: new mongoose.Types.ObjectId(clientId) }},
             { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' }},
             { $unwind: '$ingrediente' },
             { $match: { 'ingrediente.activo': true }},
@@ -874,12 +878,12 @@ export async function refundSale(saleId, userId, motivo = '') {
 
       // Devolver ingredientes de la receta base filtrada
       for (const row of finalBaseRecipe) {
-        await Ingredient.findByIdAndUpdate(row.ingrediente_id, { $inc: { stock_actual: row.cantidad * qty } });
+        await Ingredient.findOneAndUpdate({ _id: row.ingrediente_id, clientId }, { $inc: { stock_actual: row.cantidad * qty } });
       }
 
       // Devolver ingredientes de las personalizaciones seleccionadas
       for (const row of customRecipesToApply) {
-        await Ingredient.findByIdAndUpdate(row.ingrediente_id, { $inc: { stock_actual: row.cantidad * qty } });
+        await Ingredient.findOneAndUpdate({ _id: row.ingrediente_id, clientId }, { $inc: { stock_actual: row.cantidad * qty } });
       }
     }
 
