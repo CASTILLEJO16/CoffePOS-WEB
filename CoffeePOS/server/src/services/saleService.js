@@ -610,7 +610,7 @@ async function attachSaleDetails(sales) {
  * @param {string|number} selectedYear - Año específico (opcional)
  * @returns {Object} KPIs de ventas
  */
-export async function getSalesKPIs(period = 'day', startDate = null, endDate = null, selectedYear = null) {
+export async function getSalesKPIs(period = 'day', startDate = null, endDate = null, selectedYear = null, clientId = null) {
   try {
     let dateFilter = {};
     const now = new Date();
@@ -658,6 +658,8 @@ export async function getSalesKPIs(period = 'day', startDate = null, endDate = n
     }
 
     const matchQuery = { fecha: dateFilter, cancelada: { $ne: true } };
+    if (clientId) matchQuery.clientId = new mongoose.Types.ObjectId(clientId);
+    if (clientId) matchQuery.clientId = new mongoose.Types.ObjectId(clientId);
 
     // Años disponibles
     const availableYears = await Sale.aggregate([
@@ -701,10 +703,12 @@ export async function getSalesKPIs(period = 'day', startDate = null, endDate = n
       { $sort: { _id: 1 } }
     ]);
 
-    // Productos más vendidos
+    // Productos más vendidos (filtrado por clientId)
+    const topProductsMatch = { 'venta.fecha': dateFilter, 'venta.cancelada': { $ne: true } };
+    if (clientId) topProductsMatch['venta.clientId'] = new mongoose.Types.ObjectId(clientId);
     const topProducts = await SaleDetail.aggregate([
       { $lookup: { from: 'sales', localField: 'venta_id', foreignField: '_id', as: 'venta' }},
-      { $match: { 'venta.fecha': dateFilter, 'venta.cancelada': { $ne: true } } },
+      { $match: topProductsMatch },
       { $group: {
         _id: '$producto_id',
         cantidad_vendida: { $sum: '$cantidad' },

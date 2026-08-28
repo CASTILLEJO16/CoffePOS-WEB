@@ -13,6 +13,9 @@ export async function getProducts(req, res) {
   try {
     const { search, categoria } = req.query;
     const clientId = req.user?.clientId;
+    if (!clientId) {
+      return res.status(401).json({ success: false, error: 'No autenticado - clientId requerido' });
+    }
 
     let products;
     
@@ -43,6 +46,9 @@ export async function getProducts(req, res) {
 export async function getAllProducts(req, res) {
   try {
     const clientId = req.user?.clientId;
+    if (!clientId) {
+      return res.status(401).json({ success: false, error: 'No autenticado - clientId requerido' });
+    }
     const products = await productService.getAllProducts(clientId);
 
     res.json({
@@ -239,6 +245,9 @@ export async function deleteProduct(req, res) {
 export async function getCategories(req, res) {
   try {
     const clientId = req.user?.clientId;
+    if (!clientId) {
+      return res.status(401).json({ success: false, error: 'No autenticado - clientId requerido' });
+    }
     const categories = await productService.getCategories(clientId);
 
     res.json({

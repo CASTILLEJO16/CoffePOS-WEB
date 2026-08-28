@@ -5,12 +5,11 @@ import { upload } from '../config/upload.js';
 
 const router = express.Router();
 
-// Rutas públicas (para el POS)
+// Todas las rutas de productos requieren autenticación para garantizar aislamiento por clientId
+router.use(authenticateToken);
+
 router.get('/', productController.getProducts);
 router.get('/categorias', productController.getCategories);
-
-// Rutas protegidas (requieren autenticación)
-router.use(authenticateToken);
 
 // Rutas de administración (requieren rol admin)
 router.get('/admin/todos', requireAdmin, productController.getAllProducts);
@@ -21,7 +20,7 @@ router.patch('/:id/desactivar', requireAdmin, productController.deactivateProduc
 router.patch('/:id/descuento', requireAdmin, productController.applyProductDiscount);
 router.delete('/:id', requireAdmin, productController.deleteProduct);
 
-// Ruta pública para obtener producto por ID (debe ir al final)
+// Ruta para obtener producto por ID (protegida, debe ir al final)
 router.get('/:id', productController.getProduct);
 
 export default router;

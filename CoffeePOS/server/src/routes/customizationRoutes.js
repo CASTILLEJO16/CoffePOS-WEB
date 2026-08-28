@@ -4,12 +4,11 @@ import { authenticateToken, requireAdmin } from '../middlewares/authMiddleware.j
 
 const router = express.Router();
 
-// Rutas públicas (para el POS)
+// Todas las rutas requieren autenticación para aislamiento por clientId
+router.use(authenticateToken);
+
 router.get('/', customizationController.getCustomizations);
 router.get('/:id', customizationController.getCustomization);
-
-// Rutas protegidas (requieren autenticación)
-router.use(authenticateToken);
 
 // Rutas de administración (requieren rol admin)
 router.post('/', requireAdmin, customizationController.createCustomization);

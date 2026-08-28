@@ -277,8 +277,12 @@ export async function getDailySummary(req, res) {
 export async function getSalesKPIs(req, res) {
   try {
     const { period, startDate, endDate, year } = req.query;
+    const clientId = req.user?.clientId;
+    if (!clientId) {
+      return res.status(401).json({ success: false, error: 'No autenticado - clientId requerido' });
+    }
 
-    const kpis = await saleService.getSalesKPIs(period, startDate, endDate, year);
+    const kpis = await saleService.getSalesKPIs(period, startDate, endDate, year, clientId);
 
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.set('Pragma', 'no-cache');
