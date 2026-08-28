@@ -7,7 +7,7 @@ const isProduction = import.meta.env.PROD;
 export const API_BASE_URL = isElectron
   ? 'http://localhost:3000/api'
   : isProduction
-  ? import.meta.env.VITE_API_URL || 'https://tu-backend.onrender.com/api'
+  ? import.meta.env.VITE_API_URL || 'https://coffeepos-backend-1.onrender.com/api'
   : '/api';
 
 export const DEFAULT_CATEGORIES = [

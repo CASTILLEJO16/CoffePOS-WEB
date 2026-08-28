@@ -4,6 +4,7 @@ import { Coffee, Key, CheckCircle, XCircle, Loader } from 'lucide-react';
 import Swal from 'sweetalert2';
 import Input from '../components/common/Input.jsx';
 import Button from '../components/common/Button.jsx';
+import { licenseService } from '../services/licenseService.js';
 import './ActivateLicense.css';
 
 export default function ActivateLicense() {
@@ -36,21 +37,15 @@ export default function ActivateLicense() {
       };
 
       // Activar dispositivo
-      const response = await fetch('http://localhost:3001/api/licencias/public/activate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          licenseKey: licenseKey.trim(),
-          deviceId: deviceId,
-          deviceInfo: deviceInfo
-        })
+      const response = await licenseService.activateDevice({
+        licenseKey: licenseKey.trim(),
+        deviceId: deviceId,
+        deviceInfo: deviceInfo
       });
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (response.ok) {
+      if (response.data.success) {
         // Guardar licencia activada
         localStorage.setItem('license_key', licenseKey.trim());
         localStorage.setItem('license_data', JSON.stringify(data.data));
@@ -75,11 +70,12 @@ export default function ActivateLicense() {
       }
     } catch (err) {
       console.error('Error activating license:', err);
-      setError('Error de conexión. Verifica tu conexión a internet.');
+      const errorMessage = err.response?.data?.message || err.message || 'Error de conexión. Verifica tu conexión a internet.';
+      setError(errorMessage);
       Swal.fire({
         icon: 'error',
-        title: 'Error de Conexión',
-        text: 'No se pudo conectar con el servidor de licencias.',
+        title: 'Error de Activación',
+        text: errorMessage,
         confirmButtonText: 'Intentar de nuevo'
       });
     } finally {
