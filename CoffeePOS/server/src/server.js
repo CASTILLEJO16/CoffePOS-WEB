@@ -74,10 +74,12 @@ app.use('/api', apiLimiter);
 
 // Servir imágenes de productos como archivos estáticos
 // Debe coincidir con la lógica de src/config/upload.js (soporte para ELECTRON_USER_DATA)
+// __dirname = server/src, por eso es ../uploads (no ../../). En upload.js es ../../ porque está en src/config/.
 const uploadsPath = process.env.ELECTRON_USER_DATA
   ? path.join(process.env.ELECTRON_USER_DATA, 'uploads')
-  : path.join(__dirname, '../../uploads');
+  : path.join(__dirname, '../uploads');
 app.use('/uploads', express.static(uploadsPath));
+console.log(`[static] Sirviendo /uploads desde: ${uploadsPath}`);
 
 // Rutas API
 app.use('/api/productos', productRoutes);
