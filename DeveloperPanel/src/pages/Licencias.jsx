@@ -42,6 +42,7 @@ const Licencias = () => {
   const [showClientModal, setShowClientModal] = useState(false);
   const [showLicenseModal, setShowLicenseModal] = useState(false);
   const [showDevicesModal, setShowDevicesModal] = useState(false);
+  const [showClientDetailsModal, setShowClientDetailsModal] = useState(false);
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -237,6 +238,11 @@ const Licencias = () => {
     } catch (error) {
       console.error('Error al obtener dispositivos:', error);
     }
+  };
+
+  const handleViewClientDetails = (client) => {
+    setSelectedClient(client);
+    setShowClientDetailsModal(true);
   };
 
   const handleBlockDevice = async (deviceId) => {
@@ -458,6 +464,13 @@ const Licencias = () => {
                       </td>
                       <td>
                         <div className="action-buttons">
+                          <button
+                            className="btn btn-sm btn-outline-info"
+                            onClick={() => handleViewClientDetails(client)}
+                          >
+                            <User size={14} />
+                            Ver Detalles
+                          </button>
                           <button
                             className="btn btn-sm btn-outline-primary"
                             onClick={() => {
@@ -863,6 +876,123 @@ const Licencias = () => {
                   <p>No hay dispositivos registrados en esta licencia.</p>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Detalles de Cafetería */}
+        {showClientDetailsModal && selectedClient && (
+          <div className="modal-overlay">
+            <div className="modal-content animate-scale-in">
+              <div className="modal-header">
+                <h2>Detalles de Cafetería</h2>
+                <button className="modal-close" onClick={() => setShowClientDetailsModal(false)}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="client-details-container">
+                <div className="client-details-header">
+                  <div className="client-avatar-large">
+                    {selectedClient.name?.charAt(0).toUpperCase() || 'C'}
+                  </div>
+                  <div className="client-header-info">
+                    <h3>{selectedClient.businessName || selectedClient.name}</h3>
+                    <span className={`status-badge ${selectedClient.status}`}>
+                      {selectedClient.status === 'active' ? 'Activo' : selectedClient.status}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="client-details-grid">
+                  <div className="detail-item">
+                    <div className="detail-icon"><User size={16} /></div>
+                    <div className="detail-content">
+                      <label>Propietario</label>
+                      <strong>{selectedClient.name || '-'}</strong>
+                    </div>
+                  </div>
+
+                  <div className="detail-item">
+                    <div className="detail-icon"><Mail size={16} /></div>
+                    <div className="detail-content">
+                      <label>Email</label>
+                      <strong>{selectedClient.email || '-'}</strong>
+                    </div>
+                  </div>
+
+                  <div className="detail-item">
+                    <div className="detail-icon"><Phone size={16} /></div>
+                    <div className="detail-content">
+                      <label>Teléfono</label>
+                      <strong>{selectedClient.phone || '-'}</strong>
+                    </div>
+                  </div>
+
+                  <div className="detail-item">
+                    <div className="detail-icon"><Building2 size={16} /></div>
+                    <div className="detail-content">
+                      <label>Nombre Cafetería</label>
+                      <strong>{selectedClient.businessName || '-'}</strong>
+                    </div>
+                  </div>
+
+                  <div className="detail-item">
+                    <div className="detail-icon"><MapPin size={16} /></div>
+                    <div className="detail-content">
+                      <label>Dirección</label>
+                      <strong>{selectedClient.address || '-'}</strong>
+                    </div>
+                  </div>
+
+                  <div className="detail-item">
+                    <div className="detail-icon"><ShieldCheck size={16} /></div>
+                    <div className="detail-content">
+                      <label>Usuario POS</label>
+                      <strong>{selectedClient.username || selectedClient.email?.split('@')[0] || '-'}</strong>
+                    </div>
+                  </div>
+
+                  <div className="detail-item full-width">
+                    <div className="detail-icon"><Calendar size={16} /></div>
+                    <div className="detail-content">
+                      <label>Fecha de Registro</label>
+                      <strong>{selectedClient.createdAt ? new Date(selectedClient.createdAt).toLocaleString() : '-'}</strong>
+                    </div>
+                  </div>
+
+                  {selectedClient.notes && (
+                    <div className="detail-item full-width">
+                      <div className="detail-icon"><AlertCircle size={16} /></div>
+                      <div className="detail-content">
+                        <label>Notas</label>
+                        <strong>{selectedClient.notes}</strong>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="modal-actions">
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => setShowClientDetailsModal(false)}
+                  >
+                    Cerrar
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setShowClientDetailsModal(false);
+                      setSelectedClient(selectedClient);
+                      setSearchTerm(selectedClient.name);
+                      setActiveTab('licencias');
+                    }}
+                  >
+                    <Key size={16} />
+                    Ver Licencias
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
