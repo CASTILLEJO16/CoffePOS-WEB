@@ -37,26 +37,14 @@ export function authenticateToken(req, res, next) {
           });
         }
 
-        // Auto-reparación: si el usuario no tiene clientId (migración legacy), asignar uno
-        let clientId = user.clientId || decoded.clientId;
+        // Verificar que el usuario tenga clientId asignado (sin auto-reparación)
+        const clientId = user.clientId || decoded.clientId;
         if (!clientId) {
-          try {
-            let defaultClient = await Client.findOne().sort({ createdAt: 1 });
-            if (!defaultClient) {
-              defaultClient = await Client.create({
-                name: 'Default Client',
-                email: `default-${Date.now()}@coffeepos.local`,
-                status: 'active'
-              });
-              console.log(`[authMiddleware] Cliente por defecto creado: ${defaultClient._id}`);
-            }
-            clientId = defaultClient._id;
-            // Actualizar usuario con clientId faltante
-            await User.findByIdAndUpdate(user._id, { clientId });
-            console.log(`[authMiddleware] Usuario ${user.usuario} migrado a clientId ${clientId}`);
-          } catch (e) {
-            console.error('[authMiddleware] Error auto-asignando clientId:', e.message);
-          }
+          console.error(`[authMiddleware] Usuario ${user.usuario} sin clientId asignado. Requiere migración manual.`);
+          return res.status(403).json({
+            success: false,
+            error: 'Usuario sin clientId asignado. Contacte al administrador.'
+          });
         }
 
         req.user = {
@@ -77,6 +65,13 @@ export function authenticateToken(req, res, next) {
         });
       });
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        error: 'Token expirado',
+        code: 'TOKEN_EXPIRED'
+      });
+    }
     return res.status(403).json({
       success: false,
       error: 'Token inválido o expirado'

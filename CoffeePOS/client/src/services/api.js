@@ -26,10 +26,33 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    if (error.response?.status === 401) {
+      const isTokenExpired = error.response?.data?.code === 'TOKEN_EXPIRED' ||
+                           error.response?.data?.error === 'Token expirado';
+
+      if (isTokenExpired) {
+        console.warn('Token expirado - cerrando sesión');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('force-logout', {
+              detail: { reason: 'TOKEN_EXPIRED' }
+            }));
+          }
+        } catch (_) {}
+      } else {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('force-logout'));
+          }
+        } catch (_) {}
+      }
+    } else if (error.response?.status === 403) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      // Use SPA navigation-safe fallback
       try {
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new Event('force-logout'));

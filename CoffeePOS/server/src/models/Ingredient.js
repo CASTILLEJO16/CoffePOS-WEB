@@ -39,4 +39,7 @@ const IngredientSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Índice compuesto para optimizar queries de stock bajo por cliente
+IngredientSchema.index({ clientId: 1, stock_actual: 1 });
+
 export default mongoose.model('Ingredient', IngredientSchema);

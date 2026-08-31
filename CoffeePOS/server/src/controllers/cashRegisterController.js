@@ -266,12 +266,14 @@ export async function getCashRegisterSummary(req, res) {
 export async function getAllCashRegisters(req, res) {
   try {
     const { startDate, endDate, estado, usuario_id } = req.query;
+    const clientId = req.user?.clientId;
 
     const cashRegisters = await cashRegisterService.getAllCashRegisters({
       startDate,
       endDate,
       estado,
-      usuario_id
+      usuario_id,
+      clientId
     });
 
     // Enriquecer los datos con nombres legibles

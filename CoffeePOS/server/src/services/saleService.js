@@ -128,14 +128,31 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     let subtotal = 0;
     const processedItems = [];
 
+    // Optimización: Obtener todos los productos en una sola query (bulk fetch)
+    const productIds = items.map(item => item.producto_id);
+    const products = await Product.find({ 
+      _id: { $in: productIds },
+      activo: true 
+    });
+    const productsMap = new Map(products.map(p => [p._id.toString(), p]));
+
+    // Optimización: Obtener todas las recetas en una sola query
+    const recipes = await Recipe.find({ 
+      producto_id: { $in: productIds },
+      clientId 
+    });
+    const recipesMap = new Map();
+    recipes.forEach(r => {
+      const key = r.producto_id.toString();
+      if (!recipesMap.has(key)) recipesMap.set(key, []);
+      recipesMap.get(key).push(r);
+    });
+
     for (const item of items) {
       if (!item.cantidad || item.cantidad <= 0) {
         throw new Error('Cantidad inválida');
       }
-      const product = await Product.findOne({ 
-        _id: item.producto_id, 
-        activo: true 
-      });
+      const product = productsMap.get(item.producto_id.toString());
 
       if (!product) {
         throw new Error(`Producto con ID ${item.producto_id} no encontrado o inactivo`);
@@ -164,11 +181,11 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
         personalizaciones
       });
 
-      // Verificar si el producto tiene receta
-      const receta = await Recipe.findOne({ producto_id: product._id });
+      // Verificar si el producto tiene receta (usando el mapa de recetas)
+      const productRecipes = recipesMap.get(item.producto_id.toString()) || [];
 
       // Solo descontar stock si NO tiene receta
-      if (!receta) {
+      if (productRecipes.length === 0) {
         try {
           if (product.stock !== undefined && product.stock !== null) {
             const newStock = product.stock - cantidad;
@@ -210,12 +227,51 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     
     const ingredientNeeds = {};
 
+    // Optimización: Obtener todas las personalizaciones en una sola query
+    const allPersonalizationIds = [];
+    items.forEach(item => {
+      if (item.personalizaciones) {
+        let opciones = [];
+        if (Array.isArray(item.personalizaciones)) {
+          opciones = item.personalizaciones;
+        } else if (typeof item.personalizaciones === 'object') {
+          opciones = Object.values(item.personalizaciones).flat();
+        }
+        opciones.forEach(op => {
+          if (op?.id) allPersonalizationIds.push(op.id);
+        });
+      }
+    });
+    
+    const personalizations = allPersonalizationIds.length > 0 
+      ? await Personalization.find({ _id: { $in: allPersonalizationIds }, activo: true, clientId })
+      : [];
+    const personalizationsMap = new Map(personalizations.map(p => [p._id.toString(), p]));
+
+    // Optimización: Obtener todas las recetas de personalizaciones en una sola aggregation
+    const customRecipes = allPersonalizationIds.length > 0
+      ? await RecipePersonalization.aggregate([
+          { $match: { personalizacion_id: { $in: allPersonalizationIds.map(id => mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id) }, clientId: new mongoose.Types.ObjectId(clientId) }},
+          { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' }},
+          { $unwind: '$ingrediente' },
+          { $match: { 'ingrediente.activo': true }},
+          { $project: { personalizacion_id: 1, ingrediente_id: 1, cantidad: 1, nombre: '$ingrediente.nombre', unidad_medida: '$ingrediente.unidad_medida' }}
+        ])
+      : [];
+    const customRecipesMap = new Map();
+    customRecipes.forEach(cr => {
+      const key = cr.personalizacion_id.toString();
+      if (!customRecipesMap.has(key)) customRecipesMap.set(key, []);
+      customRecipesMap.get(key).push(cr);
+    });
+
     for (const item of items) {
       const qty = item.cantidad;
       
-      // Obtener la receta base del producto (aislada por clientId)
+      // Obtener la receta base del producto (usando el mapa de recetas)
+      const productRecipes = recipesMap.get(item.producto_id.toString()) || [];
       const baseRecipe = await Recipe.aggregate([
-        { $match: { producto_id: mongoose.Types.ObjectId.isValid(item.producto_id) ? new mongoose.Types.ObjectId(item.producto_id) : item.producto_id, clientId: new mongoose.Types.ObjectId(clientId) }},
+        { $match: { _id: { $in: productRecipes.map(r => r._id) } }},
         { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' }},
         { $unwind: '$ingrediente' },
         { $match: { 'ingrediente.activo': true, 'ingrediente.clientId': new mongoose.Types.ObjectId(clientId) }},
@@ -243,22 +299,15 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
         for (const opcion of opcionesSeleccionadas) {
           if (!opcion?.id) continue;
           
-          // Obtener la personalización para identificar su tipo
-          const customDb = await Personalization.findOne({ _id: opcion.id, activo: true, clientId });
+          // Obtener la personalización del mapa (bulk fetch)
+          const customDb = personalizationsMap.get(opcion.id.toString());
           if (customDb && customDb.tipo) {
             categoriesToReplace.add(customDb.tipo);
           }
 
-          // Obtener la receta de la personalización (ingredientes adicionales)
-          const custRecipe = await RecipePersonalization.aggregate([
-            { $match: { personalizacion_id: mongoose.Types.ObjectId.isValid(opcion.id) ? new mongoose.Types.ObjectId(opcion.id) : opcion.id, clientId: new mongoose.Types.ObjectId(clientId) }},
-            { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' }},
-            { $unwind: '$ingrediente' },
-            { $match: { 'ingrediente.activo': true }},
-            { $project: { ingrediente_id: 1, cantidad: 1, nombre: '$ingrediente.nombre', unidad_medida: '$ingrediente.unidad_medida' }}
-          ]);
-          
-          customRecipesToApply.push(...custRecipe);
+          // Obtener la receta de la personalización del mapa (bulk fetch)
+          const custRecipes = customRecipesMap.get(opcion.id.toString()) || [];
+          customRecipesToApply.push(...custRecipes);
         }
       }
 
@@ -366,9 +415,9 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
 
     const ventaId = newSale[0]._id;
 
-    // Insertar detalles
+    // Insertar detalles (optimizado: usar productos ya obtenidos)
     for (const item of processedItems) {
-      const product = await Product.findById(item.producto_id);
+      const product = productsMap.get(item.producto_id.toString());
       const descuento = product ? (product.descuento || 0) : 0;
 
       await SaleDetail.create([{
@@ -421,12 +470,53 @@ export async function cancelSale(id, usuarioId = null) {
     // Revertir stock de ingredientes
     const ingredientMap = {};
 
+    // Optimización: Obtener todos los IDs de productos y personalizaciones
+    const productIds = sale.detalles.map(d => d.producto_id);
+    const allPersonalizationIds = [];
+    sale.detalles.forEach(item => {
+      if (item.personalizaciones) {
+        let opciones = [];
+        try {
+          opciones = Array.isArray(item.personalizaciones)
+            ? item.personalizaciones
+            : Object.values(item.personalizaciones).flat();
+        } catch {
+          opciones = [];
+        }
+        opciones.forEach(op => {
+          if (op?.id) allPersonalizationIds.push(op.id);
+        });
+      }
+    });
+
+    // Optimización: Obtener todas las recetas base en una sola query
+    const baseRecipes = await Recipe.find({ 
+      producto_id: { $in: productIds },
+      clientId 
+    });
+    const baseRecipesMap = new Map();
+    baseRecipes.forEach(r => {
+      const key = r.producto_id.toString();
+      if (!baseRecipesMap.has(key)) baseRecipesMap.set(key, []);
+      baseRecipesMap.get(key).push(r);
+    });
+
+    // Optimización: Obtener todas las recetas de personalizaciones en una sola query
+    const customRecipes = allPersonalizationIds.length > 0
+      ? await RecipePersonalization.find({ personalizacion_id: { $in: allPersonalizationIds } })
+      : [];
+    const customRecipesMap = new Map();
+    customRecipes.forEach(r => {
+      const key = r.personalizacion_id.toString();
+      if (!customRecipesMap.has(key)) customRecipesMap.set(key, []);
+      customRecipesMap.get(key).push(r);
+    });
+
     for (const item of sale.detalles) {
       const qty = item.cantidad;
 
-      const baseRecipe = await Recipe.find({ producto_id: item.producto_id });
-
-      for (const row of baseRecipe) {
+      const productBaseRecipes = baseRecipesMap.get(item.producto_id.toString()) || [];
+      for (const row of productBaseRecipes) {
         if (!ingredientMap[row.ingrediente_id]) {
           ingredientMap[row.ingrediente_id] = 0;
         }
@@ -446,9 +536,8 @@ export async function cancelSale(id, usuarioId = null) {
         for (const opcion of opciones) {
           if (!opcion?.id) continue;
 
-          const custRecipe = await RecipePersonalization.find({ personalizacion_id: opcion.id });
-
-          for (const row of custRecipe) {
+          const custRecipes = customRecipesMap.get(opcion.id.toString()) || [];
+          for (const row of custRecipes) {
             if (!ingredientMap[row.ingrediente_id]) {
               ingredientMap[row.ingrediente_id] = 0;
             }
@@ -824,27 +913,79 @@ export async function refundSale(saleId, userId, motivo = '') {
 
     // Devolver el stock de ingredientes (revertir el stock decrementado)
     const saleDetails = await SaleDetail.find({ venta_id: saleId });
+    
+    // Optimización: Obtener todos los IDs de productos y personalizaciones
+    const productIds = saleDetails.map(d => d.producto_id);
+    const allPersonalizationIds = [];
+    saleDetails.forEach(detail => {
+      if (detail.personalizaciones) {
+        let opciones = [];
+        try {
+          opciones = Array.isArray(detail.personalizaciones)
+            ? detail.personalizaciones
+            : Object.values(detail.personalizaciones).flat();
+        } catch {
+          opciones = [];
+        }
+        opciones.forEach(op => {
+          if (op?.id) allPersonalizationIds.push(op.id);
+        });
+      }
+    });
+
+    // Optimización: Obtener todas las recetas base en una sola aggregation
+    const baseRecipes = await Recipe.aggregate([
+      { $match: { producto_id: { $in: productIds.map(id => mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id) }, clientId: new mongoose.Types.ObjectId(clientId) }},
+      { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' }},
+      { $unwind: '$ingrediente' },
+      { $match: { 'ingrediente.activo': true }},
+      { $project: { 
+        producto_id: 1,
+        ingrediente_id: 1, 
+        cantidad: 1, 
+        nombre: '$ingrediente.nombre', 
+        unidad_medida: '$ingrediente.unidad_medida', 
+        categoria_reemplazo: '$ingrediente.categoria_reemplazo' 
+      }}
+    ]);
+    const baseRecipesMap = new Map();
+    baseRecipes.forEach(br => {
+      const key = br.producto_id.toString();
+      if (!baseRecipesMap.has(key)) baseRecipesMap.set(key, []);
+      baseRecipesMap.get(key).push(br);
+    });
+
+    // Optimización: Obtener todas las personalizaciones en una sola query
+    const personalizations = allPersonalizationIds.length > 0
+      ? await Personalization.find({ _id: { $in: allPersonalizationIds }, activo: true, clientId })
+      : [];
+    const personalizationsMap = new Map(personalizations.map(p => [p._id.toString(), p]));
+
+    // Optimización: Obtener todas las recetas de personalizaciones en una sola aggregation
+    const customRecipes = allPersonalizationIds.length > 0
+      ? await RecipePersonalization.aggregate([
+          { $match: { personalizacion_id: { $in: allPersonalizationIds.map(id => mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id) }, clientId: new mongoose.Types.ObjectId(clientId) }},
+          { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' }},
+          { $unwind: '$ingrediente' },
+          { $match: { 'ingrediente.activo': true }},
+          { $project: { personalizacion_id: 1, ingrediente_id: 1, cantidad: 1, nombre: '$ingrediente.nombre', unidad_medida: '$ingrediente.unidad_medida' }}
+        ])
+      : [];
+    const customRecipesMap = new Map();
+    customRecipes.forEach(cr => {
+      const key = cr.personalizacion_id.toString();
+      if (!customRecipesMap.has(key)) customRecipesMap.set(key, []);
+      customRecipesMap.get(key).push(cr);
+    });
+
     for (const detail of saleDetails) {
       const qty = detail.cantidad;
       
-      // Obtener la receta base del producto
-      const baseRecipe = await Recipe.aggregate([
-        { $match: { producto_id: mongoose.Types.ObjectId.isValid(detail.producto_id) ? new mongoose.Types.ObjectId(detail.producto_id) : detail.producto_id }},
-        { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' }},
-        { $unwind: '$ingrediente' },
-        { $match: { 'ingrediente.activo': true }},
-        { $project: { 
-          ingrediente_id: 1, 
-          cantidad: 1, 
-          nombre: '$ingrediente.nombre', 
-          unidad_medida: '$ingrediente.unidad_medida', 
-          categoria_reemplazo: '$ingrediente.categoria_reemplazo' 
-        }}
-      ]);
-
+      const productBaseRecipes = baseRecipesMap.get(detail.producto_id.toString()) || [];
+      
       // Identificar categorías de personalización seleccionadas
       const categoriesToReplace = new Set();
-      const customRecipesToApply = ([]);
+      const customRecipesToApply = [];
 
       if (detail.personalizaciones) {
         let opcionesSeleccionadas = [];
@@ -857,28 +998,21 @@ export async function refundSale(saleId, userId, motivo = '') {
         for (const opcion of opcionesSeleccionadas) {
           if (!opcion?.id) continue;
           
-          // Obtener la personalización para identificar su tipo
-          const customDb = await Personalization.findOne({ _id: opcion.id, activo: true, clientId });
+          // Obtener la personalización del mapa (bulk fetch)
+          const customDb = personalizationsMap.get(opcion.id.toString());
           if (customDb && customDb.tipo) {
             categoriesToReplace.add(customDb.tipo);
           }
 
-          // Obtener la receta de la personalización (ingredientes adicionales)
-          const custRecipe = await RecipePersonalization.aggregate([
-            { $match: { personalizacion_id: mongoose.Types.ObjectId.isValid(opcion.id) ? new mongoose.Types.ObjectId(opcion.id) : opcion.id, clientId: new mongoose.Types.ObjectId(clientId) }},
-            { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' }},
-            { $unwind: '$ingrediente' },
-            { $match: { 'ingrediente.activo': true }},
-            { $project: { ingrediente_id: 1, cantidad: 1, nombre: '$ingrediente.nombre', unidad_medida: '$ingrediente.unidad_medida' }}
-          ]);
-          
-          customRecipesToApply.push(...custRecipe);
+          // Obtener la receta de la personalización del mapa (bulk fetch)
+          const custRecipes = customRecipesMap.get(opcion.id.toString()) || [];
+          customRecipesToApply.push(...custRecipes);
         }
       }
 
       // Filtrar receta base: omitir ingredientes que tienen categoría de reemplazo
       // si el cliente seleccionó una personalización de esa categoría
-      const finalBaseRecipe = baseRecipe.filter(br => {
+      const finalBaseRecipe = productBaseRecipes.filter(br => {
         if (br.categoria_reemplazo && categoriesToReplace.has(br.categoria_reemplazo)) {
           return false; // Omitir este ingrediente de la receta base
         }

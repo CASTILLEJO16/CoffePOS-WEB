@@ -30,4 +30,7 @@ const RecipeSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Índice compuesto para optimizar queries de recetas por cliente y producto
+RecipeSchema.index({ clientId: 1, producto_id: 1 });
+
 export default mongoose.model('Recipe', RecipeSchema);

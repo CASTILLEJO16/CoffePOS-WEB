@@ -44,7 +44,7 @@ export async function login(username, password) {
         clientId: user.clientId
       },
       config.jwtSecret,
-      { expiresIn: '8h' }
+      { expiresIn: '24h' }
     );
 
     // Registrar login

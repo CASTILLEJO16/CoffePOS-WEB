@@ -115,16 +115,35 @@ class LicenseService {
   // Activar dispositivo
   async activateDevice(licenseKey, deviceId, deviceInfo) {
     try {
-      const license = await License.findOne({ licenseKey, status: 'active' });
+      const license = await License.findOne({ licenseKey });
       if (!license) {
-        throw new Error('Licencia no encontrada o inactiva');
+        throw new Error('Licencia no encontrada');
       }
 
-      // Verificar si la licencia ha expirado
-      if (new Date() > license.endDate) {
-        license.status = 'expired';
-        await license.save();
+      // Verificar estado de bloqueo primero
+      if (license.status === 'blocked') {
+        throw new Error('Licencia bloqueada por el administrador');
+      }
+
+      // Verificar expiración - comparar fecha actual con endDate
+      const currentDate = new Date();
+      const expirationDate = new Date(license.endDate);
+
+      if (currentDate > expirationDate) {
+        // Actualizar estado a expirado si no lo está
+        if (license.status !== 'expired') {
+          license.status = 'expired';
+          await license.save();
+          console.log(`Licencia ${licenseKey} marcada como expirada al intentar activar dispositivo`);
+        }
         throw new Error('Licencia expirada');
+      }
+
+      // Si estaba marcada como expirada pero la fecha aún es válida, reactivar
+      if (license.status === 'expired' && currentDate <= expirationDate) {
+        license.status = 'active';
+        await license.save();
+        console.log(`Licencia ${licenseKey} reactivada al activar dispositivo`);
       }
 
       // Buscar si el dispositivo ya existe por su ID único
@@ -267,15 +286,31 @@ class LicenseService {
         return { valid: false, reason: 'Firma inválida' };
       }
 
-      // Verificar estado
+      // Verificar estado de bloqueo primero
       if (license.status === 'blocked') {
-        return { valid: false, reason: 'Licencia bloqueada' };
+        return { valid: false, reason: 'Licencia bloqueada por el administrador' };
       }
 
-      if (license.status === 'expired' || new Date() > license.endDate) {
-        license.status = 'expired';
-        await license.save();
+      // Verificar expiración - comparar fecha actual con endDate
+      const currentDate = new Date();
+      const expirationDate = new Date(license.endDate);
+
+      // Verificar si la licencia ha expirado
+      if (currentDate > expirationDate) {
+        // Actualizar estado a expirado si no lo está
+        if (license.status !== 'expired') {
+          license.status = 'expired';
+          await license.save();
+          console.log(`Licencia ${licenseKey} marcada como expirada el ${currentDate.toISOString()}`);
+        }
         return { valid: false, reason: 'Licencia expirada' };
+      }
+
+      // Si estaba marcada como expirada pero la fecha aún es válida, reactivar
+      if (license.status === 'expired' && currentDate <= expirationDate) {
+        license.status = 'active';
+        await license.save();
+        console.log(`Licencia ${licenseKey} reactivada - estado corregido`);
       }
 
       // Verificar dispositivo

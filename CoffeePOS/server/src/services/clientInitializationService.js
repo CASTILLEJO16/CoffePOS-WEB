@@ -48,14 +48,15 @@ export async function initializeDefaultCategories(clientId) {
  */
 export async function initializeClientData(clientId) {
   try {
-    const categories = await initializeDefaultCategories(clientId);
-    try { await initializeDefaultCustomizations(clientId); } catch (e) { console.warn('No se pudieron inicializar personalizaciones:', e.message); }
+    // Las nuevas licencias deben empezar completamente vacías
+    // Los clientes crearán sus propias categorías y personalizaciones según necesiten
+    console.log('No se inicializarán datos por defecto para cliente', clientId, '- las nuevas licencias empiezan vacías');
 
     return {
       success: true,
-      message: 'Datos del cliente inicializados correctamente',
+      message: 'Cliente creado sin datos por defecto (licencia vacía)',
       data: {
-        categories: categories.length
+        categories: 0
       }
     };
   } catch (error) {

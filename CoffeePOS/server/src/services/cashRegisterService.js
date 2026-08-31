@@ -301,7 +301,7 @@ export async function getSalesSummaryByCashRegister(cajaId) {
  */
 export async function getAllCashRegisters(filters = {}) {
   try {
-    const { startDate, endDate, estado, usuario_id } = filters;
+    const { startDate, endDate, estado, usuario_id, clientId } = filters;
 
     const query = {};
     if (startDate || endDate) {
@@ -311,6 +311,7 @@ export async function getAllCashRegisters(filters = {}) {
     }
     if (estado) query.estado = estado;
     if (usuario_id) query.usuario_id = usuario_id;
+    if (clientId) query.clientId = clientId;
 
     const cashRegisters = await CashRegister.find(query)
       .populate('usuario_id', 'nombre')

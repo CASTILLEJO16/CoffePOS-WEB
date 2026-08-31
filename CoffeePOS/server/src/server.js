@@ -51,8 +51,14 @@ app.use(cors({
     if (!origin) return callback(null, true);
     // Origen permitido explícitamente
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    // Localhost en cualquier puerto (desarrollo local)
-    if (origin.includes('localhost') || origin.includes('127.0.0.1')) return callback(null, true);
+    // Localhost solo en puertos específicos (desarrollo local más seguro)
+    if (process.env.NODE_ENV !== 'production') {
+      const localhostPorts = ['3000', '5173', '5174'];
+      const portMatch = origin.match(/localhost:(\d+)/) || origin.match(/127\.0\.0\.1:(\d+)/);
+      if (portMatch && localhostPorts.includes(portMatch[1])) {
+        return callback(null, true);
+      }
+    }
     // Dominios de vercel/render propios
     if (origin.includes('.vercel.app') || origin.includes('.onrender.com')) return callback(null, true);
 
@@ -68,7 +74,11 @@ app.use(requestLogger);
 // Rate limit global para API
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000
+  max: 200,
+  message: {
+    success: false,
+    error: 'Demasiadas peticiones. Por favor espera antes de intentar nuevamente.'
+  }
 });
 app.use('/api', apiLimiter);
 

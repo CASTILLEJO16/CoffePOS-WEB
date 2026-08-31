@@ -96,4 +96,9 @@ const SaleSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Índices compuestos para optimizar queries frecuentes
+SaleSchema.index({ clientId: 1, fecha: -1 }); // Para queries por cliente y fecha (KPIs, reportes)
+SaleSchema.index({ clientId: 1, usuario_id: 1 }); // Para ventas por usuario
+SaleSchema.index({ clientId: 1, cancelada: 1 }); // Para ventas activas por cliente
+
 export default mongoose.model('Sale', SaleSchema);

@@ -149,66 +149,12 @@ export async function deleteCustomization(id, usuarioId = null) {
  */
 export async function initializeDefaultCustomizations(clientId = null) {
   try {
-    const filter = {};
-    if (clientId) filter.clientId = clientId;
-    const existing = await Personalization.countDocuments(filter);
-    if (existing > 0) {
-      console.log('Las personalizaciones ya están inicializadas para', clientId || 'global');
-      return;
-    }
-
-    const defaultCustomizations = [
-      // Tipos de leche
-      { tipo: 'milk', nombre: 'Entera', precio_adicional: 0 },
-      { tipo: 'milk', nombre: 'Deslactosada', precio_adicional: 0 },
-      { tipo: 'milk', nombre: 'Almendra', precio_adicional: 5 },
-      { tipo: 'milk', nombre: 'Avena', precio_adicional: 5 },
-      { tipo: 'milk', nombre: 'Coco', precio_adicional: 5 },
-      { tipo: 'milk', nombre: 'Soya', precio_adicional: 5 },
-      
-      // Toppings
-      { tipo: 'topping', nombre: 'Chocolate', precio_adicional: 5 },
-      { tipo: 'topping', nombre: 'Caramelo', precio_adicional: 5 },
-      { tipo: 'topping', nombre: 'Crema Batida', precio_adicional: 5 },
-      { tipo: 'topping', nombre: 'Chips de Chocolate', precio_adicional: 5 },
-      { tipo: 'topping', nombre: 'Nuez Picada', precio_adicional: 5 },
-      { tipo: 'topping', nombre: 'Canela', precio_adicional: 3 },
-      
-      // Cold Foam
-      { tipo: 'cold_foam', nombre: 'Sin', precio_adicional: 0 },
-      { tipo: 'cold_foam', nombre: 'Vainilla', precio_adicional: 10 },
-      { tipo: 'cold_foam', nombre: 'Caramelo', precio_adicional: 10 },
-      { tipo: 'cold_foam', nombre: 'Mocha', precio_adicional: 10 },
-      { tipo: 'cold_foam', nombre: 'Calabaza', precio_adicional: 10 },
-      
-      // Jarabes
-      { tipo: 'syrup', nombre: 'Sin', precio_adicional: 0 },
-      { tipo: 'syrup', nombre: 'Vainilla', precio_adicional: 5 },
-      { tipo: 'syrup', nombre: 'Caramelo', precio_adicional: 5 },
-      { tipo: 'syrup', nombre: 'Avellana', precio_adicional: 5 },
-      { tipo: 'syrup', nombre: 'Chocolate', precio_adicional: 5 },
-      { tipo: 'syrup', nombre: 'Frambuesa', precio_adicional: 5 },
-      { tipo: 'syrup', nombre: 'Menta', precio_adicional: 5 },
-      { tipo: 'syrup', nombre: 'Canela', precio_adicional: 5 },
-      
-      // Opciones de té
-      { tipo: 'tea_option', nombre: 'Caliente', precio_adicional: 0 },
-      { tipo: 'tea_option', nombre: 'Helado', precio_adicional: 0 },
-      
-      // Nivel de dulzura
-      { tipo: 'sweetness', nombre: 'Sin azúcar', precio_adicional: 0 },
-      { tipo: 'sweetness', nombre: '25%', precio_adicional: 0 },
-      { tipo: 'sweetness', nombre: '50%', precio_adicional: 0 },
-      { tipo: 'sweetness', nombre: '75%', precio_adicional: 0 },
-      { tipo: 'sweetness', nombre: '100%', precio_adicional: 0 },
-    ];
-
-    const withClient = defaultCustomizations.map(c => ({ ...c, clientId }));
-    await Personalization.insertMany(withClient);
-
-    console.log('Personalizaciones por defecto inicializadas');
+    // Las nuevas licencias deben empezar sin personalizaciones
+    // Los clientes crearán sus propias personalizaciones según necesiten
+    console.log('No se inicializarán personalizaciones por defecto para cliente', clientId, '- las nuevas licencias empiezan vacías');
+    return;
   } catch (error) {
-    console.error('Error al inicializar personalizaciones por defecto:', error);
+    console.error('Error en initializeDefaultCustomizations:', error);
     throw error;
   }
 }

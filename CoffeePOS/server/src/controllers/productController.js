@@ -70,12 +70,26 @@ export async function getAllProducts(req, res) {
 export async function getProduct(req, res) {
   try {
     const { id } = req.params;
+    const clientId = req.user?.clientId;
+    
+    if (!clientId) {
+      return res.status(401).json({ success: false, error: 'No autenticado - clientId requerido' });
+    }
+
     const product = await productService.getProductById(id);
 
     if (!product) {
       return res.status(404).json({
         success: false,
         error: 'Producto no encontrado'
+      });
+    }
+
+    // Verificar ownership del producto (IDOR protection)
+    if (product.clientId && product.clientId.toString() !== clientId.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: 'No tienes permiso para acceder a este producto'
       });
     }
 
@@ -142,6 +156,27 @@ export async function updateProduct(req, res) {
     const { id } = req.params;
     const productData = req.body;
     const userId = req.user?.userId;
+    const clientId = req.user?.clientId;
+
+    if (!clientId) {
+      return res.status(401).json({ success: false, error: 'No autenticado - clientId requerido' });
+    }
+
+    // Verificar ownership del producto antes de actualizar (IDOR protection)
+    const existingProduct = await productService.getProductById(id);
+    if (!existingProduct) {
+      return res.status(404).json({
+        success: false,
+        error: 'Producto no encontrado'
+      });
+    }
+
+    if (existingProduct.clientId && existingProduct.clientId.toString() !== clientId.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: 'No tienes permiso para modificar este producto'
+      });
+    }
 
     // Si se subió una nueva imagen, usar la ruta del archivo
     if (req.file) {
@@ -177,6 +212,27 @@ export async function deactivateProduct(req, res) {
   try {
     const { id } = req.params;
     const userId = req.user?.userId;
+    const clientId = req.user?.clientId;
+
+    if (!clientId) {
+      return res.status(401).json({ success: false, error: 'No autenticado - clientId requerido' });
+    }
+
+    // Verificar ownership del producto (IDOR protection)
+    const product = await productService.getProductById(id);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        error: 'Producto no encontrado'
+      });
+    }
+
+    if (product.clientId && product.clientId.toString() !== clientId.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: 'No tienes permiso para modificar este producto'
+      });
+    }
 
     await productService.deactivateProduct(id, userId);
 
@@ -200,6 +256,27 @@ export async function activateProduct(req, res) {
   try {
     const { id } = req.params;
     const userId = req.user?.userId;
+    const clientId = req.user?.clientId;
+
+    if (!clientId) {
+      return res.status(401).json({ success: false, error: 'No autenticado - clientId requerido' });
+    }
+
+    // Verificar ownership del producto (IDOR protection)
+    const product = await productService.getProductById(id);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        error: 'Producto no encontrado'
+      });
+    }
+
+    if (product.clientId && product.clientId.toString() !== clientId.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: 'No tienes permiso para modificar este producto'
+      });
+    }
 
     await productService.activateProduct(id, userId);
 
@@ -223,6 +300,27 @@ export async function deleteProduct(req, res) {
   try {
     const { id } = req.params;
     const userId = req.user?.userId;
+    const clientId = req.user?.clientId;
+
+    if (!clientId) {
+      return res.status(401).json({ success: false, error: 'No autenticado - clientId requerido' });
+    }
+
+    // Verificar ownership del producto (IDOR protection)
+    const product = await productService.getProductById(id);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        error: 'Producto no encontrado'
+      });
+    }
+
+    if (product.clientId && product.clientId.toString() !== clientId.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: 'No tienes permiso para eliminar este producto'
+      });
+    }
 
     await productService.deleteProduct(id, userId);
 
@@ -271,6 +369,11 @@ export async function applyProductDiscount(req, res) {
     const { id } = req.params;
     const { descuento } = req.body;
     const userId = req.user?.userId;
+    const clientId = req.user?.clientId;
+
+    if (!clientId) {
+      return res.status(401).json({ success: false, error: 'No autenticado - clientId requerido' });
+    }
 
     if (descuento === undefined || descuento === null) {
       return res.status(400).json({
@@ -283,6 +386,22 @@ export async function applyProductDiscount(req, res) {
       return res.status(400).json({
         success: false,
         error: 'El descuento debe estar entre 0 y 100'
+      });
+    }
+
+    // Verificar ownership del producto (IDOR protection)
+    const product = await productService.getProductById(id);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        error: 'Producto no encontrado'
+      });
+    }
+
+    if (product.clientId && product.clientId.toString() !== clientId.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: 'No tienes permiso para modificar este producto'
       });
     }
 
