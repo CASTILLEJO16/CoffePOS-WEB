@@ -1,30 +1,22 @@
 import multer from 'multer';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import cloudinary from './cloudinary.js';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Use Electron userData for uploads in production to avoid ASAR issues
-const userDataPath = process.env.ELECTRON_USER_DATA;
-const uploadDir = userDataPath
-  ? path.join(userDataPath, 'uploads')
-  : path.join(__dirname, '../../uploads');
-
-// Ensure directory exists
-import fs from 'fs';
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `producto-${uniqueSuffix}${ext}`);
+// Configuración de almacenamiento en Cloudinary
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'coffeepos/productos', // Carpeta en Cloudinary
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
+    transformation: [
+      { width: 800, height: 800, crop: 'limit', quality: 'auto' }, // Optimización automática
+      { fetch_format: 'auto' } // Formato automático (webp si es soportado)
+    ],
+    public_id: (req, file) => {
+      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+      return `producto-${uniqueSuffix}`;
+    }
   }
 });
 

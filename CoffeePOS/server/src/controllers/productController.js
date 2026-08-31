@@ -1,5 +1,6 @@
 import * as productService from '../services/productService.js';
 import { logAction } from '../services/logService.js';
+import cloudinary from '../config/cloudinary.js';
 
 /**
  * Controlador de Productos
@@ -125,9 +126,9 @@ export async function createProduct(req, res) {
     // Agregar clientId al producto
     productData.clientId = clientId;
 
-    // Si se subió una imagen, usar la ruta del archivo
+    // Si se subió una imagen, usar la URL de Cloudinary
     if (req.file) {
-      productData.imagen = `/uploads/${req.file.filename}`;
+      productData.imagen = req.file.path; // Cloudinary URL viene en path
     }
 
     const product = await productService.createProduct(productData, userId);
@@ -178,9 +179,18 @@ export async function updateProduct(req, res) {
       });
     }
 
-    // Si se subió una nueva imagen, usar la ruta del archivo
+    // Si se subió una nueva imagen, usar la URL de Cloudinary y eliminar la anterior
     if (req.file) {
-      productData.imagen = `/uploads/${req.file.filename}`;
+      // Eliminar imagen anterior de Cloudinary si existe
+      if (existingProduct.imagen && existingProduct.imagen.includes('cloudinary.com')) {
+        try {
+          const publicId = existingProduct.imagen.split('/').slice(-2).join('/').split('.')[0];
+          await cloudinary.uploader.destroy(publicId);
+        } catch (err) {
+          console.error('Error eliminando imagen anterior de Cloudinary:', err);
+        }
+      }
+      productData.imagen = req.file.path; // Cloudinary URL viene en path
     } else {
       // Si no se subió imagen nueva, eliminar el campo imagen de productData
       // para que el backend mantenga la imagen existente
@@ -320,6 +330,16 @@ export async function deleteProduct(req, res) {
         success: false,
         error: 'No tienes permiso para eliminar este producto'
       });
+    }
+
+    // Eliminar imagen de Cloudinary si existe
+    if (product.imagen && product.imagen.includes('cloudinary.com')) {
+      try {
+        const publicId = product.imagen.split('/').slice(-2).join('/').split('.')[0];
+        await cloudinary.uploader.destroy(publicId);
+      } catch (err) {
+        console.error('Error eliminando imagen de Cloudinary:', err);
+      }
     }
 
     await productService.deleteProduct(id, userId);
