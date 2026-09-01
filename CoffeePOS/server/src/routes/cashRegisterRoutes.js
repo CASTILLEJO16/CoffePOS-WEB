@@ -7,8 +7,9 @@ const router = express.Router();
 // Todas las rutas requieren autenticación
 router.use(authenticateToken);
 
-// Obtener nombres predefinidos de cajas (admin)
-router.get('/nombres', requireAdmin, cashRegisterController.getCashRegisterNames);
+// Obtener nombres predefinidos de cajas (disponible para vendedor y admin)
+// POST solo admin para crear nuevos nombres
+router.get('/nombres', cashRegisterController.getCashRegisterNames);
 router.post('/nombres', requireAdmin, cashRegisterController.createCashRegisterName);
 
 // Obtener caja abierta del usuario actual

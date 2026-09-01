@@ -22,6 +22,7 @@ export default function AperturaCaja() {
   const [cajas, setCajas] = useState([]);
   const [cajasEnUso, setCajasEnUso] = useState(new Set());
   const [loading, setLoading] = useState(false);
+  const [loadingCajas, setLoadingCajas] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -31,14 +32,19 @@ export default function AperturaCaja() {
 
     async function fetchCajas() {
       try {
+        setLoadingCajas(true);
         const data = await getCashRegisterNames();
         setCajas(data || []);
 
-        // Obtener cajas abiertas para bloquear en UI
+        // Obtener cajas abiertas para bloquear en UI (puede fallar para vendedor sin permisos, se ignora)
         const abiertas = await fetchOpenCajas();
         setCajasEnUso(new Set(abiertas));
       } catch (err) {
         console.error("Error al cargar cajas", err);
+        // Si es vendedor, no debe poder escribir manualmente, se quedará sin opciones
+        setCajas([]);
+      } finally {
+        setLoadingCajas(false);
       }
     }
     fetchCajas();
@@ -56,10 +62,12 @@ export default function AperturaCaja() {
 
   async function fetchOpenCajas() {
     try {
-      const res = await fetch('/api/cajas?estado=abierta');
-      const json = await res.json();
-      return (json.data || []).map(c => c.nombre_caja);
+      // Usar api con auth para respetar token; si no tiene permiso (vendedor) retorna []
+      const { getAllCashRegisters } = await import('../services/cashRegisterService.js');
+      const data = await getAllCashRegisters({ estado: 'abierta' });
+      return (data || []).map(c => c.nombre_caja);
     } catch {
+      // Vendedor sin permiso para listar todas, backend valida en apertura si caja está en uso
       return [];
     }
   }
@@ -67,13 +75,20 @@ export default function AperturaCaja() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    // Vendedor debe seleccionar caja obligatoriamente
+    if (!isAdmin && !formData.nombre_caja) {
+      setError('Debes seleccionar una caja configurada por el administrador');
+      return;
+    }
     setLoading(true);
 
     try {
       const fondoInicial = parseFloat(formData.fondo_inicial) || 0;
+      // Para admin sin selección se usa fallback, vendedor ya validado arriba
+      const nombreCajaEnvio = formData.nombre_caja || (isAdmin ? `Caja ${user?.nombre}` : '');
 
       await openCashRegister({
-        nombre_caja: formData.nombre_caja || `Caja ${user?.nombre}`,
+        nombre_caja: nombreCajaEnvio,
         fondo_inicial: fondoInicial,
         observaciones: formData.observaciones
       });
@@ -134,35 +149,73 @@ export default function AperturaCaja() {
               <Wallet size={18} />
               Nombre de la Caja
             </label>
-            {cajas.length > 0 ? (
-              <select
-                name="nombre_caja"
-                className="form-input"
-                value={formData.nombre_caja}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Seleccione una caja...</option>
-                {cajas.map(c => (
-                  <option
-                    key={c._id || c.id}
-                    value={c.nombre}
-                    disabled={cajasEnUso.has(c.nombre)}
-                  >
-                    {c.nombre} {cajasEnUso.has(c.nombre) ? '(En uso)' : ''}
-                  </option>
-                ))}
-              </select>
+            {isAdmin ? (
+              // Admin: si hay cajas configuradas muestra select, si no permite crear manual
+              cajas.length > 0 ? (
+                <select
+                  name="nombre_caja"
+                  className="form-input"
+                  value={formData.nombre_caja}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Seleccione una caja...</option>
+                  {cajas.map(c => (
+                    <option
+                      key={c._id || c.id}
+                      value={c.nombre}
+                      disabled={cajasEnUso.has(c.nombre)}
+                    >
+                      {c.nombre} {cajasEnUso.has(c.nombre) ? '(En uso)' : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  name="nombre_caja"
+                  className="form-input"
+                  placeholder="Ej: Caja Principal, Caja 1, etc."
+                  value={formData.nombre_caja}
+                  onChange={handleChange}
+                  required
+                />
+              )
             ) : (
-              <input
-                type="text"
-                name="nombre_caja"
-                className="form-input"
-                placeholder="Ej: Caja Principal, Caja 1, etc."
-                value={formData.nombre_caja}
-                onChange={handleChange}
-                required
-              />
+              // Vendedor: siempre select, nunca input manual
+              loadingCajas ? (
+                <select className="form-input" disabled>
+                  <option>Cargando cajas...</option>
+                </select>
+              ) : cajas.length > 0 ? (
+                <select
+                  name="nombre_caja"
+                  className="form-input"
+                  value={formData.nombre_caja}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Seleccione una caja...</option>
+                  {cajas.map(c => (
+                    <option
+                      key={c._id || c.id}
+                      value={c.nombre}
+                      disabled={cajasEnUso.has(c.nombre)}
+                    >
+                      {c.nombre} {cajasEnUso.has(c.nombre) ? '(En uso)' : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="form-input" style={{ background: '#fff3cd', color: '#856404', borderColor: '#ffeeba' }}>
+                  No hay cajas configuradas. Contacta al administrador.
+                </div>
+              )
+            )}
+            {!isAdmin && cajas.length === 0 && !loadingCajas && (
+              <p className="help-text" style={{ color: '#856404', marginTop: 6 }}>
+                El administrador debe crear las cajas en Configuración → Nombres de Cajas.
+              </p>
             )}
           </div>
 
@@ -211,7 +264,7 @@ export default function AperturaCaja() {
           <button
             type="submit"
             className="submit-button"
-            disabled={loading}
+            disabled={loading || (!isAdmin && cajas.length === 0)}
           >
             {loading ? 'Abriendo caja...' : 'Abrir Caja'}
           </button>

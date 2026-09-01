@@ -88,6 +88,30 @@ export async function openCashRegister(req, res) {
     }
 
     const clientId = req.user?.clientId;
+    const isAdminOpen = req.user?.role === 'admin' || req.user?.rol === 'admin';
+
+    // Vendedor solo puede abrir cajas configuradas por el admin
+    if (!isAdminOpen) {
+      if (!nombre_caja) {
+        return res.status(400).json({
+          success: false,
+          error: 'Debes seleccionar una caja configurada por el administrador'
+        });
+      }
+      // Verificar que la caja esté dentro de los nombres permitidos para este client
+      const nombreFilter = { nombre: nombre_caja, activo: true };
+      if (clientId) {
+        nombreFilter.$or = [{ clientId }, { clientId: null }, { clientId: { $exists: false } }];
+      }
+      const cajaPermitida = await CashRegisterName.findOne(nombreFilter);
+      if (!cajaPermitida) {
+        return res.status(400).json({
+          success: false,
+          error: 'Caja no válida. Selecciona una caja configurada por el administrador'
+        });
+      }
+    }
+
     const cashRegister = await cashRegisterService.openCashRegister({
       clientId,
       usuario_id: userId,
