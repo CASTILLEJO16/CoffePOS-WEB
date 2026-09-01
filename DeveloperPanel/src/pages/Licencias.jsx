@@ -208,7 +208,8 @@ const Licencias = () => {
       fetchLicenses();
     } catch (error) {
       console.error('Error al activar licencia:', error);
-      Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo activar la licencia' });
+      const msg = error.response?.data?.error || error.response?.data?.message || 'No se pudo activar la licencia. Si está expirada, usa Extender/Editar para agregar días.';
+      Swal.fire({ icon: 'error', title: 'Error', text: msg });
     }
   };
 

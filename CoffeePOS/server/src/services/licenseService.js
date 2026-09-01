@@ -153,11 +153,14 @@ class LicenseService {
       const existingDevice = await Device.findOne({ deviceId });
 
       if (existingDevice) {
-        if (existingDevice.status === 'blocked') {
-          throw new Error('Dispositivo bloqueado');
-        }
-
         const isSameLicense = existingDevice.license.toString() === license._id.toString();
+        // Si el dispositivo estaba bloqueado/liberado pero la licencia nueva está activa, permitimos reactivar
+        // (el admin ya desbloqueó la licencia, el dispositivo debe poder reasociarse)
+        if (existingDevice.status === 'blocked' || existingDevice.status === 'released') {
+          // Solo bloquear si es el mismo dispositivo bloqueado manualmente y la licencia sigue bloqueada (ya verificado arriba)
+          // En cualquier otro caso, permitimos continuar y se reactivará abajo
+          console.log(`Dispositivo ${deviceId} previamente ${existingDevice.status}, reactivando con licencia ${licenseKey}`);
+        }
 
         if (!isSameLicense) {
           // Verificar límite de dispositivos para la nueva licencia
@@ -390,13 +393,25 @@ class LicenseService {
         throw new Error('Licencia no encontrada');
       }
 
+      // Si está expirada por fecha, no reactivar sin extender (pero permitir si aún no expiró)
+      const now = new Date();
+      const end = new Date(license.endDate);
+      if (now > end) {
+        // Marcar como expirada y no permitir activar sin extensión
+        if (license.status !== 'expired') {
+          license.status = 'expired';
+          await license.save();
+        }
+        throw new Error('No se puede activar: licencia expirada por fecha. Extiende los días primero.');
+      }
+
       license.status = 'active';
       await license.save();
 
-      // Activar dispositivos que no estén liberados
+      // Reactivar todos los dispositivos no activos (bloqueados o liberados previos - liberados requieren reactivación manual, pero desbloqueamos bloqueados)
       await Device.updateMany(
         { license: licenseId, status: 'blocked' },
-        { status: 'active' }
+        { status: 'active', lastUsed: new Date() }
       );
 
       return license;
