@@ -41,6 +41,10 @@ const licenseSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  maxUsers: {
+    type: Number,
+    default: 3
+  },
   signature: {
     type: String, // firma digital
     required: true

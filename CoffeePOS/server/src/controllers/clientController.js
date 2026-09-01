@@ -159,8 +159,16 @@ export const deleteClient = async (req, res) => {
       });
     }
 
-    // Eliminar licencias asociadas
+    // Eliminar licencias y dispositivos asociados
+    const licenses = await License.find({ client: req.params.id });
+    const licenseIds = licenses.map(l => l._id);
     await License.deleteMany({ client: req.params.id });
+    if (licenseIds.length > 0) {
+      const Device = (await import('../models/Device.js')).default;
+      await Device.deleteMany({ license: { $in: licenseIds } });
+    }
+    // Eliminar usuarios asociados (opcional: mantener para auditoría pero desactivar)
+    await User.updateMany({ clientId: req.params.id }, { $set: { activo: false } });
 
     res.status(200).json({
       success: true,

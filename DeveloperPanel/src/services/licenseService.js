@@ -21,11 +21,15 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Interceptor de respuestas para desloguear si el token expira o es inválido
+// Interceptor de respuestas para desloguear solo si el token expira
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+    const data = error.response?.data;
+    const code = data?.code;
+    const isTokenExpired = code === 'TOKEN_EXPIRED' || data?.error === 'Token expirado';
+    const isLicenseError = code === 'LICENSE_EXPIRED' || code === 'LICENSE_INVALID' || code === 'LICENSE_BLOCKED';
+    if (error.response && (isTokenExpired || isLicenseError)) {
       try {
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new Event('dev-force-logout'));
@@ -56,6 +60,7 @@ export const licenseService = {
   extendLicense: (data) => api.post('/licencias/extend', data),
   blockLicense: (id) => api.put(`/licencias/${id}/block`),
   activateLicense: (id) => api.put(`/licencias/${id}/activate`),
+  updateLicense: (id, data) => api.put(`/licencias/${id}`, data),
   getLicenseDevices: (id) => api.get(`/licencias/${id}/devices`),
 
   // Dispositivos

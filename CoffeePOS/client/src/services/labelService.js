@@ -118,7 +118,7 @@ function generateLabelHTML(detail, customerName, orderId) {
       <div class="label">
         <div class="customer-name">${customerName || 'CLIENTE'}</div>
         <div class="product">
-          ${detail.producto_nombre || 'Producto'}
+          ${detail.producto_nombre || detail.producto_id?.nombre || detail.nombre || 'Producto'}
           ${detail.cantidad > 1 ? `<span class="quantity-badge">${detail.cantidad}x</span>` : ''}
         </div>
         

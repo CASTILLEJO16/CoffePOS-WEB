@@ -8,6 +8,8 @@ export function normalizePaymentMethod(method) {
   if (value === 'efectivo') return 'efectivo';
   if (value === 'tarjeta' || value === 'credito' || value === 'debito') return 'tarjeta';
   if (value === 'transferencia') return 'transferencia';
+  if (value === 'dolar' || value === 'usd') return 'dolar';
+  if (value === 'mixto') return 'mixto';
   return 'otros';
 }
 
@@ -15,7 +17,9 @@ export const PAYMENT_LABELS = {
   efectivo: 'Efectivo',
   tarjeta: 'Tarjeta',
   transferencia: 'Transferencia',
+  dolar: 'USD',
   usd: 'USD',
+  mixto: 'Mixto',
   otros: 'Otros'
 };
 
@@ -23,9 +27,10 @@ export const PAYMENT_LABELS = {
  * Formatea el método de pago incluyendo el tipo de tarjeta si existe
  */
 export function formatPaymentMethod(metodo, tipoTarjeta) {
-  let label = PAYMENT_LABELS[normalizePaymentMethod(metodo)] || metodo;
+  const normalized = normalizePaymentMethod(metodo);
+  let label = PAYMENT_LABELS[normalized] || metodo || 'Otros';
   
-  if (metodo === 'tarjeta' && tipoTarjeta) {
+  if (normalized === 'tarjeta' && tipoTarjeta) {
     const tipo = tipoTarjeta.charAt(0).toUpperCase() + tipoTarjeta.slice(1);
     label += ` (${tipo})`;
   }

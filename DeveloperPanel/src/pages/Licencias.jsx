@@ -64,7 +64,16 @@ const Licencias = () => {
     clientId: '',
     type: 'trial',
     durationDays: 30,
-    maxDevices: 1
+    maxDevices: 1,
+    maxUsers: 3
+  });
+  const [showEditLicenseModal, setShowEditLicenseModal] = useState(false);
+  const [editLicenseForm, setEditLicenseForm] = useState({
+    id: '',
+    durationDays: 30,
+    maxDevices: 1,
+    maxUsers: 3,
+    type: 'trial'
   });
 
   useEffect(() => {
@@ -141,7 +150,8 @@ const Licencias = () => {
         clientId: '',
         type: 'trial',
         durationDays: 30,
-        maxDevices: 1
+        maxDevices: 1,
+        maxUsers: 3
       });
       const generatedKey = response.data?.data?.licenseKey;
       Swal.fire({
@@ -226,6 +236,35 @@ const Licencias = () => {
     } catch (error) {
       console.error('Error al extender licencia:', error);
       Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo extender la licencia' });
+    }
+  };
+
+  const handleOpenEditLicense = (license) => {
+    setEditLicenseForm({
+      id: license._id,
+      durationDays: license.duration || 30,
+      maxDevices: license.maxDevices || 1,
+      maxUsers: license.maxUsers || 3,
+      type: license.type || 'trial'
+    });
+    setShowEditLicenseModal(true);
+  };
+
+  const handleUpdateLicense = async (e) => {
+    e.preventDefault();
+    try {
+      await licenseService.updateLicense(editLicenseForm.id, {
+        durationDays: parseInt(editLicenseForm.durationDays),
+        maxDevices: parseInt(editLicenseForm.maxDevices),
+        maxUsers: parseInt(editLicenseForm.maxUsers),
+        type: editLicenseForm.type
+      });
+      setShowEditLicenseModal(false);
+      Swal.fire({ icon: 'success', title: 'Licencia Actualizada', text: 'Días, dispositivos y usuarios actualizados.', timer: 1500, showConfirmButton: false });
+      fetchLicenses();
+    } catch (error) {
+      console.error('Error al actualizar licencia:', error);
+      Swal.fire({ icon: 'error', title: 'Error', text: error.response?.data?.error || 'No se pudo actualizar la licencia' });
     }
   };
 
@@ -509,6 +548,7 @@ const Licencias = () => {
                     <th>Tipo</th>
                     <th>Duración</th>
                     <th>Dispositivos</th>
+                    <th>Usuarios</th>
                     <th>Estado</th>
                     <th>Expiración</th>
                     <th>Acciones</th>
@@ -543,6 +583,11 @@ const Licencias = () => {
                       <td>
                         <span className="username-pill">
                           {license.devicesUsed || 0} / {license.maxDevices}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="username-pill">
+                          {license.maxUsers || 3}
                         </span>
                       </td>
                       <td>
@@ -585,6 +630,13 @@ const Licencias = () => {
                           >
                             <Calendar size={14} />
                             Extender
+                          </button>
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => handleOpenEditLicense(license)}
+                            title="Editar días / dispositivos / usuarios"
+                          >
+                            ✏️ Editar
                           </button>
                         </div>
                       </td>
@@ -790,7 +842,7 @@ const Licencias = () => {
                     />
                   </div>
 
-                  <div className="form-group full-width">
+                  <div className="form-group">
                     <label>Máximo de Dispositivos *</label>
                     <input
                       type="number"
@@ -798,6 +850,16 @@ const Licencias = () => {
                       min="1"
                       value={licenseForm.maxDevices}
                       onChange={(e) => setLicenseForm({ ...licenseForm, maxDevices: parseInt(e.target.value) })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Máximo de Usuarios *</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      value={licenseForm.maxUsers}
+                      onChange={(e) => setLicenseForm({ ...licenseForm, maxUsers: parseInt(e.target.value) })}
                     />
                   </div>
                 </div>
@@ -993,6 +1055,67 @@ const Licencias = () => {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Editar Licencia (días / dispositivos / usuarios) */}
+        {showEditLicenseModal && (
+          <div className="modal-overlay">
+            <div className="modal-content animate-scale-in">
+              <div className="modal-header">
+                <h2>Editar Licencia</h2>
+                <button className="modal-close" onClick={() => setShowEditLicenseModal(false)}>
+                  <X size={20} />
+                </button>
+              </div>
+              <form onSubmit={handleUpdateLicense}>
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Tipo</label>
+                    <select
+                      value={editLicenseForm.type}
+                      onChange={(e) => setEditLicenseForm({ ...editLicenseForm, type: e.target.value })}
+                    >
+                      <option value="trial">Prueba (Demo)</option>
+                      <option value="subscription">Suscripción</option>
+                      <option value="lifetime">Vitalicia</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Duración (días)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={editLicenseForm.durationDays}
+                      onChange={(e) => setEditLicenseForm({ ...editLicenseForm, durationDays: parseInt(e.target.value) })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Máx. Dispositivos</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={editLicenseForm.maxDevices}
+                      onChange={(e) => setEditLicenseForm({ ...editLicenseForm, maxDevices: parseInt(e.target.value) })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Máx. Usuarios</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={editLicenseForm.maxUsers}
+                      onChange={(e) => setEditLicenseForm({ ...editLicenseForm, maxUsers: parseInt(e.target.value) })}
+                    />
+                  </div>
+                </div>
+                <p style={{fontSize:'12px', color:'#64748b', marginTop:'8px'}}>Al guardar se recalculará la fecha de expiración (inicio + días) y se regenerará la firma. Si la licencia estaba expirada y ahora es válida se reactivará.</p>
+                <div className="modal-actions">
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowEditLicenseModal(false)}>Cancelar</button>
+                  <button type="submit" className="btn btn-primary">Guardar Cambios</button>
+                </div>
+              </form>
             </div>
           </div>
         )}

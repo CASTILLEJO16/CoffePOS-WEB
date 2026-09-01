@@ -6,13 +6,14 @@ import licenseService from '../services/licenseService.js';
 // Generar licencia
 export const generateLicense = async (req, res) => {
   try {
-    const { clientId, type, durationDays, maxDevices } = req.body;
+    const { clientId, type, durationDays, maxDevices, maxUsers } = req.body;
 
     const license = await licenseService.createLicense(
       clientId,
       type,
       durationDays,
-      maxDevices
+      maxDevices,
+      maxUsers
     );
 
     res.status(201).json({
@@ -221,6 +222,26 @@ export const verifyLicense = async (req, res) => {
       success: false,
       valid: false,
       message: cleanMessage || 'Error al verificar licencia',
+      error: error.message
+    });
+  }
+};
+
+// Actualizar licencia (editar días, dispositivos, usuarios)
+export const updateLicense = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    const license = await licenseService.updateLicense(id, updates);
+    res.status(200).json({
+      success: true,
+      message: 'Licencia actualizada exitosamente',
+      data: license
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar licencia',
       error: error.message
     });
   }

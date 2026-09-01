@@ -180,19 +180,21 @@ export async function refundSale(req, res) {
       });
     }
 
-    // Verificar la contraseña del admin (no del usuario actual)
+    // Verificar la contraseña del admin del mismo cliente (no global)
     const { verifyAdminPassword } = await import('../services/authService.js');
-    const passwordValid = await verifyAdminPassword(password);
+    const clientId = req.user?.clientId;
+    const passwordValid = await verifyAdminPassword(password, clientId);
 
     if (!passwordValid) {
       return res.status(401).json({
         success: false,
-        error: 'Contraseña incorrecta'
+        error: 'Contraseña incorrecta',
+        code: 'INVALID_PASSWORD'
       });
     }
 
     // Realizar la devolución
-    await saleService.refundSale(id, userId, motivo);
+    await saleService.refundSale(id, userId, motivo, clientId);
 
     res.json({
       success: true,

@@ -11,7 +11,8 @@ import {
   blockDevice,
   releaseDevice,
   verifyLicense,
-  activateDevice
+  activateDevice,
+  updateLicense
 } from '../controllers/licenseController.js';
 
 const router = express.Router();
@@ -29,6 +30,7 @@ router.get('/:id', getLicenseById);
 router.post('/extend', extendLicense);
 router.put('/:id/block', blockLicense);
 router.put('/:id/activate', activateLicense);
+router.put('/:id', updateLicense);
 router.get('/:id/devices', getLicenseDevices);
 
 // Rutas de dispositivos (administración - CON autenticación)

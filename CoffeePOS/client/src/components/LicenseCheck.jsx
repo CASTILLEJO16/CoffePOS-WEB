@@ -9,6 +9,22 @@ export default function LicenseCheck({ children }) {
 
   useEffect(() => {
     checkLicense();
+    // Re-verificar cada 2 minutos y al enfocar ventana
+    const interval = setInterval(checkLicense, 2 * 60 * 1000);
+    const onFocus = () => checkLicense();
+    window.addEventListener('focus', onFocus);
+    const onLicenseExpired = () => {
+      localStorage.removeItem('license_key');
+      localStorage.removeItem('license_data');
+      localStorage.removeItem('device_activated');
+      navigate('/activate');
+    };
+    window.addEventListener('force-logout', onLicenseExpired);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('force-logout', onLicenseExpired);
+    };
   }, []);
 
   const checkLicense = async () => {
@@ -25,8 +41,11 @@ export default function LicenseCheck({ children }) {
     }
 
     try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const base = apiUrl.replace(/\/api\/?$/, '');
+      const verifyUrl = `${apiUrl}/licencias/public/verify`;
       // Verificar licencia con el backend
-      const response = await fetch('http://localhost:3001/api/licencias/public/verify', {
+      const response = await fetch(verifyUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -51,7 +70,7 @@ export default function LicenseCheck({ children }) {
         Swal.fire({
           icon: 'error',
           title: 'Licencia Inválida',
-          text: data.message || 'Tu licencia no es válida o ha expirado. Contacta al desarrollador.',
+          text: data.message || data.reason || 'Tu licencia no es válida o ha expirado. Contacta al desarrollador.',
           confirmButtonText: 'Entendido'
         }).then(() => {
           navigate('/activate');
@@ -59,7 +78,7 @@ export default function LicenseCheck({ children }) {
       }
     } catch (err) {
       console.error('Error verificando licencia:', err);
-      // En caso de error de conexión, permitir acceso temporalmente
+      // En caso de error de conexión, permitir acceso temporalmente pero reintentar
       setHasLicense(true);
       setLoading(false);
     }

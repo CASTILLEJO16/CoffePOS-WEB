@@ -1,6 +1,7 @@
 import { verifyToken as verifyJWT } from '../services/authService.js';
 import User from '../models/User.js';
 import Client from '../models/Client.js';
+import licenseService from '../services/licenseService.js';
 
 /**
  * Middleware de autenticación
@@ -45,6 +46,49 @@ export function authenticateToken(req, res, next) {
             success: false,
             error: 'Usuario sin clientId asignado. Contacte al administrador.'
           });
+        }
+
+        // Verificar que el cliente aún existe (si fue eliminado, expulsar)
+        const clientExists = await Client.findById(clientId);
+        if (!clientExists) {
+          return res.status(403).json({
+            success: false,
+            error: 'Cafetería eliminada. Licencia no válida.',
+            code: 'LICENSE_INVALID'
+          });
+        }
+
+        // Verificar estado del cliente bloqueado
+        if (clientExists.status === 'blocked') {
+          return res.status(403).json({
+            success: false,
+            error: 'Cafetería bloqueada por el administrador.',
+            code: 'LICENSE_BLOCKED'
+          });
+        }
+
+        // Verificar licencia vigente para el cliente (excepto rutas de gestión de licencias/clientes y auth)
+        const skipLicenseCheck = req.originalUrl && (req.originalUrl.includes('/api/licencias') || req.originalUrl.includes('/api/clientes') || req.originalUrl.includes('/api/auth'));
+        if (!skipLicenseCheck) {
+          try {
+            const licResult = await licenseService.verifyClientLicense(clientId);
+            if (!licResult.valid) {
+              return res.status(403).json({
+                success: false,
+                error: licResult.reason || 'Licencia no válida o expirada',
+                code: 'LICENSE_EXPIRED'
+              });
+            }
+            req.license = licResult.license;
+          } catch (licErr) {
+            console.warn('[authMiddleware] Error verificando licencia:', licErr.message);
+          }
+        } else {
+          // Aun asi cargar licencia para uso posterior pero sin bloquear
+          try {
+            const licResult = await licenseService.verifyClientLicense(clientId);
+            if (licResult.valid) req.license = licResult.license;
+          } catch {}
         }
 
         req.user = {

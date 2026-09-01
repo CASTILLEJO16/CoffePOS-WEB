@@ -118,6 +118,33 @@ export async function createUser(userData, creatorId = null, clientId = null) {
       throw new Error('El nombre de usuario ya existe en esta cafetería');
     }
 
+    // Verificar límite de usuarios permitidos por licencia
+    if (clientId) {
+      try {
+        const License = (await import('../models/License.js')).default;
+        const licenses = await License.find({ client: clientId });
+        let maxUsers = 3;
+        let hasValidLicense = false;
+        const now = new Date();
+        for (const lic of licenses) {
+          if (lic.status !== 'blocked' && new Date(lic.endDate) > now) {
+            hasValidLicense = true;
+            if (lic.maxUsers) maxUsers = Math.max(maxUsers, lic.maxUsers);
+          }
+        }
+        // Si hay licencia válida, aplicar límite
+        if (hasValidLicense) {
+          const currentCount = await User.countDocuments({ clientId });
+          if (currentCount >= maxUsers) {
+            throw new Error(`Límite de usuarios alcanzado (${maxUsers} permitidos). Actualiza la licencia para agregar más cuentas.`);
+          }
+        }
+      } catch (e) {
+        if (e.message.includes('Límite de usuarios')) throw e;
+        console.warn('[createUser] No se pudo verificar límite de usuarios:', e.message);
+      }
+    }
+
     // Hash de la contraseña
     const hashedPassword = await bcrypt.hash(contraseña, 10);
 
@@ -260,22 +287,56 @@ export async function verifyUserPassword(userId, password) {
 /**
  * Verifica la contraseña del usuario admin
  * @param {string} password - Contraseña a verificar
+ * @param {string} clientId - ID del cliente para buscar admin de esa cafetería
  * @returns {boolean} Si la contraseña es correcta
  */
-export async function verifyAdminPassword(password) {
+export async function verifyAdminPassword(password, clientId = null) {
   try {
-    // Buscar usuario admin
-    const adminUser = await User.findOne({ 
-      usuario: 'admin', 
-      rol: 'admin',
-      activo: true 
-    });
+    // Buscar usuario admin del mismo cliente, si no existe fallback global
+    let adminUser = null;
+    if (clientId) {
+      adminUser = await User.findOne({ 
+        clientId,
+        rol: 'admin',
+        activo: true 
+      });
+      // Si no hay admin para ese cliente, probar con usuario 'admin' específico del cliente
+      if (!adminUser) {
+        adminUser = await User.findOne({ 
+          usuario: 'admin', 
+          clientId,
+          rol: 'admin',
+          activo: true 
+        });
+      }
+      // Si aún no, comparar contra cualquier admin del cliente con verificación de contraseña
+      if (!adminUser) {
+        const admins = await User.find({ clientId, rol: 'admin', activo: true });
+        for (const u of admins) {
+          if (await bcrypt.compare(password, u.contraseña_hash)) return true;
+        }
+        return false;
+      }
+    } else {
+      adminUser = await User.findOne({ 
+        usuario: 'admin', 
+        rol: 'admin',
+        activo: true 
+      });
+    }
 
     if (!adminUser) {
       return false;
     }
 
     const isValidPassword = await bcrypt.compare(password, adminUser.contraseña_hash);
+    // Si falla y es búsqueda global, intentar con cualquier admin del sistema
+    if (!isValidPassword && !clientId) {
+      const admins = await User.find({ rol: 'admin', activo: true });
+      for (const u of admins) {
+        if (await bcrypt.compare(password, u.contraseña_hash)) return true;
+      }
+    }
     return isValidPassword;
   } catch (error) {
     console.error('Error al verificar contraseña de admin:', error);

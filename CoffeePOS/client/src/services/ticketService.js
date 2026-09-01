@@ -34,6 +34,7 @@ export function generateTicketHTML(sale, customerName = null) {
   const itemsHTML = sale.detalles.map(detail => {
     const extras = getCustomizationItems(detail.personalizaciones);
     const hasDiscount = detail.descuento && detail.descuento > 0;
+    const nombreProducto = detail.producto_nombre || detail.producto_id?.nombre || detail.nombre || 'Producto';
 
     // Calcular base sin extras (detail.precio ya incluye extras)
     const extrasPerUnit = extras.reduce((s, e) => s + (e.price || 0), 0);
@@ -44,7 +45,7 @@ export function generateTicketHTML(sale, customerName = null) {
     let rows = `
     <tr class="ticket-item">
       <td class="ticket-qty">${detail.cantidad}</td>
-      <td class="ticket-name">${detail.producto_nombre || 'Producto'}${hasDiscount ? ` <span style="color: var(--color-warning); font-size: 0.8em;">(-${detail.descuento}%)</span>` : ''}</td>
+      <td class="ticket-name">${nombreProducto}${hasDiscount ? ` <span style="color: var(--color-warning); font-size: 0.8em;">(-${detail.descuento}%)</span>` : ''}</td>
       <td class="ticket-price">${formatCurrency(basePrecioUnit)}</td>
       <td class="ticket-total">${formatCurrency(baseImporte)}</td>
     </tr>`;

@@ -35,7 +35,7 @@ class LicenseService {
   }
 
   // Crear nueva licencia
-  async createLicense(clientId, type, durationDays, maxDevices = 1) {
+  async createLicense(clientId, type, durationDays, maxDevices = 1, maxUsers = 3) {
     try {
       const client = await Client.findById(clientId);
       if (!client) {
@@ -55,7 +55,8 @@ class LicenseService {
         duration: durationDays,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
-        maxDevices
+        maxDevices,
+        maxUsers
       };
 
       const signature = this.generateSignature(licenseData);
@@ -68,6 +69,7 @@ class LicenseService {
         startDate,
         endDate,
         maxDevices,
+        maxUsers,
         signature
       });
 
@@ -100,7 +102,8 @@ class LicenseService {
         duration: license.duration + additionalDays,
         startDate: license.startDate.toISOString(),
         endDate: newEndDate.toISOString(),
-        maxDevices: license.maxDevices
+        maxDevices: license.maxDevices,
+        maxUsers: license.maxUsers || 3
       };
 
       license.signature = this.generateSignature(licenseData);
@@ -271,8 +274,19 @@ class LicenseService {
         return { valid: false, reason: 'Licencia no encontrada' };
       }
 
-      // Verificar firma
+      // Verificar firma - compatible con licencias legacy sin maxUsers
       const licenseData = {
+        licenseKey: license.licenseKey,
+        clientId: license.client._id.toString(),
+        type: license.type,
+        duration: license.duration,
+        startDate: license.startDate.toISOString(),
+        endDate: license.endDate.toISOString(),
+        maxDevices: license.maxDevices,
+        maxUsers: license.maxUsers || 3
+      };
+      // Fallback para firma legacy sin maxUsers
+      const legacyData = {
         licenseKey: license.licenseKey,
         clientId: license.client._id.toString(),
         type: license.type,
@@ -282,7 +296,7 @@ class LicenseService {
         maxDevices: license.maxDevices
       };
 
-      if (!this.verifySignature(licenseData, license.signature)) {
+      if (!this.verifySignature(licenseData, license.signature) && !this.verifySignature(legacyData, license.signature)) {
         return { valid: false, reason: 'Firma inválida' };
       }
 
@@ -388,6 +402,140 @@ class LicenseService {
       return license;
     } catch (error) {
       throw new Error(`Error al activar licencia: ${error.message}`);
+    }
+  }
+
+  // Actualizar licencia (editar días, dispositivos, usuarios)
+  async updateLicense(licenseId, updates) {
+    try {
+      const license = await License.findById(licenseId);
+      if (!license) {
+        throw new Error('Licencia no encontrada');
+      }
+
+      let needsSignature = false;
+
+      if (updates.maxDevices !== undefined) {
+        const val = parseInt(updates.maxDevices);
+        if (isNaN(val) || val < 1) throw new Error('maxDevices debe ser >=1');
+        license.maxDevices = val;
+        needsSignature = true;
+      }
+      if (updates.maxUsers !== undefined) {
+        const val = parseInt(updates.maxUsers);
+        if (isNaN(val) || val < 1) throw new Error('maxUsers debe ser >=1');
+        license.maxUsers = val;
+        needsSignature = true;
+      }
+      if (updates.type !== undefined) {
+        if (!['trial','subscription','lifetime'].includes(updates.type)) throw new Error('Tipo inválido');
+        license.type = updates.type;
+        needsSignature = true;
+      }
+      if (updates.durationDays !== undefined) {
+        const val = parseInt(updates.durationDays);
+        if (isNaN(val) || val < 1) throw new Error('durationDays debe ser >=1');
+        // recalcular endDate basado en startDate o endDate actual
+        const base = new Date(license.startDate);
+        const newEnd = new Date(base);
+        newEnd.setDate(newEnd.getDate() + val);
+        license.duration = val;
+        license.endDate = newEnd;
+        needsSignature = true;
+      }
+      if (updates.endDate !== undefined) {
+        const newEnd = new Date(updates.endDate);
+        if (isNaN(newEnd.getTime())) throw new Error('endDate inválida');
+        license.endDate = newEnd;
+        // recalcular duration
+        const diff = Math.ceil((newEnd - new Date(license.startDate)) / (1000*60*60*24));
+        license.duration = diff > 0 ? diff : license.duration;
+        needsSignature = true;
+      }
+      if (updates.status !== undefined) {
+        license.status = updates.status;
+      }
+
+      // Si se extendió o cambió fecha, reactivar si estaba expirada y ahora es válida
+      const now = new Date();
+      if (license.endDate > now && license.status === 'expired') {
+        license.status = 'active';
+      }
+
+      if (needsSignature) {
+        const licenseData = {
+          licenseKey: license.licenseKey,
+          clientId: license.client.toString(),
+          type: license.type,
+          duration: license.duration,
+          startDate: license.startDate.toISOString(),
+          endDate: license.endDate.toISOString(),
+          maxDevices: license.maxDevices,
+          maxUsers: license.maxUsers || 3
+        };
+        license.signature = this.generateSignature(licenseData);
+      }
+
+      await license.save();
+      return license;
+    } catch (error) {
+      throw new Error(`Error al actualizar licencia: ${error.message}`);
+    }
+  }
+
+  // Verificar licencia por clientId (para middleware de auth)
+  async verifyClientLicense(clientId) {
+    try {
+      const licenses = await License.find({ client: clientId }).sort({ endDate: -1 });
+      if (!licenses || licenses.length === 0) {
+        return { valid: false, reason: 'Sin licencia asignada. Contacta al administrador.' };
+      }
+      // Buscar licencia activa no expirada, o la más reciente
+      const now = new Date();
+      for (const lic of licenses) {
+        const end = new Date(lic.endDate);
+        if (lic.status === 'blocked') {
+          return { valid: false, reason: 'Licencia bloqueada por el administrador' };
+        }
+        if (now > end) {
+          if (lic.status !== 'expired') {
+            lic.status = 'expired';
+            await lic.save();
+          }
+          continue; // probar siguiente licencia
+        }
+        if (lic.status === 'expired' && now <= end) {
+          lic.status = 'active';
+          await lic.save();
+        }
+        // verificar firma
+        const licenseData = {
+          licenseKey: lic.licenseKey,
+          clientId: lic.client.toString(),
+          type: lic.type,
+          duration: lic.duration,
+          startDate: lic.startDate.toISOString(),
+          endDate: lic.endDate.toISOString(),
+          maxDevices: lic.maxDevices,
+          maxUsers: lic.maxUsers || 3
+        };
+        const legacyData = {
+          licenseKey: lic.licenseKey,
+          clientId: lic.client.toString(),
+          type: lic.type,
+          duration: lic.duration,
+          startDate: lic.startDate.toISOString(),
+          endDate: lic.endDate.toISOString(),
+          maxDevices: lic.maxDevices
+        };
+        if (!this.verifySignature(licenseData, lic.signature) && !this.verifySignature(legacyData, lic.signature)) {
+          continue;
+        }
+        return { valid: true, license: lic };
+      }
+      return { valid: false, reason: 'Licencia expirada' };
+    } catch (error) {
+      throw new Error(`Error al verificar licencia del cliente: ${error.message}`);
     }
   }
 }

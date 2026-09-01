@@ -79,7 +79,8 @@ export function generateTicket(sale) {
 
   for (const detail of sale.detalles) {
     const cantidad = detail.cantidad.toString().padEnd(4);
-    const nombre = (detail.producto_nombre || 'Producto').substring(0, 20).padEnd(20);
+    const nombreProducto = detail.producto_nombre || detail.producto_id?.nombre || 'Producto';
+    const nombre = nombreProducto.substring(0, 20).padEnd(20);
     const precio = formatCurrency(detail.precio).padStart(8);
     const importe = formatCurrency(detail.importe).padStart(8);
     lines.push(`${cantidad}${nombre}${precio}${importe}`);

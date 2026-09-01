@@ -85,11 +85,15 @@ export async function getSaleById(id) {
     const details = await SaleDetail.find({ venta_id: id })
       .populate('producto_id', 'nombre');
 
-    // Parsear personalizaciones de JSON
-    const detailsWithParsedCustomizations = details.map(detail => ({
-      ...detail.toObject(),
-      personalizaciones: detail.personalizaciones ? JSON.parse(detail.personalizaciones) : null
-    }));
+    // Parsear personalizaciones de JSON y exponer producto_nombre
+    const detailsWithParsedCustomizations = details.map(detail => {
+      const obj = detail.toObject();
+      return {
+        ...obj,
+        producto_nombre: obj.producto_id?.nombre || obj.producto_nombre || 'Producto',
+        personalizaciones: detail.personalizaciones ? JSON.parse(detail.personalizaciones) : null
+      };
+    });
 
     return {
       ...sale.toObject(),
@@ -682,8 +686,10 @@ async function attachSaleDetails(sales) {
   const bySale = {};
   for (const detail of details) {
     if (!bySale[detail.venta_id]) bySale[detail.venta_id] = [];
+    const obj = detail.toObject();
     bySale[detail.venta_id].push({
-      ...detail.toObject(),
+      ...obj,
+      producto_nombre: obj.producto_id?.nombre || 'Producto',
       personalizaciones: detail.personalizaciones
         ? JSON.parse(detail.personalizaciones)
         : null
@@ -753,7 +759,6 @@ export async function getSalesKPIs(period = 'day', startDate = null, endDate = n
 
     const matchQuery = { fecha: dateFilter, cancelada: { $ne: true } };
     if (clientId) matchQuery.clientId = new mongoose.Types.ObjectId(clientId);
-    if (clientId) matchQuery.clientId = new mongoose.Types.ObjectId(clientId);
 
     // Años disponibles
     const availableYears = await Sale.aggregate([
@@ -776,18 +781,21 @@ export async function getSalesKPIs(period = 'day', startDate = null, endDate = n
       }}
     ]);
 
-    // Ventas por método de pago
-    const paymentMethods = await Sale.aggregate([
+    // Ventas por método de pago - flatten para frontend (metodo_pago, tipo_tarjeta, cantidad, total)
+    const paymentMethodsRaw = await Sale.aggregate([
       { $match: matchQuery },
       { $group: {
         _id: { metodo_pago: '$metodo_pago', tipo_tarjeta: '$tipo_tarjeta' },
         cantidad: { $sum: 1 },
         total: { $sum: '$total' }
-      }}
+      }},
+      { $project: { _id: 0, metodo_pago: '$_id.metodo_pago', tipo_tarjeta: '$_id.tipo_tarjeta', cantidad: 1, total: 1 } },
+      { $sort: { total: -1 } }
     ]);
+    const paymentMethods = paymentMethodsRaw;
 
-    // Ventas por hora
-    const hourlySales = await Sale.aggregate([
+    // Ventas por hora - flatten a {hora, cantidad_ventas, total_ventas}
+    const hourlySalesRaw = await Sale.aggregate([
       { $match: matchQuery },
       { $group: {
         _id: { $hour: '$fecha' },
@@ -796,12 +804,18 @@ export async function getSalesKPIs(period = 'day', startDate = null, endDate = n
       }},
       { $sort: { _id: 1 } }
     ]);
+    const hourlySales = hourlySalesRaw.map(h => ({
+      hora: h._id,
+      cantidad_ventas: h.cantidad_ventas,
+      total_ventas: h.total_ventas
+    }));
 
     // Productos más vendidos (filtrado por clientId)
     const topProductsMatch = { 'venta.fecha': dateFilter, 'venta.cancelada': { $ne: true } };
     if (clientId) topProductsMatch['venta.clientId'] = new mongoose.Types.ObjectId(clientId);
     const topProducts = await SaleDetail.aggregate([
       { $lookup: { from: 'sales', localField: 'venta_id', foreignField: '_id', as: 'venta' }},
+      { $unwind: '$venta' },
       { $match: topProductsMatch },
       { $group: {
         _id: '$producto_id',
@@ -819,8 +833,8 @@ export async function getSalesKPIs(period = 'day', startDate = null, endDate = n
       }}
     ]);
 
-    // Ventas por día
-    const dailySales = await Sale.aggregate([
+    // Ventas por día - flatten a {fecha, cantidad_ventas, total_ventas}
+    const dailySalesRaw = await Sale.aggregate([
       { $match: matchQuery },
       { $group: {
         _id: { $dateToString: { format: '%Y-%m-%d', date: '$fecha' } },
@@ -829,6 +843,11 @@ export async function getSalesKPIs(period = 'day', startDate = null, endDate = n
       }},
       { $sort: { _id: 1 } }
     ]);
+    const dailySales = dailySalesRaw.map(d => ({
+      fecha: d._id,
+      cantidad_ventas: d.cantidad_ventas,
+      total_ventas: d.total_ventas
+    }));
 
     // Ventas por mes
     const monthlySales = await Sale.aggregate([
@@ -884,11 +903,15 @@ export async function getSalesKPIs(period = 'day', startDate = null, endDate = n
  * @param {string} userId - ID del usuario que realiza la devolución
  * @param {string} motivo - Motivo de la devolución
  */
-export async function refundSale(saleId, userId, motivo = '') {
+export async function refundSale(saleId, userId, motivo = '', clientIdParam = null) {
   try {
     const session = await Sale.startSession();
     session.startTransaction();
 
+    const rawSale = await Sale.findById(saleId);
+    if (!rawSale) {
+      throw new Error('Venta no encontrada');
+    }
     const sale = await getSaleById(saleId);
     if (!sale) {
       throw new Error('Venta no encontrada');
@@ -896,6 +919,12 @@ export async function refundSale(saleId, userId, motivo = '') {
 
     if (sale.devuelta === true) {
       throw new Error('La venta ya está devuelta');
+    }
+
+    // Determinar clientId para queries multi-tenant
+    const clientId = clientIdParam || rawSale.clientId || sale.clientId;
+    if (!clientId) {
+      throw new Error('ClientId no encontrado para la venta');
     }
 
     // Marcar la venta como devuelta (no cancelada)
