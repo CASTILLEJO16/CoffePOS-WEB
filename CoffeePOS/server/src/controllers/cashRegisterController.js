@@ -145,7 +145,12 @@ export async function closeCashRegister(req, res) {
     }
 
     // Verificar que la caja pertenezca al usuario o que sea admin
-    if (req.user?.role !== 'admin' && cashRegister.usuario_id.toString() !== userId) {
+    // usuario_id puede venir populado ({_id, nombre}) o como ObjectId
+    const ownerIdCerrar = cashRegister.usuario_id?._id
+      ? cashRegister.usuario_id._id.toString()
+      : cashRegister.usuario_id?.toString();
+    const isAdminCerrar = req.user?.role === 'admin' || req.user?.rol === 'admin';
+    if (!isAdminCerrar && ownerIdCerrar !== userId) {
       return res.status(403).json({
         success: false,
         error: 'No tienes permiso para cerrar esta caja'
@@ -225,7 +230,12 @@ export async function getCashRegisterSummary(req, res) {
     }
 
     // Verificar que la caja pertenezca al usuario o que sea admin
-    if (req.user?.role !== 'admin' && cashRegister.usuario_id.toString() !== userId) {
+    // usuario_id puede venir populado ({_id, nombre}) o como ObjectId
+    const ownerIdResumen = cashRegister.usuario_id?._id
+      ? cashRegister.usuario_id._id.toString()
+      : cashRegister.usuario_id?.toString();
+    const isAdminResumen = req.user?.role === 'admin' || req.user?.rol === 'admin';
+    if (!isAdminResumen && ownerIdResumen !== userId) {
       return res.status(403).json({
         success: false,
         error: 'No tienes permiso para ver esta caja'
