@@ -91,15 +91,17 @@ class LicenseService {
       const newEndDate = new Date(license.endDate);
       newEndDate.setDate(newEndDate.getDate() + additionalDays);
 
+      const newDuration = (license.duration || 0) + additionalDays;
+      license.duration = newDuration;
       license.endDate = newEndDate;
       license.status = 'active';
 
-      // Regenerar firma
+      // Regenerar firma con duración actualizada
       const licenseData = {
         licenseKey: license.licenseKey,
         clientId: license.client.toString(),
         type: license.type,
-        duration: license.duration + additionalDays,
+        duration: newDuration,
         startDate: license.startDate.toISOString(),
         endDate: newEndDate.toISOString(),
         maxDevices: license.maxDevices,
@@ -277,29 +279,49 @@ class LicenseService {
         return { valid: false, reason: 'Licencia no encontrada' };
       }
 
-      // Verificar firma - compatible con licencias legacy sin maxUsers
-      const licenseData = {
-        licenseKey: license.licenseKey,
-        clientId: license.client._id.toString(),
-        type: license.type,
-        duration: license.duration,
-        startDate: license.startDate.toISOString(),
-        endDate: license.endDate.toISOString(),
-        maxDevices: license.maxDevices,
-        maxUsers: license.maxUsers || 3
-      };
-      // Fallback para firma legacy sin maxUsers
-      const legacyData = {
-        licenseKey: license.licenseKey,
-        clientId: license.client._id.toString(),
-        type: license.type,
-        duration: license.duration,
-        startDate: license.startDate.toISOString(),
-        endDate: license.endDate.toISOString(),
-        maxDevices: license.maxDevices
+      // Verificar firma - compatible con licencias legacy sin maxUsers y con bug de duración en extend
+      const clientIdStr = license.client?._id?.toString() || license.client?.toString() || license.client?.toString();
+      if (!clientIdStr) {
+        return { valid: false, reason: 'Cliente de licencia no encontrado' };
+      }
+      const baseData = (durationVal, withMaxUsers) => {
+        const d = {
+          licenseKey: license.licenseKey,
+          clientId: clientIdStr,
+          type: license.type,
+          duration: durationVal,
+          startDate: new Date(license.startDate).toISOString(),
+          endDate: new Date(license.endDate).toISOString(),
+          maxDevices: license.maxDevices
+        };
+        if (withMaxUsers) d.maxUsers = license.maxUsers || 3;
+        return d;
       };
 
-      if (!this.verifySignature(licenseData, license.signature) && !this.verifySignature(legacyData, license.signature)) {
+      let sigValid = this.verifySignature(baseData(license.duration, true), license.signature) || this.verifySignature(baseData(license.duration, false), license.signature);
+
+      // Auto-reparación: si falla, probar con duración recalculada (bug de extend que no guardó duration)
+      if (!sigValid) {
+        const recalculatedDuration = Math.ceil((new Date(license.endDate) - new Date(license.startDate)) / (1000*60*60*24));
+        if (recalculatedDuration !== license.duration) {
+          const tryRecalcWith = this.verifySignature(baseData(recalculatedDuration, true), license.signature);
+          const tryRecalcWithout = this.verifySignature(baseData(recalculatedDuration, false), license.signature);
+          if (tryRecalcWith || tryRecalcWithout) {
+            console.log(`[license] Firma válida con duración recalculada ${recalculatedDuration} (almacenada ${license.duration}) para ${license.licenseKey} - auto-corrigiendo`);
+            license.duration = recalculatedDuration;
+            // Regenerar firma correcta con maxUsers para futuro
+            const correctData = baseData(recalculatedDuration, true);
+            license.signature = this.generateSignature(correctData);
+            await license.save();
+            sigValid = true;
+          }
+        }
+      }
+
+      // Último intento: si sigue inválida, intentar regenerar firma y auto-corregir si la licencia parece legítima (existe y no está manipulada manualmente)
+      if (!sigValid) {
+        // Intentar con maxUsers explícito vs implícito ya probado, si aún falla, considerar firma inválida pero ofrecer auto-reparación si el admin lo solicita
+        // Por seguridad, no auto-reparar sin evidencia; solo retornar error
         return { valid: false, reason: 'Firma inválida' };
       }
 
@@ -523,27 +545,37 @@ class LicenseService {
           lic.status = 'active';
           await lic.save();
         }
-        // verificar firma
-        const licenseData = {
-          licenseKey: lic.licenseKey,
-          clientId: lic.client.toString(),
-          type: lic.type,
-          duration: lic.duration,
-          startDate: lic.startDate.toISOString(),
-          endDate: lic.endDate.toISOString(),
-          maxDevices: lic.maxDevices,
-          maxUsers: lic.maxUsers || 3
+        // verificar firma con auto-reparación de duración
+        const baseDataLic = (durationVal, withMaxUsers) => {
+          const d = {
+            licenseKey: lic.licenseKey,
+            clientId: lic.client.toString(),
+            type: lic.type,
+            duration: durationVal,
+            startDate: new Date(lic.startDate).toISOString(),
+            endDate: new Date(lic.endDate).toISOString(),
+            maxDevices: lic.maxDevices
+          };
+          if (withMaxUsers) d.maxUsers = lic.maxUsers || 3;
+          return d;
         };
-        const legacyData = {
-          licenseKey: lic.licenseKey,
-          clientId: lic.client.toString(),
-          type: lic.type,
-          duration: lic.duration,
-          startDate: lic.startDate.toISOString(),
-          endDate: lic.endDate.toISOString(),
-          maxDevices: lic.maxDevices
-        };
-        if (!this.verifySignature(licenseData, lic.signature) && !this.verifySignature(legacyData, lic.signature)) {
+        let sigValidLic = this.verifySignature(baseDataLic(lic.duration, true), lic.signature) || this.verifySignature(baseDataLic(lic.duration, false), lic.signature);
+        if (!sigValidLic) {
+          const recalculatedDuration = Math.ceil((new Date(lic.endDate) - new Date(lic.startDate)) / (1000*60*60*24));
+          if (recalculatedDuration !== lic.duration) {
+            const tryRecalcWith = this.verifySignature(baseDataLic(recalculatedDuration, true), lic.signature);
+            const tryRecalcWithout = this.verifySignature(baseDataLic(recalculatedDuration, false), lic.signature);
+            if (tryRecalcWith || tryRecalcWithout) {
+              console.log(`[license] verifyClientLicense auto-corrigiendo duración ${lic.duration} -> ${recalculatedDuration} para ${lic.licenseKey}`);
+              lic.duration = recalculatedDuration;
+              const correctData = baseDataLic(recalculatedDuration, true);
+              lic.signature = this.generateSignature(correctData);
+              await lic.save();
+              sigValidLic = true;
+            }
+          }
+        }
+        if (!sigValidLic) {
           continue;
         }
         return { valid: true, license: lic };
