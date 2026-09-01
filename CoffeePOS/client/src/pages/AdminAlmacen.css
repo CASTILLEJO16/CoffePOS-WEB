@@ -311,25 +311,33 @@
 }
 
 @media (max-width: 1024px) {
-  .almacen-content { padding: 16px; overflow-x: auto; }
+  .almacen-content { padding: 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .admin-table { min-width: 600px; }
   .recetas-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 }
 
 @media (max-width: 768px) {
-  .almacen-tabs { gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width:none; padding-bottom:2px; }
+  .almacen-tabs { gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width:none; padding-bottom:2px; flex-wrap: nowrap; }
   .almacen-tabs::-webkit-scrollbar{ display:none; }
-  .almacen-tab { white-space: nowrap; padding: 10px 14px; font-size: 14px; min-height:44px; }
-  .almacen-content { padding: 12px; }
-  .section-header { flex-direction: column; align-items: stretch; gap:12px; }
+  .almacen-tab { white-space: nowrap; padding: 10px 14px; font-size: 14px; min-height:44px; flex-shrink: 0; }
+  .almacen-content { padding: 0; border-radius: 12px; overflow-x: auto; }
+  .almacen-content .admin-table { min-width: 560px; }
+  .section-header { flex-direction: column; align-items: stretch; gap:12px; padding: 12px 12px 0; }
   .section-header h2 { font-size: 16px; }
   .section-header .primary-btn { width:100%; justify-content:center; min-height:44px; }
-  .recetas-grid { grid-template-columns: 1fr; }
-  .admin-table { min-width: 560px; }
+  .recetas-grid { grid-template-columns: 1fr; gap: 12px; padding: 12px; }
   .form-actions { flex-direction: column; }
-  .form-actions .primary-btn, .form-actions .secondary-btn { width:100%; justify-content:center; }
+  .form-actions .primary-btn, .form-actions .secondary-btn { width:100%; justify-content:center; min-height: 44px; }
+  .admin-table th, .admin-table td { padding: 10px 12px; font-size: 13px; }
 }
 
-@media (max-width: 390px) {
-  .almacen-content { padding: 10px; }
+@media (max-width: 480px) {
+  .almacen-content { border-radius: 10px; }
+  .receta-card { padding: 14px; }
+  .almacen-tab { padding: 8px 12px; font-size: 13px; }
+}
+
+@media (max-width: 360px) {
+  .almacen-content { padding: 0; }
+  .section-header h2 { font-size: 15px; }
 }

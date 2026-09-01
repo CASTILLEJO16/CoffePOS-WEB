@@ -3,6 +3,8 @@
   flex-direction: column;
   gap: var(--spacing-6);
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* Cuando está dentro de admin-page, no duplicar padding */
@@ -147,4 +149,60 @@
 
 .status-active {
   color: var(--color-success);
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 1024px) {
+  .config-section {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .configuracion-title {
+    font-size: var(--font-size-2xl);
+  }
+  .config-section {
+    padding: 16px;
+    border-radius: 12px;
+  }
+  .section-title {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+  .info-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 10px 0;
+  }
+  .info-value {
+    font-size: var(--font-size-sm);
+    word-break: break-word;
+  }
+  .save-button {
+    width: 100%;
+    align-self: stretch;
+    justify-content: center;
+    min-height: 44px;
+  }
+  .form-input,
+  .form-select {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .configuracion-page {
+    gap: 16px;
+  }
+  .configuracion-title {
+    font-size: 20px;
+  }
+  .config-section {
+    padding: 14px;
+  }
+  .checkbox-label {
+    font-size: 13px;
+  }
 }

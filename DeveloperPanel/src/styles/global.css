@@ -178,3 +178,30 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-border-hover);
 }
+
+/* ===== Responsive helpers (port from CoffeePOS) ===== */
+html, body {
+  overflow-x: clip;
+  max-width: 100vw;
+}
+html { scrollbar-gutter: stable; }
+body { overscroll-behavior-y: none; }
+img { max-width: 100%; height: auto; display: block; }
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+.table-responsive::-webkit-scrollbar { height: 6px; }
+.data-table { min-width: 640px; }
+
+@media (max-width: 768px) {
+  button, a, [role="button"], .btn { min-height: 44px; }
+  input, select, textarea { font-size: 16px; }
+}
+@media (max-width: 480px) {
+  :root { --font-size-2xl: 20px; --font-size-3xl: 24px; }
+}

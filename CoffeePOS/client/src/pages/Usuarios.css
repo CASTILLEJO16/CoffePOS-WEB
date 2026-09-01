@@ -31,4 +31,35 @@
   padding: var(--spacing-6);
   box-shadow: var(--shadow-sm);
   transition: var(--transition-theme);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  min-width: 0;
+}
+
+.usuarios-content .admin-table,
+.usuarios-content .data-table {
+  min-width: 640px;
+}
+
+@media (max-width: 1024px) {
+  .usuarios-content { padding: 16px; }
+}
+
+@media (max-width: 768px) {
+  .usuarios-page { gap: 16px; }
+  .usuarios-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .usuarios-header button,
+  .usuarios-header .primary-btn { width: 100%; justify-content: center; min-height: 44px; }
+  .usuarios-title { font-size: 20px; }
+  .usuarios-content { padding: 0; border-radius: 12px; overflow-x: auto; }
+  .usuarios-content .admin-table { min-width: 560px; }
+}
+
+@media (max-width: 480px) {
+  .usuarios-title { font-size: 18px; }
+  .usuarios-content { border-radius: 10px; }
 }

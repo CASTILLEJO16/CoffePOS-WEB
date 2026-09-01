@@ -585,3 +585,73 @@
   flex-direction: column;
   gap: 2px;
 }
+
+/* ===== Responsive ===== */
+@media (max-width: 1024px) {
+  .licencias-page { padding: 16px; }
+  .licencias-container { gap: 16px; }
+  .licencias-nav { padding: 16px 20px; }
+  .data-table { min-width: 720px; }
+}
+
+@media (max-width: 768px) {
+  .licencias-page { padding: 12px; }
+  .licencias-nav {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 16px;
+  }
+  .licencias-brand { gap: 12px; }
+  .brand-title { font-size: 20px; }
+  .stats-pills {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+    flex-wrap: nowrap;
+  }
+  .stats-pills::-webkit-scrollbar { display: none; }
+  .stat-pill { white-space: nowrap; flex-shrink: 0; }
+  .licencias-content-card { padding: 14px; border-radius: 12px; }
+  .licencias-tabs-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .licencias-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+  }
+  .licencias-tabs::-webkit-scrollbar { display: none; }
+  .licencias-tab { white-space: nowrap; flex-shrink: 0; min-height: 44px; }
+  .search-and-actions { flex-direction: column; align-items: stretch; }
+  .search-input-wrapper { width: 100%; }
+  .search-input { width: 100%; max-width: 100%; font-size: 16px; }
+  .search-and-actions .btn { width: 100%; justify-content: center; min-height: 44px; }
+  .table-responsive { border-radius: 12px; overflow-x: auto; }
+  .data-table th, .data-table td { padding: 10px 12px; font-size: 13px; }
+  .action-buttons { gap: 6px; flex-wrap: wrap; }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-group.full-width { grid-column: span 1; }
+  .modal-content { padding: 20px; margin: 12px; max-width: calc(100% - 24px); }
+  .device-card { flex-direction: column; align-items: stretch; gap: 12px; }
+  .device-card .btn { width: 100%; justify-content: center; }
+}
+
+@media (max-width: 480px) {
+  .licencias-page { padding: 10px; }
+  .licencias-nav { padding: 14px; border-radius: 12px; }
+  .brand-icon-wrapper { width: 40px; height: 40px; }
+  .brand-title { font-size: 18px; }
+  .licencias-content-card { padding: 12px; }
+  .license-key-badge { font-size: 12px; padding: 4px 8px; word-break: break-all; }
+  .client-avatar { width: 32px; height: 32px; font-size: 12px; }
+}
+
+@media (max-width: 360px) {
+  .licencias-tabs { gap: 6px; }
+  .licencias-tab { padding: 8px 12px; font-size: 13px; }
+}

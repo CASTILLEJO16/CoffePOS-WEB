@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { openCashRegister, getCashRegisterNames } from '../services/cashRegisterService.js';
+import { openCashRegister, getCashRegisterNames, getAllCashRegisters } from '../services/cashRegisterService.js';
 import { formatBusinessDate, formatBusinessTime } from '../utils/dateTime.js';
 import { Coffee, Clock, Calendar, User, DollarSign, FileText, Wallet } from 'lucide-react';
 import './AperturaCaja.css';
@@ -62,8 +62,6 @@ export default function AperturaCaja() {
 
   async function fetchOpenCajas() {
     try {
-      // Usar api con auth para respetar token; si no tiene permiso (vendedor) retorna []
-      const { getAllCashRegisters } = await import('../services/cashRegisterService.js');
       const data = await getAllCashRegisters({ estado: 'abierta' });
       return (data || []).map(c => c.nombre_caja);
     } catch {

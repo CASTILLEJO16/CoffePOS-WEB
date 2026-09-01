@@ -112,3 +112,23 @@
 .mt-4 {
   margin-top: 1.5rem;
 }
+
+@media (max-width: 1024px) {
+  .config-grid { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+}
+
+@media (max-width: 768px) {
+  .config-grid { grid-template-columns: 1fr; gap: 12px; }
+  .config-card-header { padding: 12px 14px; }
+  .config-card-header h2 { font-size: 1rem; }
+  .config-card-body { padding: 14px; }
+  .add-caja-form { flex-direction: column; }
+  .add-caja-form .primary-btn { width: 100%; justify-content: center; min-height: 44px; }
+  .caja-item { padding: 10px 12px; font-size: 14px; }
+  .help-text { margin-left: 0; font-size: 12px; }
+}
+
+@media (max-width: 480px) {
+  .config-grid { gap: 10px; }
+  .config-card-body { padding: 12px; }
+}

@@ -392,42 +392,70 @@ a:focus-visible {
 }
 
 /* ===== Responsive global helpers ===== */
-html, body {
-  overflow-x: hidden;
+html {
+  overflow-x: clip;
   max-width: 100vw;
+  scrollbar-gutter: stable;
+}
+body {
+  overflow-x: clip;
+  max-width: 100vw;
+  overscroll-behavior-y: none;
 }
 
 img {
   max-width: 100%;
+  height: auto;
+  display: block;
 }
 
-/* Prevent horizontal overflow on all pages */
-.admin-page, .pos, .admin-pos, .ventas-page, .kpi-report {
+/* Prevent horizontal overflow on all pages - clip not hidden to allow sticky */
+.admin-page, .pos, .admin-pos, .ventas-page, .kpi-report,
+.cortes-caja-page, .configuracion-page, .apertura-caja-page, .cierre-caja-page {
   min-width: 0;
-  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
-/* Generic responsive table wrapper */
+/* Universal table scroll wrapper - use this class around tables */
+.table-responsive,
+.admin-table-wrapper,
+.data-table-wrapper,
+.kpi-table-wrapper,
+.ventas-content,
+.admin-table-card,
+.corte-card-body {
+  min-width: 0;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+  border-radius: var(--border-radius-lg);
+}
+
+.table-responsive::-webkit-scrollbar {
+  height: 6px;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+
+/* Tables keep native layout, scroll via wrapper */
 .admin-table,
 .data-table,
 .kpi-table {
   width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
 }
 
-@media (max-width: 768px) {
-  .admin-table,
-  .kpi-table {
-    display: block;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  .admin-table::-webkit-scrollbar,
-  .kpi-table::-webkit-scrollbar {
-    height: 6px;
-  }
-}
-
-/* Touch target minimum */
+/* Touch target minimum + iOS zoom prevention */
 @media (max-width: 768px) {
   button,
   a,
@@ -435,18 +463,28 @@ img {
   .btn,
   .category-filter,
   .top-nav-link,
-  .sidebar-link {
+  .sidebar-link,
+  .action-button,
+  .save-button,
+  .submit-button,
+  .primary-btn {
     min-height: 44px;
   }
   input, select, textarea {
-    font-size: 16px; /* prevent iOS zoom */
+    font-size: 16px;
   }
 }
 
-/* Responsive typography clamp */
+/* Responsive typography */
 @media (max-width: 480px) {
   :root {
     --font-size-2xl: 20px;
     --font-size-3xl: 24px;
+  }
+}
+@media (max-width: 360px) {
+  :root {
+    --font-size-lg: 16px;
+    --font-size-xl: 18px;
   }
 }
