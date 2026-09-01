@@ -70,12 +70,16 @@ export default function ActivateLicense() {
       }
     } catch (err) {
       console.error('Error activating license:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Error de conexión. Verifica tu conexión a internet.';
-      setError(errorMessage);
+      console.error('Response data:', err.response?.data);
+      console.error('Status:', err.response?.status);
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.response?.data?.msg || err.message || 'Error de conexión. Verifica tu conexión a internet.';
+      const detail = err.response?.data?.error || err.response?.data?.message || '';
+      const fullMessage = detail && detail !== errorMessage ? `${errorMessage} (${detail})` : errorMessage;
+      setError(fullMessage);
       Swal.fire({
         icon: 'error',
         title: 'Error de Activación',
-        text: errorMessage,
+        text: fullMessage,
         confirmButtonText: 'Intentar de nuevo'
       });
     } finally {
