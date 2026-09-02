@@ -40,6 +40,14 @@ export async function getCategoryById(id) {
  */
 export async function createCategory(nombre, clientId = null) {
   try {
+    // Check if category with same name already exists for this client
+    const existingCategory = await Category.findOne({ nombre, clientId });
+    if (existingCategory) {
+      const error = new Error('Ya existe una categoría con ese nombre');
+      error.code = 'DUPLICATE_CATEGORY';
+      throw error;
+    }
+    
     const newCategory = await Category.create({ nombre, clientId });
     return newCategory;
   } catch (error) {

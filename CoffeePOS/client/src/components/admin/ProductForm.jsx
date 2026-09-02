@@ -118,7 +118,11 @@ export default function ProductForm({ product, onSubmit, onCancel }) {
       setNewCategoryName('');
       setShowNewCategoryInput(false);
     } catch (error) {
-      setError(error.message || 'Error al crear categoría');
+      if (error.message.includes('Ya existe una categoría con ese nombre')) {
+        setError('Ya existe una categoría con ese nombre');
+      } else {
+        setError(error.message || 'Error al crear categoría');
+      }
     } finally {
       setCreatingCategory(false);
     }
