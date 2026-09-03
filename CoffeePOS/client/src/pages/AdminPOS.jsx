@@ -51,6 +51,7 @@ export default function AdminPOS() {
   const [cashRegister, setCashRegister] = useState(null);
   const [tipoCambio, setTipoCambio] = useState(20.00);
   const [ivaRate, setIvaRate] = useState(0.16);
+  const [imprimirTicket, setImprimirTicket] = useState(true);
   const [imprimirEtiquetas, setImprimirEtiquetas] = useState(true);
   const [customizationKey, setCustomizationKey] = useState(0); // Key para forzar remontaje del modal
   const [showMobileCart, setShowMobileCart] = useState(false);
@@ -192,7 +193,9 @@ export default function AdminPOS() {
   async function loadLabelConfig() {
     try {
       const config = await getAllConfig();
+      const imprimirTicketConfig = config?.imprimir_ticket;
       const imprimirEtiquetasConfig = config?.imprimir_etiquetas;
+      setImprimirTicket(imprimirTicketConfig === undefined || imprimirTicketConfig === '1' || imprimirTicketConfig === 'true');
       setImprimirEtiquetas(imprimirEtiquetasConfig === '1' || imprimirEtiquetasConfig === 'true');
     } catch (error) {
       console.error('Error cargando configuración de etiquetas:', error);
@@ -338,9 +341,9 @@ export default function AdminPOS() {
 
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName, businessInfo);
+      if (imprimirTicket) printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
-        printLabels(sale, customerName);
+        printLabels(sale, customerName, businessInfo);
       }
       clearOrder();
       setCustomerName('');
@@ -383,9 +386,9 @@ export default function AdminPOS() {
 
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName, businessInfo);
+      if (imprimirTicket) printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
-        printLabels(sale, customerName);
+        printLabels(sale, customerName, businessInfo);
       }
       clearOrder();
       setCustomerName('');
@@ -428,9 +431,9 @@ export default function AdminPOS() {
 
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName, businessInfo);
+      if (imprimirTicket) printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
-        printLabels(sale, customerName);
+        printLabels(sale, customerName, businessInfo);
       }
       clearOrder();
       setCustomerName('');
@@ -473,9 +476,9 @@ export default function AdminPOS() {
       };
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName, businessInfo);
+      if (imprimirTicket) printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
-        printLabels(sale, customerName);
+        printLabels(sale, customerName, businessInfo);
       }
       clearOrder();
       setCustomerName('');
@@ -521,9 +524,9 @@ export default function AdminPOS() {
 
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName, businessInfo);
+      if (imprimirTicket) printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
-        printLabels(sale, customerName);
+        printLabels(sale, customerName, businessInfo);
       }
       clearOrder();
       setCustomerName('');

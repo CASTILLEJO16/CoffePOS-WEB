@@ -52,6 +52,7 @@ export default function POS() {
   const [cashRegister, setCashRegister] = useState(null);
   const [tipoCambio, setTipoCambio] = useState(20.00);
   const [ivaRate, setIvaRate] = useState(0.16);
+  const [imprimirTicket, setImprimirTicket] = useState(true);
   const [imprimirEtiquetas, setImprimirEtiquetas] = useState(true);
   const [showMobileCart, setShowMobileCart] = useState(false);
   const [businessInfo, setBusinessInfo] = useState(() => {
@@ -200,7 +201,10 @@ export default function POS() {
   async function loadLabelConfig() {
     try {
       const config = await getAllConfig();
+      const imprimirTicketConfig = config?.imprimir_ticket;
       const imprimirEtiquetasConfig = config?.imprimir_etiquetas;
+      // Si no existe la clave, default true para no romper flujo existente
+      setImprimirTicket(imprimirTicketConfig === undefined || imprimirTicketConfig === '1' || imprimirTicketConfig === 'true');
       setImprimirEtiquetas(imprimirEtiquetasConfig === '1' || imprimirEtiquetasConfig === 'true');
     } catch (error) {
       console.error('Error cargando configuración de etiquetas:', error);
@@ -353,11 +357,11 @@ export default function POS() {
       window.dispatchEvent(new Event('saleCreated'));
       
       // Imprimir ticket
-      printTicket(sale, customerName, businessInfo);
+      if (imprimirTicket) printTicket(sale, customerName, businessInfo);
       
       // Imprimir etiquetas automáticamente si está activado
       if (imprimirEtiquetas) {
-        printLabels(sale, customerName);
+        printLabels(sale, customerName, businessInfo);
       }
       
       clearOrder();
@@ -401,9 +405,9 @@ export default function POS() {
 
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName, businessInfo);
+      if (imprimirTicket) printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
-        printLabels(sale, customerName);
+        printLabels(sale, customerName, businessInfo);
       }
       clearOrder();
       setCustomerName('');
@@ -446,9 +450,9 @@ export default function POS() {
       };
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName, businessInfo);
+      if (imprimirTicket) printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
-        printLabels(sale, customerName);
+        printLabels(sale, customerName, businessInfo);
       }
       clearOrder();
       setCustomerName('');
@@ -494,9 +498,9 @@ export default function POS() {
 
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName, businessInfo);
+      if (imprimirTicket) printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
-        printLabels(sale, customerName);
+        printLabels(sale, customerName, businessInfo);
       }
       clearOrder();
       setCustomerName('');
@@ -539,9 +543,9 @@ export default function POS() {
 
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName, businessInfo);
+      if (imprimirTicket) printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
-        printLabels(sale, customerName);
+        printLabels(sale, customerName, businessInfo);
       }
       clearOrder();
       setCustomerName('');

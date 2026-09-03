@@ -24,8 +24,9 @@ export function generateTicket(sale, businessInfo = null) {
     lines.push(addr.padStart(Math.floor((width + addr.length)/2)).padEnd(width));
   }
   lines.push(''.padEnd(width, '='));
+  const folio = sale.numero_venta != null ? String(sale.numero_venta).padStart(4, '0') : (sale._id ? String(sale._id).slice(-6).toUpperCase() : 'N/A');
   lines.push('');
-  lines.push(`Ticket #: ${sale.numero_venta || 'N/A'}`);
+  lines.push(`Ticket #: ${folio}`);
   lines.push(`Fecha: ${formatDate(sale.fecha)}`);
   lines.push(''.padEnd(width, '-'));
 

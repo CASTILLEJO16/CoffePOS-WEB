@@ -8,7 +8,7 @@ import Swal from 'sweetalert2';
 import './Configuracion.css';
 
 export default function Configuracion() {
-  const [config, setConfig] = useState({ permitir_stock_negativo: '0', tipo_cambio_dolar: '20.00', imprimir_etiquetas: '1' });
+  const [config, setConfig] = useState({ permitir_stock_negativo: '0', tipo_cambio_dolar: '20.00', imprimir_ticket: '1', imprimir_etiquetas: '1' });
   const [cajas, setCajas] = useState([]);
   const [nuevaCaja, setNuevaCaja] = useState('');
   const [loading, setLoading] = useState(true);
@@ -276,8 +276,24 @@ export default function Configuracion() {
         </div>
 
         <div className="config-section">
-          <h2 className="section-title"><FileText size={18} style={{marginRight: 8}} />Impresión de Etiquetas</h2>
+          <h2 className="section-title"><FileText size={18} style={{marginRight: 8}} />Impresión Automática</h2>
           <div className="config-form">
+            <div className="form-group" style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+              <input 
+                type="checkbox"
+                id="imprimir_ticket"
+                style={{width: 20, height: 20, cursor: 'pointer'}}
+                checked={config.imprimir_ticket === '1' || config.imprimir_ticket === 'true'}
+                onChange={(e) => setConfig({ ...config, imprimir_ticket: e.target.checked ? '1' : '0' })}
+              />
+              <label htmlFor="imprimir_ticket" className="form-label" style={{marginBottom: 0, cursor: 'pointer'}}>
+                Imprimir ticket automáticamente
+              </label>
+            </div>
+            <p style={{fontSize: '0.85rem', color: '#666', marginTop: '-10px', marginBottom: '12px', paddingLeft: '30px'}}>
+              Genera e imprime el ticket automáticamente al completar la venta. Si está desactivado, solo podrás reimprimir manualmente desde Ventas.
+            </p>
+
             <div className="form-group" style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
               <input 
                 type="checkbox"

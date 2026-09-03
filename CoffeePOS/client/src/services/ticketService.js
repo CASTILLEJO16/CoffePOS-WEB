@@ -109,7 +109,17 @@ export function generateTicketHTML(sale, customerName = null, businessInfo = nul
   const displayBusinessName = escapeHtml(rawBusinessName || cachedBusinessName || 'CAFETERÍA POS');
   const displayAddress = rawAddress || cachedAddress ? escapeHtml(rawAddress || cachedAddress) : null;
 
-  const ticketId = escapeHtml(sale.id || sale._id || sale.numero_venta || 'N/A');
+  // Número de ticket amigable: folio secuencial por cafetería (numero_venta), no ObjectId
+  let rawTicketNumber;
+  if (sale.numero_venta != null && sale.numero_venta !== '') {
+    rawTicketNumber = String(sale.numero_venta).padStart(4, '0');
+  } else if (sale.numeroVenta != null) {
+    rawTicketNumber = String(sale.numeroVenta).padStart(4, '0');
+  } else {
+    const fallbackId = sale.id || sale._id;
+    rawTicketNumber = fallbackId ? String(fallbackId).slice(-6).toUpperCase() : 'N/A';
+  }
+  const ticketId = escapeHtml(rawTicketNumber);
   const safeCustomerName = customerName ? escapeHtml(customerName) : null;
   const escapedBusinessHeader = displayBusinessName;
 
@@ -118,7 +128,7 @@ export function generateTicketHTML(sale, customerName = null, businessInfo = nul
     <html>
     <head>
       <meta charset="UTF-8">
-      <title>Ticket #${sale.id}</title>
+      <title>Ticket #${ticketId}</title>
       <style>
         * {
           margin: 0;
