@@ -10,10 +10,6 @@ export async function getMyClient() {
 }
 
 /**
- * Actualiza nombre/dirección de la cafetería (solo admin)
- * @param {{businessName: string, address: string, phone?: string}} data
+ * Nota: la actualización de nombre/dirección solo está permitida desde DeveloperPanel
+ * (PUT /clientes/:id). No se expone edición desde el POS.
  */
-export async function updateMyClient(data) {
-  const response = await api.put('/clientes/me', data);
-  return response.data.data;
-}

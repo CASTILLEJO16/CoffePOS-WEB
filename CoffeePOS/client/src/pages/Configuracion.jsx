@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Settings, Save, Plus, Wallet, FileText, Store, MapPin } from 'lucide-react';
 import { getAllConfig, updateConfig } from '../services/configService.js';
 import { getCashRegisterNames, createCashRegisterName } from '../services/cashRegisterService.js';
-import { getMyClient, updateMyClient } from '../services/clientService.js';
+import { getMyClient } from '../services/clientService.js';
 import Loader from '../components/common/Loader.jsx';
 import Swal from 'sweetalert2';
 import './Configuracion.css';
@@ -15,7 +15,6 @@ export default function Configuracion() {
   const [customIVA, setCustomIVA] = useState('');
   const [ivaOptions, setIvaOptions] = useState([8,12,16]);
   const [business, setBusiness] = useState({ businessName: '', address: '', phone: '' });
-  const [savingBusiness, setSavingBusiness] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -59,40 +58,6 @@ export default function Configuracion() {
       Swal.fire('Error', 'No se pudo cargar la configuración', 'error');
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function handleSaveBusiness(e) {
-    e?.preventDefault();
-    if (!business.businessName.trim()) {
-      Swal.fire('Atención', 'El nombre de la cafetería no puede estar vacío', 'warning');
-      return;
-    }
-    try {
-      setSavingBusiness(true);
-      const updated = await updateMyClient({
-        businessName: business.businessName.trim(),
-        address: business.address.trim(),
-        phone: business.phone?.trim()
-      });
-      setBusiness({
-        businessName: updated.businessName || '',
-        address: updated.address || '',
-        phone: updated.phone || ''
-      });
-      try {
-        localStorage.setItem('businessName', updated.businessName || '');
-        localStorage.setItem('businessAddress', updated.address || '');
-      } catch {}
-      // Notificar que info de negocio cambió (para refrescar POS/ticket en vivo)
-      window.dispatchEvent(new Event('businessUpdated'));
-      localStorage.setItem('business_updated_at', Date.now().toString());
-      Swal.fire({ title: '¡Guardado!', text: 'Información de la cafetería actualizada. Se reflejará en los tickets.', icon: 'success', timer: 2000, showConfirmButton: false });
-    } catch (error) {
-      console.error('Error saving business:', error);
-      Swal.fire('Error', error.response?.data?.message || 'No se pudo guardar la información de la cafetería', 'error');
-    } finally {
-      setSavingBusiness(false);
     }
   }
 
@@ -175,18 +140,17 @@ export default function Configuracion() {
         <div className="config-section">
           <h2 className="section-title"><Store size={18} style={{marginRight: 8}} />Información de la Cafetería</h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginTop: -8, marginBottom: 12 }}>
-            Nombre registrado en DeveloperPanel. Aparece en el encabezado del ticket y puede editarse aquí.
+            Información registrada desde el DeveloperPanel. Solo puede modificarse allí — aparece en el encabezado del ticket.
           </p>
-          <form className="config-form" onSubmit={handleSaveBusiness}>
+          <div className="config-form">
             <div className="form-group">
               <label className="form-label"><Store size={14} style={{ marginRight: 6 }} />Nombre del Negocio</label>
               <input
                 type="text"
                 className="form-input"
-                value={business.businessName}
-                onChange={e => setBusiness(prev => ({ ...prev, businessName: e.target.value }))}
-                placeholder="Ej: Café Mi Sueño"
-                required
+                value={business.businessName || '—'}
+                disabled
+                style={{ opacity: 0.85, cursor: 'not-allowed' }}
               />
             </div>
             <div className="form-group">
@@ -194,26 +158,18 @@ export default function Configuracion() {
               <input
                 type="text"
                 className="form-input"
-                value={business.address}
-                onChange={e => setBusiness(prev => ({ ...prev, address: e.target.value }))}
-                placeholder="Ej: Av. Revolución 123, Tijuana"
+                value={business.address || '—'}
+                disabled
+                style={{ opacity: 0.85, cursor: 'not-allowed' }}
               />
               <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>Se muestra debajo del nombre en el ticket.</p>
             </div>
-            <button type="submit" className="save-button" disabled={savingBusiness} style={savingBusiness ? { display: 'inline-flex', alignItems: 'center', gap: 8 } : undefined}>
-              {savingBusiness ? <><Loader size="small" /> Guardando...</> : <><Save size={18} style={{ marginRight: 8 }} />Guardar Cafetería</>}
-            </button>
-          </form>
+          </div>
         </div>
 
         <div className="config-section">
           <h2 className="section-title"><FileText size={18} style={{marginRight: 8}} />Configuración General</h2>
           <div className="config-form">
-            <div className="form-group">
-              <label className="form-label">Nombre del Negocio (vista previa)</label>
-              <input type="text" className="form-input" value={business.businessName || 'Coffee POS'} disabled style={{ opacity: 0.85 }} />
-              <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>Edítalo en la sección superior “Información de la Cafetería”.</p>
-            </div>
             <div className="form-group">
               <label className="form-label">Porcentaje de IVA (%)</label>
               <select

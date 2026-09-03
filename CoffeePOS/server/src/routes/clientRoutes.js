@@ -7,15 +7,13 @@ import {
   updateClient,
   deleteClient,
   getClientLicenses,
-  getMyClient,
-  updateMyClient
+  getMyClient
 } from '../controllers/clientController.js';
 
 const router = express.Router();
 
-// Ruta para cafetería autenticada (cualquier rol) - antes del requireAdmin global
+// Ruta para cafetería autenticada (cualquier rol) - solo lectura, edición solo desde DeveloperPanel
 router.get('/me', authenticateToken, getMyClient);
-router.put('/me', authenticateToken, requireAdmin, updateMyClient);
 
 // Todas las rutas de administración de clientes requieren estar autenticado como Admin
 router.use(authenticateToken, requireAdmin);
