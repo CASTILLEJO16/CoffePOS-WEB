@@ -117,6 +117,10 @@ export default function ProductForm({ product, onSubmit, onCancel }) {
       setFormData(prev => ({ ...prev, categoria: newCategory.nombre }));
       setNewCategoryName('');
       setShowNewCategoryInput(false);
+      try {
+        window.dispatchEvent(new Event('categoriesUpdated'));
+        localStorage.setItem('categories_updated_at', Date.now().toString());
+      } catch {}
     } catch (error) {
       if (error.message.includes('Ya existe una categoría con ese nombre')) {
         setError('Ya existe una categoría con ese nombre');

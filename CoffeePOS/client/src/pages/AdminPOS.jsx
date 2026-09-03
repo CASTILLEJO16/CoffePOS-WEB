@@ -169,6 +169,20 @@ export default function AdminPOS() {
     return () => window.removeEventListener('customizationsUpdated', handleCustomizationsUpdate);
   }, []);
 
+  // Escuchar cambios de categorías (cuando se crea "Postre" desde Admin)
+  useEffect(() => {
+    function handleCategoriesUpdate() { loadCategories(); }
+    function handleCategoriesStorage(e) {
+      if (e.key === 'categories_updated_at') loadCategories();
+    }
+    window.addEventListener('categoriesUpdated', handleCategoriesUpdate);
+    window.addEventListener('storage', handleCategoriesStorage);
+    return () => {
+      window.removeEventListener('categoriesUpdated', handleCategoriesUpdate);
+      window.removeEventListener('storage', handleCategoriesStorage);
+    };
+  }, []);
+
   async function loadTipoCambio() {
     try {
       const config = await getAllConfig();

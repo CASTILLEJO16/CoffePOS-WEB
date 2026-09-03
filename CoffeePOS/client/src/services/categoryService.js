@@ -15,8 +15,11 @@ function getAuthHeaders() {
 
 export async function getCategories() {
   try {
-    const response = await fetch(`${API_BASE_URL}/categorias`);
+    const response = await fetch(`${API_BASE_URL}/categorias`, {
+      headers: getAuthHeaders(),
+    });
     const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Error al obtener categorías');
     return data.data || [];
   } catch (error) {
     console.error('Error al obtener categorías:', error);
