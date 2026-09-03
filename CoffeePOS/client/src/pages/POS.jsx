@@ -5,6 +5,7 @@ import { formatCurrency } from '../utils/formatCurrency.js';
 import { Coffee, Search, DollarSign, CreditCard, Smartphone, X, Sun, Moon, LogOut, ShoppingBag } from 'lucide-react';
 import { useOrder } from '../context/OrderContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
+import Loader from '../components/common/Loader.jsx';
 import { getProducts } from '../services/productService.js';
 import api from '../services/api.js';
 import { createSale } from '../services/saleService.js';
@@ -12,6 +13,7 @@ import { printTicket } from '../services/ticketService.js';
 import { printLabels } from '../services/labelService.js';
 import { getOpenCashRegister } from '../services/cashRegisterService.js';
 import { getAllConfig } from '../services/configService.js';
+import { getMyClient } from '../services/clientService.js';
 import { DEFAULT_CATEGORIES, getCategories } from '../utils/constants.js';
 import ProductCard from '../components/pos/ProductCard.jsx';
 import OrderItem from '../components/pos/OrderItem.jsx';
@@ -52,6 +54,13 @@ export default function POS() {
   const [ivaRate, setIvaRate] = useState(0.16);
   const [imprimirEtiquetas, setImprimirEtiquetas] = useState(true);
   const [showMobileCart, setShowMobileCart] = useState(false);
+  const [businessInfo, setBusinessInfo] = useState(() => {
+    try {
+      const n = localStorage.getItem('businessName');
+      const a = localStorage.getItem('businessAddress');
+      return n || a ? { businessName: n || '', address: a || '' } : null;
+    } catch { return null; }
+  });
   const { toast, showToast, hideToast } = useToast();
 
   // Log inicial para depurar
@@ -92,6 +101,32 @@ export default function POS() {
     loadTipoCambio();
     loadIVA();
     loadLabelConfig();
+    loadBusinessInfo();
+  }, []);
+
+  async function loadBusinessInfo() {
+    try {
+      const data = await getMyClient();
+      const info = { businessName: data.businessName || '', address: data.address || '' };
+      setBusinessInfo(info);
+      try {
+        if (info.businessName) localStorage.setItem('businessName', info.businessName);
+        if (info.address) localStorage.setItem('businessAddress', info.address);
+      } catch {}
+    } catch {}
+  }
+
+  useEffect(() => {
+    function handleBusinessUpdate() { loadBusinessInfo(); }
+    function handleBusinessStorage(e) {
+      if (e.key === 'business_updated_at' || e.key === 'businessName' || e.key === 'businessAddress') loadBusinessInfo();
+    }
+    window.addEventListener('businessUpdated', handleBusinessUpdate);
+    window.addEventListener('storage', handleBusinessStorage);
+    return () => {
+      window.removeEventListener('businessUpdated', handleBusinessUpdate);
+      window.removeEventListener('storage', handleBusinessStorage);
+    };
   }, []);
 
   // Escuchar cambios de IVA en vivo
@@ -318,7 +353,7 @@ export default function POS() {
       window.dispatchEvent(new Event('saleCreated'));
       
       // Imprimir ticket
-      printTicket(sale, customerName);
+      printTicket(sale, customerName, businessInfo);
       
       // Imprimir etiquetas automáticamente si está activado
       if (imprimirEtiquetas) {
@@ -366,7 +401,7 @@ export default function POS() {
 
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName);
+      printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
         printLabels(sale, customerName);
       }
@@ -411,7 +446,7 @@ export default function POS() {
       };
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName);
+      printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
         printLabels(sale, customerName);
       }
@@ -459,7 +494,7 @@ export default function POS() {
 
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName);
+      printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
         printLabels(sale, customerName);
       }
@@ -504,7 +539,7 @@ export default function POS() {
 
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName);
+      printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
         printLabels(sale, customerName);
       }
@@ -631,7 +666,7 @@ export default function POS() {
         </div>
 
         {loading ? (
-          <div className="loading">Cargando productos...</div>
+          <Loader text="Cargando productos..." />
         ) : (
           <div className="products-grid">
             {filteredProducts.map(product => (

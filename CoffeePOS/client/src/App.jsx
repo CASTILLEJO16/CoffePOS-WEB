@@ -26,12 +26,13 @@ import MainLayout from './layouts/MainLayout.jsx';
 import AdminLayout from './layouts/AdminLayout.jsx';
 import './styles/global.css';
 import ErrorBoundary from './components/common/ErrorBoundary.jsx';
+import Loader from './components/common/Loader.jsx';
 
 function ProtectedRoute({ children, allowAdmin = false }) {
   const { isAuthenticated, loading, user } = useAuth();
 
   if (loading) {
-    return <div className="loading-screen">Cargando...</div>;
+    return <Loader size="fullscreen" withBrand text="Cargando..." />;
   }
 
   if (!isAuthenticated) {
@@ -50,7 +51,7 @@ function AdminRoute({ children }) {
   const { isAuthenticated, loading, user } = useAuth();
 
   if (loading) {
-    return <div className="loading-screen">Cargando...</div>;
+    return <Loader size="fullscreen" withBrand text="Cargando..." />;
   }
 
   if (!isAuthenticated) {

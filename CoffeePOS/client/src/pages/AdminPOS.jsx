@@ -13,6 +13,7 @@ import { printTicket } from '../services/ticketService.js';
 import { printLabels } from '../services/labelService.js';
 import { getOpenCashRegister } from '../services/cashRegisterService.js';
 import { getAllConfig } from '../services/configService.js';
+import { getMyClient } from '../services/clientService.js';
 import { DEFAULT_CATEGORIES, getCategories } from '../utils/constants.js';
 import ProductCard from '../components/pos/ProductCard.jsx';
 import OrderItem from '../components/pos/OrderItem.jsx';
@@ -53,6 +54,13 @@ export default function AdminPOS() {
   const [imprimirEtiquetas, setImprimirEtiquetas] = useState(true);
   const [customizationKey, setCustomizationKey] = useState(0); // Key para forzar remontaje del modal
   const [showMobileCart, setShowMobileCart] = useState(false);
+  const [businessInfo, setBusinessInfo] = useState(() => {
+    try {
+      const n = localStorage.getItem('businessName');
+      const a = localStorage.getItem('businessAddress');
+      return n || a ? { businessName: n || '', address: a || '' } : null;
+    } catch { return null; }
+  });
   const { toast, showToast, hideToast } = useToast();
   const navigate = useNavigate();
 
@@ -64,6 +72,32 @@ export default function AdminPOS() {
     loadIVA();
     loadLabelConfig();
   }, [searchTerm, selectedCategory]);
+
+  async function loadBusinessInfo() {
+    try {
+      const data = await getMyClient();
+      const info = { businessName: data.businessName || '', address: data.address || '' };
+      setBusinessInfo(info);
+      try {
+        if (info.businessName) localStorage.setItem('businessName', info.businessName);
+        if (info.address) localStorage.setItem('businessAddress', info.address);
+      } catch {}
+    } catch {}
+  }
+
+  useEffect(() => {
+    loadBusinessInfo();
+    function handleBusinessUpdate() { loadBusinessInfo(); }
+    function handleBusinessStorage(e) {
+      if (e.key === 'business_updated_at' || e.key === 'businessName' || e.key === 'businessAddress') loadBusinessInfo();
+    }
+    window.addEventListener('businessUpdated', handleBusinessUpdate);
+    window.addEventListener('storage', handleBusinessStorage);
+    return () => {
+      window.removeEventListener('businessUpdated', handleBusinessUpdate);
+      window.removeEventListener('storage', handleBusinessStorage);
+    };
+  }, []);
 
   // Atajos de teclado (modo POS rápido)
   useEffect(() => {
@@ -304,7 +338,7 @@ export default function AdminPOS() {
 
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName);
+      printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
         printLabels(sale, customerName);
       }
@@ -349,7 +383,7 @@ export default function AdminPOS() {
 
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName);
+      printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
         printLabels(sale, customerName);
       }
@@ -394,7 +428,7 @@ export default function AdminPOS() {
 
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName);
+      printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
         printLabels(sale, customerName);
       }
@@ -439,7 +473,7 @@ export default function AdminPOS() {
       };
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName);
+      printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
         printLabels(sale, customerName);
       }
@@ -487,7 +521,7 @@ export default function AdminPOS() {
 
       const sale = await createSale(saleData);
       window.dispatchEvent(new Event('saleCreated'));
-      printTicket(sale, customerName);
+      printTicket(sale, customerName, businessInfo);
       if (imprimirEtiquetas) {
         printLabels(sale, customerName);
       }

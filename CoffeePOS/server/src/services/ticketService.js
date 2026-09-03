@@ -8,13 +8,21 @@
  * @param {Object} sale - Venta con detalles
  * @returns {string} Ticket formateado
  */
-export function generateTicket(sale) {
+export function generateTicket(sale, businessInfo = null) {
   const lines = [];
   const width = 42; // Ancho estándar para impresoras térmicas
 
-  // Encabezado
+  // Encabezado - nombre y dirección de cafetería (Client.businessName)
+  const businessName = (businessInfo?.businessName || sale.businessName || sale.business_name || 'CAFETERÍA POS').toString().toUpperCase();
+  const businessAddress = businessInfo?.address || sale.businessAddress || sale.address || null;
   lines.push(''.padEnd(width, '='));
-  lines.push('CAFETERÍA POS'.padStart(width / 2 + 7).padEnd(width));
+  // Centrar nombre (truncar si muy largo)
+  const headerName = businessName.substring(0, width).padStart(Math.floor((width + businessName.substring(0,width).length)/2)).padEnd(width);
+  lines.push(headerName);
+  if (businessAddress) {
+    const addr = businessAddress.toString().substring(0, width);
+    lines.push(addr.padStart(Math.floor((width + addr.length)/2)).padEnd(width));
+  }
   lines.push(''.padEnd(width, '='));
   lines.push('');
   lines.push(`Ticket #: ${sale.numero_venta || 'N/A'}`);
@@ -113,6 +121,7 @@ export function generateTicket(sale) {
   // Pie de página
   lines.push('');
   lines.push('¡Gracias por su compra!'.padStart(width / 2 + 10).padEnd(width));
+  lines.push('Desarrollado por CoffeePOS'.padStart(width / 2 + 11).padEnd(width));
   lines.push(''.padEnd(width, '='));
 
   return lines.join('\n');
@@ -198,9 +207,9 @@ function formatCurrency(value) {
  * @param {Object} sale - Venta con detalles
  * @returns {Object} Resultado de la impresión simulada
  */
-export async function printTicket(sale) {
+export async function printTicket(sale, businessInfo = null) {
   try {
-    const ticket = generateTicket(sale);
+    const ticket = generateTicket(sale, businessInfo);
     
     // Simulación de impresión
     console.log('--- TICKET GENERADO ---');

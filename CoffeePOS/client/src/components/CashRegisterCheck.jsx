@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getOpenCashRegister } from '../services/cashRegisterService.js';
+import Loader from './common/Loader.jsx';
 
 export default function CashRegisterCheck({ children, redirectPath = '/apertura-caja' }) {
   const navigate = useNavigate();
@@ -50,12 +51,7 @@ export default function CashRegisterCheck({ children, redirectPath = '/apertura-
   }, [navigate, location.pathname, redirectPath]);
 
   if (loading) {
-    return (
-      <div className="loading-screen">
-        <div className="spinner"></div>
-        <p>Verificando estado de caja...</p>
-      </div>
-    );
+    return <Loader size="fullscreen" text="Verificando estado de caja..." />;
   }
 
   if (error) {

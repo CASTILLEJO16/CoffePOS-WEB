@@ -17,8 +17,80 @@
         }
       })();
     </script>
+    <style>
+      /* Preloader estático - visible antes de que React/Vite monte. Usa tokens fallback, <1KB */
+      #initial-loader {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        background: #f1f5f9;
+        color: #334155;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        transition: opacity 0.3s ease;
+      }
+      html[data-theme='dark'] #initial-loader {
+        background: #0b1220;
+        color: #cbd5e1;
+      }
+      @media (prefers-color-scheme: dark) {
+        html:not([data-theme='light']) #initial-loader {
+          background: #0b1220;
+          color: #cbd5e1;
+        }
+      }
+      .initial-spinner {
+        width: 44px;
+        height: 44px;
+        border: 3px solid #e2e8f0;
+        border-top-color: #5c4033;
+        border-radius: 9999px;
+        animation: initial-spin 0.8s linear infinite;
+      }
+      html[data-theme='dark'] .initial-spinner {
+        border-color: #2a364a;
+        border-top-color: #d4a574;
+      }
+      .initial-text {
+        font-size: 14px;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+      }
+      .initial-logo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        color: #5c4033;
+        box-shadow: 0 1px 2px rgba(15,23,42,0.06);
+      }
+      html[data-theme='dark'] .initial-logo {
+        background: #151d2e;
+        border-color: #2a364a;
+        color: #d4a574;
+      }
+      @keyframes initial-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) {
+        .initial-spinner { animation: none; opacity: 0.85; }
+      }
+    </style>
   </head>
   <body>
+    <div id="initial-loader" role="status" aria-live="polite" aria-label="Cargando Coffee POS">
+      <div class="initial-logo" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h13a2 2 0 0 1 2 2v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V6z"/><path d="M17 8h2a3 3 0 0 1 0 6h-2"/><path d="M6 2v2"/><path d="M10 2v2"/><path d="M14 2v2"/></svg>
+      </div>
+      <div class="initial-spinner" aria-hidden="true"></div>
+      <p class="initial-text">Cargando Coffee POS...</p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

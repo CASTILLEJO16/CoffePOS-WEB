@@ -183,6 +183,51 @@ export const deleteClient = async (req, res) => {
   }
 };
 
+// Obtener mi cafetería (para POS - cualquier usuario autenticado)
+export const getMyClient = async (req, res) => {
+  try {
+    const clientId = req.user?.clientId;
+    if (!clientId) {
+      return res.status(400).json({ success: false, message: 'Usuario sin cafetería asignada' });
+    }
+    const client = await Client.findById(clientId).select('name email businessName address phone status');
+    if (!client) {
+      return res.status(404).json({ success: false, message: 'Cafetería no encontrada' });
+    }
+    res.status(200).json({ success: true, data: client });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error al obtener cafetería', error: error.message });
+  }
+};
+
+// Actualizar mi cafetería (solo admin del POS)
+export const updateMyClient = async (req, res) => {
+  try {
+    const clientId = req.user?.clientId;
+    if (!clientId) {
+      return res.status(400).json({ success: false, message: 'Usuario sin cafetería asignada' });
+    }
+    const { businessName, address, phone } = req.body;
+    const updates = {};
+    if (businessName !== undefined) updates.businessName = String(businessName).trim();
+    if (address !== undefined) updates.address = String(address).trim();
+    if (phone !== undefined) updates.phone = String(phone).trim();
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, message: 'No hay datos para actualizar' });
+    }
+
+    const client = await Client.findByIdAndUpdate(clientId, updates, { new: true, runValidators: true }).select('name email businessName address phone status');
+    if (!client) {
+      return res.status(404).json({ success: false, message: 'Cafetería no encontrada' });
+    }
+
+    res.status(200).json({ success: true, message: 'Cafetería actualizada', data: client });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error al actualizar cafetería', error: error.message });
+  }
+};
+
 // Obtener licencias de un cliente
 export const getClientLicenses = async (req, res) => {
   try {

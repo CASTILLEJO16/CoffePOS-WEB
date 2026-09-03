@@ -6,12 +6,26 @@ import { formatBusinessDateTime } from '../utils/dateTime.js';
  */
 
 /**
+ * Sanitiza texto para inserción segura en HTML del ticket (evita XSS)
+ */
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
  * Genera un ticket en formato HTML para impresión
  * @param {Object} sale - Venta con detalles
  * @param {string} customerName - Nombre del cliente (opcional)
+ * @param {{businessName?: string, address?: string}} businessInfo - Info cafetería (de Client.businessName/address)
  * @returns {string} HTML del ticket
  */
-export function generateTicketHTML(sale, customerName = null) {
+export function generateTicketHTML(sale, customerName = null, businessInfo = null) {
   const formatDate = (dateString) => formatBusinessDateTime(dateString);
 
   const formatCurrency = (value) => {
@@ -85,6 +99,20 @@ export function generateTicketHTML(sale, customerName = null) {
         ? Math.round((sale.impuestos / sale.subtotal) * 100)
         : 0);
 
+  // Info de cafetería - viene de Client.businessName/address (DeveloperPanel)
+  // Fallback compatible: si sale trae datos embebidos, usar esos
+  const rawBusinessName = businessInfo?.businessName ?? sale.businessName ?? sale.business_name ?? null;
+  const rawAddress = businessInfo?.address ?? sale.businessAddress ?? sale.business_address ?? sale.address ?? null;
+  // Permitir fallback a localStorage si POS cacheó el nombre
+  const cachedBusinessName = !rawBusinessName ? (typeof localStorage !== 'undefined' ? localStorage.getItem('businessName') : null) : null;
+  const cachedAddress = !rawAddress ? (typeof localStorage !== 'undefined' ? localStorage.getItem('businessAddress') : null) : null;
+  const displayBusinessName = escapeHtml(rawBusinessName || cachedBusinessName || 'CAFETERÍA POS');
+  const displayAddress = rawAddress || cachedAddress ? escapeHtml(rawAddress || cachedAddress) : null;
+
+  const ticketId = escapeHtml(sale.id || sale._id || sale.numero_venta || 'N/A');
+  const safeCustomerName = customerName ? escapeHtml(customerName) : null;
+  const escapedBusinessHeader = displayBusinessName;
+
   return `
     <!DOCTYPE html>
     <html>
@@ -120,7 +148,14 @@ export function generateTicketHTML(sale, customerName = null) {
         
         .ticket-header h1 {
           font-size: 16px;
-          margin-bottom: 5px;
+          margin-bottom: 4px;
+          word-break: break-word;
+        }
+        .ticket-address {
+          font-size: 10px;
+          color: #333;
+          margin-bottom: 2px;
+          word-break: break-word;
         }
         
         .ticket-info {
@@ -224,22 +259,23 @@ export function generateTicketHTML(sale, customerName = null) {
     <body>
       <div class="ticket">
         <div class="ticket-header">
-          <h1>CAFETERÍA POS</h1>
+          <h1>${escapedBusinessHeader}</h1>
+          ${displayAddress ? `<p class="ticket-address">${displayAddress}</p>` : ''}
         </div>
         
         <div class="ticket-info">
           <div class="ticket-info-row">
             <span>Ticket #:</span>
-            <span>${sale.id}</span>
+            <span>${ticketId}</span>
           </div>
           <div class="ticket-info-row">
             <span>Fecha:</span>
             <span>${formatDate(sale.fecha)}</span>
           </div>
-          ${customerName ? `
+          ${safeCustomerName ? `
           <div class="ticket-info-row">
             <span>Cliente:</span>
-            <span>${customerName}</span>
+            <span>${safeCustomerName}</span>
           </div>` : ''}
           <div class="ticket-info-row">
             <span>Método:</span>
@@ -354,7 +390,7 @@ export function generateTicketHTML(sale, customerName = null) {
         
         <div class="ticket-footer">
           <p>¡Gracias por su compra!</p>
-          <p>***</p>
+          <p style="margin-top: 6px; font-size: 10px; color: #555;">Desarrollado por CoffeePOS</p>
         </div>
       </div>
     </body>
@@ -430,9 +466,19 @@ function getCustomizationItems(personalizaciones) {
  * Imprime un ticket de venta
  * @param {Object} sale - Venta con detalles
  * @param {string} customerName - Nombre del cliente (opcional)
+ * @param {{businessName?: string, address?: string}} businessInfo - opcional, si no se pasa se toma de localStorage/sale
  */
-export function printTicket(sale, customerName = null) {
-  const ticketHTML = generateTicketHTML(sale, customerName);
+export function printTicket(sale, customerName = null, businessInfo = null) {
+  // Auto-resolver businessInfo si no se pasó: intenta localStorage cache sin fetch bloqueante
+  let resolvedBusiness = businessInfo;
+  if (!resolvedBusiness) {
+    try {
+      const bName = localStorage.getItem('businessName');
+      const bAddr = localStorage.getItem('businessAddress');
+      if (bName || bAddr) resolvedBusiness = { businessName: bName, address: bAddr };
+    } catch {}
+  }
+  const ticketHTML = generateTicketHTML(sale, customerName, resolvedBusiness);
   
   const printWindow = window.open('', '_blank');
   if (printWindow) {

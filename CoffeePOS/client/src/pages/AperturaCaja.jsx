@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { openCashRegister, getCashRegisterNames, getAllCashRegisters } from '../services/cashRegisterService.js';
 import { formatBusinessDate, formatBusinessTime } from '../utils/dateTime.js';
 import { Coffee, Clock, Calendar, User, DollarSign, FileText, Wallet } from 'lucide-react';
+import Loader from '../components/common/Loader.jsx';
 import './AperturaCaja.css';
 
 export default function AperturaCaja() {
@@ -263,8 +264,9 @@ export default function AperturaCaja() {
             type="submit"
             className="submit-button"
             disabled={loading || (!isAdmin && cajas.length === 0)}
+            style={loading ? { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 } : undefined}
           >
-            {loading ? 'Abriendo caja...' : 'Abrir Caja'}
+            {loading ? <><Loader size="small" /> Abriendo caja...</> : 'Abrir Caja'}
           </button>
         </form>
       </div>

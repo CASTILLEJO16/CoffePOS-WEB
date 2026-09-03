@@ -1,0 +1,144 @@
+/* Loader - usa design tokens de global.css, soporta light/dark via [data-theme] */
+.loader {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-3);
+  color: var(--color-text-secondary);
+}
+
+.loader--fullscreen {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  background: var(--color-background);
+  padding: var(--spacing-6);
+}
+
+.loader--overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal-backdrop);
+  background: var(--color-overlay);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.loader--inline {
+  padding: var(--spacing-4) 0;
+  width: 100%;
+}
+
+/* Spinner base */
+.loader-spinner {
+  border-radius: var(--border-radius-full);
+  border-style: solid;
+  border-color: var(--color-border);
+  border-top-color: var(--color-primary);
+  animation: loader-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+/* Tamaños - props size */
+.loader-spinner--small {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+}
+
+.loader-spinner--medium {
+  width: 40px;
+  height: 40px;
+  border-width: 3px;
+}
+
+.loader-spinner--large {
+  width: 56px;
+  height: 56px;
+  border-width: 4px;
+}
+
+.loader-spinner--fullscreen {
+  width: 48px;
+  height: 48px;
+  border-width: 3px;
+}
+
+/* Brand variant - solo para fullscreen con logo */
+.loader-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-3);
+  animation: loader-fadeIn 0.3s ease-out;
+}
+
+.loader-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--border-radius-xl);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-primary);
+  animation: loader-pulse 1.6s ease-in-out infinite;
+}
+
+.loader-logo svg {
+  width: 32px;
+  height: 32px;
+}
+
+/* Texto */
+.loader-text {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  text-align: center;
+  line-height: var(--line-height-normal);
+  animation: loader-fadeIn 0.35s ease-out 0.1s both;
+}
+
+.loader--fullscreen .loader-text {
+  font-size: var(--font-size-md);
+}
+
+.loader--small .loader-text {
+  font-size: var(--font-size-xs);
+}
+
+/* Keyframes - CSS puro sin libs */
+@keyframes loader-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes loader-fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes loader-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.03); opacity: 0.92; }
+}
+
+/* Accesibilidad: respeta reduce-motion */
+@media (prefers-reduced-motion: reduce) {
+  .loader-spinner,
+  .loader-logo,
+  .loader-brand,
+  .loader-text {
+    animation: none;
+  }
+  .loader-spinner {
+    border-top-color: var(--color-primary);
+    opacity: 0.9;
+  }
+}
