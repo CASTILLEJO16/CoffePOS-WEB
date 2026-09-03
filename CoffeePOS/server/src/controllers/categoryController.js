@@ -94,8 +94,9 @@ export async function updateCategory(req, res) {
 export async function deleteCategory(req, res) {
   try {
     const { id } = req.params;
+    const clientId = req.user?.clientId;
     
-    await categoryService.deleteCategory(id);
+    await categoryService.deleteCategory(id, clientId);
     
     res.json({
       success: true,
@@ -103,6 +104,15 @@ export async function deleteCategory(req, res) {
     });
   } catch (error) {
     console.error('Error en deleteCategory:', error);
+    if (error.code === 'CATEGORY_IN_USE') {
+      return res.status(400).json({ success: false, error: error.message });
+    }
+    if (error.code === 'NOT_FOUND') {
+      return res.status(404).json({ success: false, error: error.message });
+    }
+    if (error.code === 'FORBIDDEN') {
+      return res.status(403).json({ success: false, error: error.message });
+    }
     res.status(500).json({
       success: false,
       error: error.message

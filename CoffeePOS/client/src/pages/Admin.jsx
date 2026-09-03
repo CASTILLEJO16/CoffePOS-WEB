@@ -4,6 +4,7 @@ import { Package, Plus } from 'lucide-react';
 import { createProduct, updateProduct } from '../services/productService.js';
 import ProductList from '../components/admin/ProductList.jsx';
 import ProductForm from '../components/admin/ProductForm.jsx';
+import CategoryManager from '../components/admin/CategoryManager.jsx';
 import Modal from '../components/common/Modal.jsx';
 import Button from '../components/common/Button.jsx';
 import './Admin.css';
@@ -75,6 +76,8 @@ export default function Admin() {
           Nuevo Producto
         </Button>
       </div>
+
+      <CategoryManager />
 
       <div className="admin-content">
         <ProductList

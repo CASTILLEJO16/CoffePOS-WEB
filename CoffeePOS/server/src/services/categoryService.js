@@ -74,10 +74,32 @@ export async function updateCategory(id, nombre) {
 }
 
 /**
- * Elimina (desactiva) una categoría
+ * Elimina (desactiva) una categoría - valida que no tenga productos activos
  */
-export async function deleteCategory(id) {
+export async function deleteCategory(id, clientId = null) {
   try {
+    const category = await Category.findById(id);
+    if (!category) {
+      const err = new Error('Categoría no encontrada');
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+    // Validar ownership si se pasa clientId
+    if (clientId && category.clientId.toString() !== clientId.toString()) {
+      const err = new Error('No tienes permiso para eliminar esta categoría');
+      err.code = 'FORBIDDEN';
+      throw err;
+    }
+    // Verificar si hay productos activos usando esa categoría
+    const Product = (await import('../models/Product.js')).default;
+    const filter = { categoria: category.nombre, activo: true };
+    if (category.clientId) filter.clientId = category.clientId;
+    const count = await Product.countDocuments(filter);
+    if (count > 0) {
+      const err = new Error(`No se puede eliminar: hay ${count} producto(s) activo(s) en "${category.nombre}". Reasigna o desactiva esos productos primero.`);
+      err.code = 'CATEGORY_IN_USE';
+      throw err;
+    }
     await Category.findByIdAndUpdate(id, { activo: false });
     return { success: true };
   } catch (error) {
