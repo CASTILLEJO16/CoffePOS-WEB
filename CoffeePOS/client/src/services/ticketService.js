@@ -128,20 +128,20 @@ export function generateTicketHTML(sale, customerName = null, businessInfo = nul
     <html>
     <head>
       <meta charset="UTF-8">
-      <title>Ticket #${ticketId}</title>
+      <title></title>
       <style>
         * {
           margin: 0;
           padding: 0;
           box-sizing: border-box;
         }
-        
+        @page { margin: 0; size: 110mm 220mm; }
         body {
           font-family: 'Courier New', monospace;
           font-size: 12px;
           width: 110mm;
           padding: 5mm;
-          margin: 0 auto; /* ✅ centrar en hoja */
+          margin: 0 auto;
           background: white;
         }
         
@@ -252,17 +252,11 @@ export function generateTicketHTML(sale, customerName = null, businessInfo = nul
           font-size: 11px;
         }
         
+        @page { margin: 0; size: 110mm 220mm; }
         @media print {
-          body {
-            width: 110mm;
-            margin: 0 auto; /* ✅ centrar impresión */
-            padding: 0;
-          }
-          
-          @page {
-            margin: 0;
-            size: 110mm 220mm; /* ✅ tamaño correcto */
-          }
+          html, body { margin: 0; padding: 0; }
+          body { width: 110mm; margin: 0 auto; padding: 0; }
+          @page { margin: 0; size: 110mm 220mm; }
         }
       </style>
     </head>
