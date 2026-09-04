@@ -183,7 +183,7 @@ export default function VentasVendedor() {
           ? toSQLDate(sixMonthsAgo)
           : ranges.prevMonth.start,
         endDate: extendedEnd,
-        usuarioId: user?.id || user?.userId // Filtrar solo ventas del vendedor actual
+        usuarioId: user?._id // Filtrar solo ventas del vendedor actual
       });
       setAllSales(Array.isArray(data) ? data : []);
 
@@ -343,7 +343,7 @@ export default function VentasVendedor() {
     if (!kpis.todaySales.length && !allSales.length) return null;
     // Filtrar solo ventas del usuario actual (vendedor)
     const userSales = allSales.filter(sale => 
-      sale.usuario_id === user?.id || sale.usuario_id === user?.userId
+      sale.usuario_id === user?._id || sale.usuario_id?.toString() === user?._id?.toString()
     );
     return [...userSales].sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))[0] || null;
   }, [allSales, kpis.todaySales.length, user]);
