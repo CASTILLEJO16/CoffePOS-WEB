@@ -83,35 +83,47 @@ export function formatBusinessDate(date = new Date()) {
  * Hora en vivo (Tijuana)
  */
 export function formatBusinessTime(date = new Date(), withSeconds = true) {
-  const parsed = typeof date === 'string' ? parseBusinessDate(date) : date;
-  const formatted = parsed.toLocaleTimeString('es-MX', {
-    timeZone: BUSINESS_TIMEZONE,
-    hour: '2-digit',
-    minute: '2-digit',
-    ...(withSeconds ? { second: '2-digit' } : {}),
-    hour12: true
-  });
-  return formatted;
+  try {
+    const parsed = typeof date === 'string' ? parseBusinessDate(date) : date;
+    if (!parsed || Number.isNaN(parsed.getTime())) return '—';
+    const formatted = parsed.toLocaleTimeString('es-MX', {
+      timeZone: BUSINESS_TIMEZONE,
+      hour: '2-digit',
+      minute: '2-digit',
+      ...(withSeconds ? { second: '2-digit' } : {}),
+      hour12: true
+    });
+    return formatted;
+  } catch {
+    return '—';
+  }
 }
 
 /**
  * Fecha y hora en vivo (Tijuana)
  */
 export function formatBusinessDateTime(date = new Date()) {
-  // ✅ Si viene como string SQL, NO convertir ni aplicar timezone
-  if (typeof date === 'string' && date.includes(' ')) {
-    const [d, t] = date.split(' ');
-    const [y, m, day] = d.split('-');
-    return `${day} ${new Date(`${y}-${m}-01`).toLocaleString('es-MX', { month: 'short' })} ${y}, ${t.slice(0,5)}`;
-  }
+  try {
+    // ✅ Si viene como string SQL, NO convertir ni aplicar timezone
+    if (typeof date === 'string' && date.includes(' ')) {
+      const [d, t] = date.split(' ');
+      const [y, m, day] = d.split('-');
+      if (!y || !m || !day) return '—';
+      return `${day} ${new Date(`${y}-${m}-01`).toLocaleString('es-MX', { month: 'short' })} ${y}, ${t.slice(0,5)}`;
+    }
 
-  const parsed = typeof date === 'string' ? parseBusinessDate(date) : date;
-  return parsed.toLocaleString('es-MX', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
+    const parsed = typeof date === 'string' ? parseBusinessDate(date) : date;
+    if (!parsed || Number.isNaN(parsed.getTime())) return '—';
+    return parsed.toLocaleString('es-MX', {
+      timeZone: BUSINESS_TIMEZONE,
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  } catch {
+    return '—';
+  }
 }

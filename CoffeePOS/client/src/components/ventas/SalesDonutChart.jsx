@@ -6,7 +6,8 @@ const COLORS = {
 };
 
 export default function SalesDonutChart({ data = [], formatValue }) {
-  const total = data.reduce((sum, d) => sum + d.amount, 0);
+  const safeFormat = typeof formatValue === 'function' ? formatValue : (v) => String(v ?? '');
+  const total = data.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
   const radius = 70;
   const stroke = 22;
   const circumference = 2 * Math.PI * radius;
@@ -56,7 +57,7 @@ export default function SalesDonutChart({ data = [], formatValue }) {
         </svg>
         <div className="donut-center">
           <span className="donut-center-label">Total</span>
-          <span className="donut-center-value">{formatValue(total)}</span>
+          <span className="donut-center-value">{safeFormat(total)}</span>
         </div>
       </div>
 
@@ -66,7 +67,7 @@ export default function SalesDonutChart({ data = [], formatValue }) {
             <span className="donut-legend-dot" style={{ background: COLORS[item.key] }} />
             <span className="donut-legend-label">{item.label}</span>
             <span className="donut-legend-meta">
-              {formatValue(item.amount)} · {item.percent.toFixed(1)}%
+              {safeFormat(item.amount)} · {(Number(item.percent) || 0).toFixed(1)}%
             </span>
           </li>
         ))}

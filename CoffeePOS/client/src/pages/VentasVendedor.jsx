@@ -157,13 +157,24 @@ export default function VentasVendedor() {
   const [refundMotivo, setRefundMotivo] = useState('');
   const [refundError, setRefundError] = useState('');
 
-  const goalKey = `seller_daily_goal_${user?.id || user?.userId || 'default'}`;
+  const currentUserIdForGoal = user?._id || user?.id || user?.userId || 'default';
+  const goalKey = `seller_daily_goal_${currentUserIdForGoal}`;
   const [dailyGoal, setDailyGoal] = useState(() => {
-    const saved = localStorage.getItem(goalKey);
-    return saved ? Number(saved) : 2000;
+    try {
+      const saved = localStorage.getItem(goalKey);
+      return saved ? Number(saved) : 2000;
+    } catch { return 2000; }
   });
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalDraft, setGoalDraft] = useState('');
+
+  // Cuando cambia de usuario, recargar meta guardada
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(goalKey);
+      if (saved) setDailyGoal(Number(saved));
+    } catch {}
+  }, [goalKey]);
 
   const loadData = useCallback(async () => {
     try {
@@ -178,12 +189,13 @@ export default function VentasVendedor() {
       today.setDate(today.getDate() + 1); // Agregar 1 día para incluir ventas de hoy del servidor
       const extendedEnd = toSQLDate(today);
 
+      const effectiveUserId = user?._id || user?.id || user?.userId || null;
       const data = await getSales({
         startDate: toSQLDate(sixMonthsAgo) < ranges.prevMonth.start
           ? toSQLDate(sixMonthsAgo)
           : ranges.prevMonth.start,
         endDate: extendedEnd,
-        usuarioId: user?._id // Filtrar solo ventas del vendedor actual
+        ...(effectiveUserId ? { usuarioId: effectiveUserId } : {})
       });
       setAllSales(Array.isArray(data) ? data : []);
 
@@ -341,20 +353,55 @@ export default function VentasVendedor() {
 
   const lastSale = useMemo(() => {
     if (!allSales.length) return null;
-    
-    // Filtrar solo ventas del usuario actual (vendedor)
-    const userSales = allSales.filter(sale => {
-      if (!user?._id) return false;
-      const saleUserId = sale.usuario_id?._id ? sale.usuario_id._id.toString() : 
-                         sale.usuario_id?.toString ? sale.usuario_id.toString() : 
-                         sale.usuario_id;
-      const currentUserId = user._id.toString();
-      return saleUserId === currentUserId;
-    });
-    
-    if (userSales.length === 0) return null;
-    
-    return [...userSales].sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))[0];
+
+    // Extraer ID del usuario de forma robusta (soporta _id, id, userId)
+    const getCurrentUserId = (u) => {
+      if (!u) return null;
+      const raw = u._id ?? u.id ?? u.userId ?? u.usuario_id;
+      if (!raw) return null;
+      try { return String(raw); } catch { return null; }
+    };
+    const currentUserId = getCurrentUserId(user);
+
+    // Helper para extraer usuario_id de la venta (populado, string u ObjectId)
+    const getSaleUserId = (sale) => {
+      const raw = sale?.usuario_id;
+      if (!raw) return null;
+      if (typeof raw === 'object' && raw._id) {
+        try { return String(raw._id); } catch { return null; }
+      }
+      if (typeof raw === 'object' && raw.toString) {
+        try { return String(raw); } catch { return null; }
+      }
+      try { return String(raw); } catch { return null; }
+    };
+
+    let userSales = [];
+    if (currentUserId) {
+      userSales = allSales.filter((sale) => {
+        const sid = getSaleUserId(sale);
+        return sid != null && String(sid) === String(currentUserId);
+      });
+    }
+
+    // Fallback: si el backend ya filtró por vendedor, allSales ya es del usuario.
+    // Si el filtro local dejó vacío pero hay ventas, usar la más reciente de allSales.
+    const pool = userSales.length > 0 ? userSales : (currentUserId ? [] : allSales);
+    // Si currentUserId existe pero userSales vacío y allSales >0, probablemente sea
+    // inconsistencia de IDs; fallback a allSales ordenado para no mostrar recuadro vacío.
+    const effectivePool = pool.length === 0 && allSales.length > 0 && currentUserId ? allSales : pool.length ? pool : allSales;
+
+    if (!effectivePool.length) return null;
+
+    // Ordenar por fecha descendente de forma robusta (Date)
+    return [...effectivePool].sort((a, b) => {
+      const ta = a?.fecha ? new Date(a.fecha).getTime() : 0;
+      const tb = b?.fecha ? new Date(b.fecha).getTime() : 0;
+      if (Number.isNaN(ta) || Number.isNaN(tb)) {
+        return String(b.fecha || '').localeCompare(String(a.fecha || ''));
+      }
+      return tb - ta;
+    })[0] || null;
   }, [allSales, user]);
 
   const goalProgress = dailyGoal > 0 ? Math.min(100, (kpis.ventasHoy.value / dailyGoal) * 100) : 0;
@@ -562,7 +609,7 @@ export default function VentasVendedor() {
             type="button"
             className="mv-action-btn"
             onClick={() => lastSale && handleReprint(lastSale)}
-            disabled={!lastSale || !lastSale._id && !lastSale.id || actionLoading}
+            disabled={!lastSale || (!lastSale._id && !lastSale.id && !lastSale.numero_venta) || actionLoading}
           >
             <Printer size={16} /> Reimprimir
           </button>
@@ -750,7 +797,7 @@ export default function VentasVendedor() {
           ) : (
             <div className="last-sale">
               <div className="last-sale-main">
-                <span className="last-sale-folio">#{lastSale.id}</span>
+                <span className="last-sale-folio">#{lastSale.numero_venta || lastSale.id || lastSale._id || '—'}</span>
                 <span className={`payment-chip ${normalizePaymentMethod(lastSale.metodo_pago)}`}>
                   {formatPaymentMethod(lastSale.metodo_pago, lastSale.tipo_tarjeta)}
                 </span>
@@ -758,15 +805,15 @@ export default function VentasVendedor() {
               <div className="last-sale-grid">
                 <div>
                   <span className="meta-label">Fecha</span>
-                  <strong>{formatBusinessDateTime(lastSale.fecha).split(',')[0]}</strong>
+                  <strong>{lastSale.fecha ? formatBusinessDateTime(lastSale.fecha).split(',')[0] : '—'}</strong>
                 </div>
                 <div>
                   <span className="meta-label">Hora</span>
-                  <strong>{formatBusinessTime(lastSale.fecha, false)}</strong>
+                  <strong>{lastSale.fecha ? formatBusinessTime(lastSale.fecha, false) : '—'}</strong>
                 </div>
                 <div>
                   <span className="meta-label">Cliente</span>
-                  <strong>{lastSale.cliente || 'Cliente general'}</strong>
+                  <strong>{lastSale.cliente || lastSale.cliente_nombre || 'Cliente general'}</strong>
                 </div>
                 <div>
                   <span className="meta-label">Productos</span>
@@ -776,12 +823,12 @@ export default function VentasVendedor() {
               <p className="last-sale-products">
                 {(lastSale.detalles || [])
                   .slice(0, 3)
-                  .map((d) => `${d.cantidad}x ${d.producto_nombre}`)
+                  .map((d) => `${d.cantidad}x ${d.producto_nombre || d.nombre || 'Producto'}`)
                   .join(' · ') || 'Sin detalle de productos'}
                 {(lastSale.detalles || []).length > 3 ? '…' : ''}
               </p>
               <div className="last-sale-footer">
-                <strong>{formatCurrency(lastSale.total)}</strong>
+                <strong>{formatCurrency(lastSale.total ?? 0)}</strong>
                 <button
                   type="button"
                   className="mv-action-btn primary"

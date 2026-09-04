@@ -1,5 +1,6 @@
 export default function SalesBarChart({ data = [], formatValue }) {
-  const max = Math.max(...data.map((d) => d.total), 1);
+  const safeFormat = typeof formatValue === 'function' ? formatValue : (v) => String(v ?? '');
+  const max = Math.max(...data.map((d) => Number(d.total) || 0), 1);
 
   if (!data.length) {
     return (
@@ -13,11 +14,12 @@ export default function SalesBarChart({ data = [], formatValue }) {
     <div className="bar-chart" role="img" aria-label="Gráfica de ventas">
       <div className="bar-chart-plot">
         {data.map((item) => {
-          const height = Math.max((item.total / max) * 100, item.total > 0 ? 6 : 2);
+          const total = Number(item.total) || 0;
+          const height = Math.max((total / max) * 100, total > 0 ? 6 : 2);
           return (
-            <div key={item.key} className="bar-chart-col" title={`${item.label}: ${formatValue(item.total)}`}>
+            <div key={item.key} className="bar-chart-col" title={`${item.label}: ${safeFormat(total)}`}>
               <div className="bar-chart-value">
-                {item.total > 0 ? formatValue(item.total) : ''}
+                {total > 0 ? safeFormat(total) : ''}
               </div>
               <div className="bar-chart-track">
                 <div
