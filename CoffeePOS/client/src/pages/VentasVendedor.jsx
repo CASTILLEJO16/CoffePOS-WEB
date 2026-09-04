@@ -340,13 +340,22 @@ export default function VentasVendedor() {
   );
 
   const lastSale = useMemo(() => {
-    if (!kpis.todaySales.length && !allSales.length) return null;
+    if (!allSales.length) return null;
+    
     // Filtrar solo ventas del usuario actual (vendedor)
-    const userSales = allSales.filter(sale => 
-      sale.usuario_id === user?._id || sale.usuario_id?.toString() === user?._id?.toString()
-    );
-    return [...userSales].sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))[0] || null;
-  }, [allSales, kpis.todaySales.length, user]);
+    const userSales = allSales.filter(sale => {
+      if (!user?._id) return false;
+      const saleUserId = sale.usuario_id?._id ? sale.usuario_id._id.toString() : 
+                         sale.usuario_id?.toString ? sale.usuario_id.toString() : 
+                         sale.usuario_id;
+      const currentUserId = user._id.toString();
+      return saleUserId === currentUserId;
+    });
+    
+    if (userSales.length === 0) return null;
+    
+    return [...userSales].sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))[0];
+  }, [allSales, user]);
 
   const goalProgress = dailyGoal > 0 ? Math.min(100, (kpis.ventasHoy.value / dailyGoal) * 100) : 0;
   const goalRemaining = Math.max(0, dailyGoal - kpis.ventasHoy.value);
