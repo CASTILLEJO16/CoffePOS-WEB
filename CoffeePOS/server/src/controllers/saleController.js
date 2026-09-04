@@ -84,25 +84,26 @@ export async function getSale(req, res) {
       });
     }
 
-    // Vendedores solo pueden ver sus propias ventas
-    // Comparar ambos IDs como strings para manejar ObjectIds correctamente
-    if (role !== 'admin' && role !== 'cajero') {
-      return res.status(403).json({
-        success: false,
-        error: 'Rol no autorizado'
+    // Admins pueden ver cualquier venta
+    if (role === 'admin') {
+      return res.json({
+        success: true,
+        data: sale
       });
     }
 
-    if (role === 'cajero') {
-      const saleUserId = sale.usuario_id?.toString() || sale.usuario_id;
-      const requestUserId = userId?.toString() || userId;
-      
-      if (saleUserId !== requestUserId) {
-        return res.status(403).json({
-          success: false,
-          error: 'No tienes acceso a esta venta'
-        });
-      }
+    // Cajeros solo pueden ver sus propias ventas
+    // Manejar diferentes formatos de usuario_id
+    const saleUserId = sale.usuario_id?._id ? sale.usuario_id._id.toString() : 
+                       sale.usuario_id?.toString ? sale.usuario_id.toString() : 
+                       sale.usuario_id;
+    const requestUserId = userId?.toString ? userId.toString() : userId;
+
+    if (saleUserId !== requestUserId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No tienes acceso a esta venta'
+      });
     }
 
     res.json({
@@ -244,17 +245,27 @@ export async function printTicket(req, res) {
       });
     }
 
-    // Vendedores solo pueden reimprimir sus propias ventas
-    if (role === 'cajero') {
-      const saleUserId = sale.usuario_id?.toString() || sale.usuario_id;
-      const requestUserId = userId?.toString() || userId;
-      
-      if (saleUserId !== requestUserId) {
-        return res.status(403).json({
-          success: false,
-          error: 'No tienes acceso a esta venta'
-        });
-      }
+    // Admins pueden reimprimir cualquier ticket
+    if (role === 'admin') {
+      const result = await ticketService.printTicket(sale);
+      await logAction(userId, 'REIMPRIMIR_TICKET', `Ticket reimpreso`);
+      return res.json({
+        success: true,
+        data: result
+      });
+    }
+
+    // Cajeros solo pueden reimprimir sus propios tickets
+    const saleUserId = sale.usuario_id?._id ? sale.usuario_id._id.toString() : 
+                       sale.usuario_id?.toString ? sale.usuario_id.toString() : 
+                       sale.usuario_id;
+    const requestUserId = userId?.toString ? userId.toString() : userId;
+
+    if (saleUserId !== requestUserId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No tienes acceso a esta venta'
+      });
     }
 
     const result = await ticketService.printTicket(sale);
