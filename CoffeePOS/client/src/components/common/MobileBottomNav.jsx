@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, Package, BarChart3, Wallet, Settings, Users, DollarSign, MoreHorizontal, X, Coffee } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ShoppingCart, Package, BarChart3, Wallet, Settings, Users, DollarSign, MoreHorizontal, X, Coffee, LogOut } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext.jsx';
+import Swal from 'sweetalert2';
 import './MobileBottomNav.css';
 
 const adminPrimary = [
@@ -26,11 +28,31 @@ const sellerPrimary = [
 
 export default function MobileBottomNav({ variant = 'seller' }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
 
   const isAdmin = variant === 'admin';
   const primary = isAdmin ? adminPrimary : sellerPrimary;
   const moreItems = isAdmin ? adminMore : [];
+
+  function handleLogout() {
+    setMoreOpen(false);
+    Swal.fire({
+      title: '¿Estás seguro de cerrar sesión?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ff4b4b',
+      cancelButtonColor: '#888',
+      confirmButtonText: 'Sí, cerrar sesión',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        logout();
+        navigate('/login');
+      }
+    });
+  }
 
   function isActive(item) {
     if (item.exact) return location.pathname === item.path;
@@ -84,6 +106,10 @@ export default function MobileBottomNav({ variant = 'seller' }) {
               <span className="mobile-nav-label">Más</span>
             </button>
           )}
+          <button className="mobile-nav-item mobile-nav-logout" onClick={handleLogout} aria-label="Cerrar sesión">
+            <span className="mobile-nav-icon"><LogOut size={22} /></span>
+            <span className="mobile-nav-label">Salir</span>
+          </button>
         </div>
       </nav>
     </>

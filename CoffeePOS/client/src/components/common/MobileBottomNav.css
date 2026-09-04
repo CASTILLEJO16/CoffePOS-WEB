@@ -64,6 +64,16 @@
     box-shadow: var(--shadow-sm);
   }
 
+  .mobile-nav-logout {
+    color: var(--color-danger);
+  }
+
+  .mobile-nav-logout:hover,
+  .mobile-nav-logout:active {
+    background: var(--color-danger-light);
+    color: var(--color-danger);
+  }
+
   .mobile-nav-icon {
     display: flex;
     align-items: center;
