@@ -30,7 +30,12 @@ export async function getSales(limit = 100, offset = 0, usuarioId = null, client
   try {
     const query = { cancelada: { $ne: true } };
     if (usuarioId) {
-      query.usuario_id = usuarioId;
+      // Convertir string a ObjectId si es válido
+      if (mongoose.Types.ObjectId.isValid(usuarioId)) {
+        query.usuario_id = new mongoose.Types.ObjectId(usuarioId);
+      } else {
+        query.usuario_id = usuarioId;
+      }
     }
     if (clientId) {
       query.clientId = clientId;
@@ -55,10 +60,14 @@ export async function getSales(limit = 100, offset = 0, usuarioId = null, client
  */
 export async function getSalesByUser(usuarioId) {
   try {
-    const sales = await Sale.find({ 
-      usuario_id: usuarioId, 
-      cancelada: { $ne: true } 
-    })
+    const query = { cancelada: { $ne: true } };
+    if (mongoose.Types.ObjectId.isValid(usuarioId)) {
+      query.usuario_id = new mongoose.Types.ObjectId(usuarioId);
+    } else {
+      query.usuario_id = usuarioId;
+    }
+    
+    const sales = await Sale.find(query)
     .populate('usuario_id', 'nombre')
     .sort({ fecha: -1 });
     return sales;
@@ -588,7 +597,11 @@ export async function getSalesByDate(date, usuarioId = null, clientId = null) {
     };
 
     if (usuarioId) {
-      query.usuario_id = usuarioId;
+      if (mongoose.Types.ObjectId.isValid(usuarioId)) {
+        query.usuario_id = new mongoose.Types.ObjectId(usuarioId);
+      } else {
+        query.usuario_id = usuarioId;
+      }
     }
     if (clientId) {
       query.clientId = clientId;
@@ -656,7 +669,11 @@ export async function getSalesByDateRange(startDate, endDate, usuarioId = null, 
     };
 
     if (usuarioId) {
-      query.usuario_id = usuarioId;
+      if (mongoose.Types.ObjectId.isValid(usuarioId)) {
+        query.usuario_id = new mongoose.Types.ObjectId(usuarioId);
+      } else {
+        query.usuario_id = usuarioId;
+      }
     }
     if (clientId) {
       query.clientId = clientId;
