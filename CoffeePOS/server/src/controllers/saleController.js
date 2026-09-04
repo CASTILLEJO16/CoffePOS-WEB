@@ -13,21 +13,25 @@ import mongoose from 'mongoose';
  */
 export async function getSales(req, res) {
   try {
-    const { limit, offset, date, startDate, endDate } = req.query;
+    const { limit, offset, date, startDate, endDate, usuarioId } = req.query;
     const userId = req.user?.userId;
     const clientId = req.user?.clientId;
+
+    // Si se proporciona usuarioId en los query params, usarlo (para vendedores que solo quieren ver sus ventas)
+    // Si no, usar el userId del token (para admins que pueden ver todas las ventas)
+    const effectiveUserId = usuarioId || userId;
 
     let sales;
 
     if (date) {
-      sales = await saleService.getSalesByDate(date, userId, clientId);
+      sales = await saleService.getSalesByDate(date, effectiveUserId, clientId);
     } else if (startDate && endDate) {
-      sales = await saleService.getSalesByDateRange(startDate, endDate, userId, clientId);
+      sales = await saleService.getSalesByDateRange(startDate, endDate, effectiveUserId, clientId);
     } else {
       sales = await saleService.getSales(
         parseInt(limit) || 100,
         parseInt(offset) || 0,
-        userId,
+        effectiveUserId,
         clientId
       );
     }

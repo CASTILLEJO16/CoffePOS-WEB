@@ -182,7 +182,8 @@ export default function VentasVendedor() {
         startDate: toSQLDate(sixMonthsAgo) < ranges.prevMonth.start
           ? toSQLDate(sixMonthsAgo)
           : ranges.prevMonth.start,
-        endDate: extendedEnd
+        endDate: extendedEnd,
+        usuarioId: user?.id || user?.userId // Filtrar solo ventas del vendedor actual
       });
       setAllSales(Array.isArray(data) ? data : []);
 
@@ -199,7 +200,7 @@ export default function VentasVendedor() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     loadData();
@@ -340,8 +341,12 @@ export default function VentasVendedor() {
 
   const lastSale = useMemo(() => {
     if (!kpis.todaySales.length && !allSales.length) return null;
-    return [...allSales].sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))[0] || null;
-  }, [allSales, kpis.todaySales.length]);
+    // Filtrar solo ventas del usuario actual (vendedor)
+    const userSales = allSales.filter(sale => 
+      sale.usuario_id === user?.id || sale.usuario_id === user?.userId
+    );
+    return [...userSales].sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))[0] || null;
+  }, [allSales, kpis.todaySales.length, user]);
 
   const goalProgress = dailyGoal > 0 ? Math.min(100, (kpis.ventasHoy.value / dailyGoal) * 100) : 0;
   const goalRemaining = Math.max(0, dailyGoal - kpis.ventasHoy.value);
