@@ -85,11 +85,24 @@ export async function getSale(req, res) {
     }
 
     // Vendedores solo pueden ver sus propias ventas
-    if (role !== 'admin' && sale.usuario_id.toString() !== userId) {
+    // Comparar ambos IDs como strings para manejar ObjectIds correctamente
+    if (role !== 'admin' && role !== 'cajero') {
       return res.status(403).json({
         success: false,
-        error: 'No tienes acceso a esta venta'
+        error: 'Rol no autorizado'
       });
+    }
+
+    if (role === 'cajero') {
+      const saleUserId = sale.usuario_id?.toString() || sale.usuario_id;
+      const requestUserId = userId?.toString() || userId;
+      
+      if (saleUserId !== requestUserId) {
+        return res.status(403).json({
+          success: false,
+          error: 'No tienes acceso a esta venta'
+        });
+      }
     }
 
     res.json({
@@ -220,6 +233,7 @@ export async function printTicket(req, res) {
   try {
     const { id } = req.params;
     const userId = req.user?.userId;
+    const role = req.user?.role;
 
     const sale = await saleService.getSaleById(id);
 
@@ -228,6 +242,19 @@ export async function printTicket(req, res) {
         success: false,
         error: 'Venta no encontrada'
       });
+    }
+
+    // Vendedores solo pueden reimprimir sus propias ventas
+    if (role === 'cajero') {
+      const saleUserId = sale.usuario_id?.toString() || sale.usuario_id;
+      const requestUserId = userId?.toString() || userId;
+      
+      if (saleUserId !== requestUserId) {
+        return res.status(403).json({
+          success: false,
+          error: 'No tienes acceso a esta venta'
+        });
+      }
     }
 
     const result = await ticketService.printTicket(sale);
