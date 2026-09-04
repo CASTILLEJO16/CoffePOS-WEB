@@ -190,13 +190,29 @@ export default function VentasVendedor() {
       const extendedEnd = toSQLDate(today);
 
       const effectiveUserId = user?._id || user?.id || user?.userId || null;
-      const data = await getSales({
+      let data = await getSales({
         startDate: toSQLDate(sixMonthsAgo) < ranges.prevMonth.start
           ? toSQLDate(sixMonthsAgo)
           : ranges.prevMonth.start,
         endDate: extendedEnd,
         ...(effectiveUserId ? { usuarioId: effectiveUserId } : {})
       });
+
+      // Fallback: si no hay datos con rango, intentar sin fechas (por si el rango/timezone filtra mal)
+      if ((!Array.isArray(data) || data.length === 0) && effectiveUserId) {
+        try {
+          const fallback = await getSales({ usuarioId: effectiveUserId });
+          if (Array.isArray(fallback) && fallback.length > 0) {
+            console.warn('[VentasVendedor] fallback sin fechas obtuvo', fallback.length, 'ventas');
+            data = fallback;
+          }
+        } catch (e) {
+          console.warn('[VentasVendedor] fallback falló', e?.response?.status);
+        }
+      }
+
+      // Debug
+      console.log('[VentasVendedor] loadData', { effectiveUserId, user, dataCount: Array.isArray(data) ? data.length : 0, sample: Array.isArray(data) && data[0] ? { _id: data[0]._id, id: data[0].id, numero_venta: data[0].numero_venta, usuario_id: data[0].usuario_id, fecha: data[0].fecha } : null });
       setAllSales(Array.isArray(data) ? data : []);
 
       try {
@@ -236,10 +252,16 @@ export default function VentasVendedor() {
       const nueva = e.detail;
       if (!nueva) return loadData();
 
+      const getId = (s) => String(s?._id || s?.id || s?.numero_venta || '');
+      const nuevaId = getId(nueva);
+
       // Optimistic update: prepend new sale immediately
       setAllSales((prev) => {
-        const exists = prev.some((s) => s.id === nueva.id);
-        if (exists) return prev;
+        if (nuevaId) {
+          const exists = prev.some((s) => getId(s) && getId(s) === nuevaId);
+          if (exists) return prev;
+        }
+        // Asegurar que la nueva venta tenga detalles y fecha normalizada
         return [nueva, ...prev];
       });
     };
@@ -793,6 +815,14 @@ export default function VentasVendedor() {
             <div className="mv-empty compact">
               <Ticket size={28} />
               <p>Todavía no registras ventas</p>
+              <small style={{opacity:0.6,fontSize:'12px'}}>
+                {allSales.length > 0
+                  ? `Hay ${allSales.length} venta(s) cargadas pero no coinciden con tu usuario (${user?._id || user?.id || user?.userId || 'sin id'}). Revisa F12 > Console.`
+                  : `No se cargó ninguna venta (usuario: ${user?._id || user?.id || user?.userId || 'sin id'}). Prueba "Actualizar".`}
+              </small>
+              <button type="button" className="mv-action-btn" onClick={loadData} style={{marginTop:8}}>
+                <RefreshCw size={14}/> Reintentar
+              </button>
             </div>
           ) : (
             <div className="last-sale">
