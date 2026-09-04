@@ -362,7 +362,8 @@ export default function VentasVendedor() {
   async function handleViewDetail(venta) {
     try {
       setActionLoading(true);
-      const full = await getSaleById(venta.id);
+      const ventaId = venta._id || venta.id;
+      const full = await getSaleById(ventaId);
       setVentaSeleccionada(full || venta);
     } catch {
       setVentaSeleccionada(venta);
@@ -374,7 +375,8 @@ export default function VentasVendedor() {
   async function handleReprint(venta) {
     try {
       setActionLoading(true);
-      const full = await getSaleById(venta.id);
+      const ventaId = venta._id || venta.id;
+      const full = await getSaleById(ventaId);
       printTicket(full || venta);
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo reimprimir el ticket');
@@ -546,7 +548,7 @@ export default function VentasVendedor() {
             type="button"
             className="mv-action-btn"
             onClick={() => lastSale && handleReprint(lastSale)}
-            disabled={!lastSale || actionLoading}
+            disabled={!lastSale || !lastSale._id && !lastSale.id || actionLoading}
           >
             <Printer size={16} /> Reimprimir
           </button>
