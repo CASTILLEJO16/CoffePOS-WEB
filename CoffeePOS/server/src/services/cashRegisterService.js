@@ -66,10 +66,12 @@ export async function openCashRegister(data) {
       throw new Error('Ya hay una caja abierta para este usuario');
     }
 
-    // Evitar que la misma caja (por nombre) sea usada por otro usuario
+    // Evitar que la misma caja (por nombre) sea usada por otro usuario DENTRO DE LA MISMA CAFETERÍA (clientId)
+    // Cada cafetería (clientId) tiene su propio espacio de nombres de cajas
     if (nombre_caja) {
       const cajaEnUso = await CashRegister.findOne({ 
-        nombre_caja, 
+        nombre_caja,
+        clientId,
         estado: 'abierta' 
       }).limit(1);
 
@@ -78,17 +80,24 @@ export async function openCashRegister(data) {
       }
     }
 
-    const newCashRegister = await CashRegister.create({
-      clientId,
-      usuario_id,
-      nombre_caja,
-      fondo_inicial,
-      observaciones,
-      estado: 'abierta',
-      fecha_apertura
-    });
-
-    return await getCashRegisterById(newCashRegister._id);
+    try {
+      const newCashRegister = await CashRegister.create({
+        clientId,
+        usuario_id,
+        nombre_caja,
+        fondo_inicial,
+        observaciones,
+        estado: 'abierta',
+        fecha_apertura
+      });
+      return await getCashRegisterById(newCashRegister._id);
+    } catch (createError) {
+      // Manejar condición de carrera por índice único parcial (E11000)
+      if (createError.code === 11000) {
+        throw new Error('Esta caja ya está en uso por otro usuario en esta cafetería');
+      }
+      throw createError;
+    }
   } catch (error) {
     console.error('Error al abrir caja:', error);
     throw error;

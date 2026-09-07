@@ -23,4 +23,8 @@ const CashRegisterNameSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Índice para búsquedas por cafetería; el duplicado se valida en controlador por clientId
+// Permite que "Caja 2" exista en diferentes clientId sin colisión
+CashRegisterNameSchema.index({ clientId: 1, nombre: 1 });
+
 export default mongoose.model('CashRegisterName', CashRegisterNameSchema);

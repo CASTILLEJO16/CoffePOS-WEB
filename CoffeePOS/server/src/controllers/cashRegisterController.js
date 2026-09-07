@@ -27,7 +27,13 @@ export async function createCashRegisterName(req, res) {
     const { nombre } = req.body;
     if (!nombre) throw new Error('El nombre es requerido');
     
-    await CashRegisterName.create({ nombre, clientId });
+    // Evitar duplicados dentro de la misma cafetería (pero permitir mismo nombre en otra cafetería)
+    const existente = await CashRegisterName.findOne({ nombre: nombre.trim(), clientId, activo: true });
+    if (existente) {
+      return res.status(400).json({ success: false, error: 'Ya existe una caja con ese nombre en esta cafetería' });
+    }
+
+    await CashRegisterName.create({ nombre: nombre.trim(), clientId });
     res.json({ success: true, message: 'Caja agregada correctamente' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

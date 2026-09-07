@@ -79,6 +79,14 @@ const CashRegisterSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Índice para que el bloqueo de caja sea por cafetería (multi-tenant)
+// Permite que "Caja 2" exista simultáneamente en diferentes clientId
+// Solo una caja abierta por nombre dentro del mismo clientId
+CashRegisterSchema.index(
+  { clientId: 1, nombre_caja: 1 },
+  { unique: true, partialFilterExpression: { estado: 'abierta' } }
+);
+
 // Método para verificar si está abierta
 CashRegisterSchema.methods.isOpen = function() {
   return this.estado === 'abierta';
