@@ -35,6 +35,10 @@ const ProductSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  stock_minimo: {
+    type: Number,
+    default: 5
+  },
   descuento: {
     type: Number,
     default: 0

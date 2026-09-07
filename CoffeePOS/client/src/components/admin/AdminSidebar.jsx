@@ -3,6 +3,8 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
 import { ShoppingCart, Package, Settings, Users, DollarSign, LogOut, Coffee, Sun, Moon, Wallet, BarChart3 } from 'lucide-react';
 import Swal from 'sweetalert2';
+import StockAlertBell from '../common/StockAlertBell.jsx';
+import { useStockAlerts } from '../../hooks/useStockAlerts.js';
 import './AdminSidebar.css';
 
 const menuItems = [
@@ -22,6 +24,7 @@ export default function AdminSidebar() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { total: stockTotal } = useStockAlerts({ enabled: true });
 
   function handleLogout() {
     Swal.fire({
@@ -54,22 +57,31 @@ export default function AdminSidebar() {
           <span className="sidebar-brand-name">Coffee POS</span>
           <span className="sidebar-brand-role">Panel Admin</span>
         </div>
+        <div style={{ marginLeft: 'auto' }}>
+          <StockAlertBell variant="dark" />
+        </div>
       </div>
 
       {/* Navigation */}
       <nav className="sidebar-nav">
         <p className="sidebar-section-label">MENÚ PRINCIPAL</p>
-        {menuItems.map(item => (
-          <Link
-            key={item.path}
-            to={item.path}
-            className={`sidebar-link ${isActive(item) ? 'active' : ''}`}
-          >
-            <item.icon className="sidebar-icon" size={18} />
-            <span className="sidebar-label">{item.label}</span>
-            {isActive(item) && <span className="sidebar-active-dot" />}
-          </Link>
-        ))}
+        {menuItems.map(item => {
+          const isAlmacen = item.path === '/admin/almacen';
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`sidebar-link ${isActive(item) ? 'active' : ''}`}
+            >
+              <item.icon className="sidebar-icon" size={18} />
+              <span className="sidebar-label">{item.label}</span>
+              {isAlmacen && stockTotal > 0 && (
+                <span className="sidebar-stock-badge">{stockTotal > 99 ? '99+' : stockTotal}</span>
+              )}
+              {isActive(item) && <span className="sidebar-active-dot" />}
+            </Link>
+          );
+        })}
       </nav>
 
       {/* Footer con info del usuario */}

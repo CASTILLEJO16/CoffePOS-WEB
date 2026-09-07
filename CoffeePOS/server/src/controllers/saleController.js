@@ -132,7 +132,9 @@ export async function createSale(req, res) {
 
     res.status(201).json({
       success: true,
-      data: sale
+      data: sale,
+      stockAlertas: sale.stockAlertas || null,
+      hasStockAlertas: sale.hasStockAlertas || false
     });
   } catch (error) {
     console.error('Error en createSale:', error);

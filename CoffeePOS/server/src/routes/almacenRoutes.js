@@ -6,6 +6,9 @@ const router = express.Router();
 
 router.use(authenticateToken);
 
+// Alertas de stock bajo (debe ir antes de rutas con :id)
+router.get('/alertas', almacenController.getAlertasStock);
+
 // Ingredientes
 router.get('/ingredientes', almacenController.getIngredientes);
 router.post('/ingredientes', requireAdmin, almacenController.createIngrediente);

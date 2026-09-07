@@ -13,6 +13,64 @@ export async function getIngredientes(req, res) {
   }
 }
 
+export async function getAlertasStock(req, res) {
+  try {
+    const clientId = req.user?.clientId;
+    if (!clientId) return res.status(400).json({ success: false, error: 'clientId requerido' });
+
+    // Ingredientes con stock bajo: stock_actual <= stock_minimo
+    const ingredientes = await Ingredient.find({ clientId, activo: true }).sort({ nombre: 1 });
+    const ingredientesBajos = ingredientes
+      .filter(i => i.stock_actual <= i.stock_minimo)
+      .map(i => ({
+        _id: i._id,
+        nombre: i.nombre,
+        unidad_medida: i.unidad_medida,
+        stock_actual: i.stock_actual,
+        stock_minimo: i.stock_minimo,
+        categoria_reemplazo: i.categoria_reemplazo,
+        tipo: 'ingrediente',
+        agotado: i.stock_actual <= 0,
+        critico: i.stock_actual <= 0 || i.stock_actual <= i.stock_minimo * 0.5
+      }));
+
+    // Productos con stock bajo (solo productos sin receta o con stock gestionado directo)
+    // Usamos Product.stock_minimo si existe, fallback 5
+    const Product = (await import('../models/Product.js')).default;
+    const productos = await Product.find({ clientId, activo: true }).sort({ nombre: 1 });
+    const productosBajos = productos
+      .filter(p => {
+        const minimo = p.stock_minimo ?? 5;
+        return p.stock !== null && p.stock !== undefined && p.stock <= minimo;
+      })
+      .map(p => ({
+        _id: p._id,
+        nombre: p.nombre,
+        categoria: p.categoria,
+        stock: p.stock,
+        stock_minimo: p.stock_minimo ?? 5,
+        tipo: 'producto',
+        agotado: p.stock <= 0,
+        critico: p.stock <= 0
+      }));
+
+    const total = ingredientesBajos.length + productosBajos.length;
+
+    res.json({
+      success: true,
+      data: {
+        ingredientes: ingredientesBajos,
+        productos: productosBajos,
+        total,
+        hasAlertas: total > 0
+      }
+    });
+  } catch (error) {
+    console.error('Error en getAlertasStock:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}
+
 export async function createIngrediente(req, res) {
   try {
     const clientId = req.user?.clientId;

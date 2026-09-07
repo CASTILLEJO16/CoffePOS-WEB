@@ -6,6 +6,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Coffee, ShoppingCart, BarChart3, Sun, Moon, LogOut, Package } from 'lucide-react';
 import Swal from 'sweetalert2';
 import MobileBottomNav from '../components/common/MobileBottomNav.jsx';
+import StockAlertBell from '../components/common/StockAlertBell.jsx';
+import StockAlertBanner from '../components/common/StockAlertBanner.jsx';
 import './MainLayout.css';
 
 export default function MainLayout({ children }) {
@@ -28,6 +30,27 @@ export default function MainLayout({ children }) {
   useEffect(() => {
     loadCashRegister();
   }, [loadCashRegister, location.pathname]);
+
+  // Escuchar alertas de stock tras ventas para mostrar aviso inmediato
+  useEffect(() => {
+    function onStockAlert(e) {
+      const items = e.detail || [];
+      if (!items.length) return;
+      const nombres = items.slice(0,3).map(i => i.nombre).join(', ');
+      const extra = items.length > 3 ? ` +${items.length-3} más` : '';
+      Swal.fire({
+        icon: 'warning',
+        title: '⚠️ Stock bajo',
+        html: `Queda poca cantidad de:<br><b>${nombres}${extra}</b><br><small>Revisa el almacén pronto</small>`,
+        confirmButtonText: 'Ver almacén',
+        showCancelButton: true,
+        cancelButtonText: 'Cerrar',
+        confirmButtonColor: '#d97706'
+      }).then(r => { if (r.isConfirmed) navigate('/almacen'); });
+    }
+    window.addEventListener('stock-alert', onStockAlert);
+    return () => window.removeEventListener('stock-alert', onStockAlert);
+  }, [navigate]);
 
   function handleLogout() {
     Swal.fire({
@@ -84,6 +107,7 @@ export default function MainLayout({ children }) {
                 <span className="status-text">{cashRegister.nombre_caja || `Caja #${cashRegister._id || cashRegister.id}`} Abierta</span>
               </div>
             )}
+            <StockAlertBell />
             <span className="user-name">{user?.nombre}</span>
             <span className={`user-role ${user?.role || user?.rol}`}>
               {(user?.role === 'admin' || user?.rol === 'admin') ? 'Admin' : 'Vendedor'}
@@ -105,6 +129,7 @@ export default function MainLayout({ children }) {
         </div>
       </header>
       <main className="main-content">
+        <StockAlertBanner />
         {children || <Outlet />}
       </main>
       <MobileBottomNav variant="seller" />

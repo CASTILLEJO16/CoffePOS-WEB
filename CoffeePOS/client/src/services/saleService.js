@@ -34,14 +34,24 @@ export async function getSaleById(id) {
 export async function createSale(saleData) {
   const response = await api.post('/ventas', saleData);
   const data = response.data.data;
+  const stockAlertas = response.data.stockAlertas;
+  const hasStockAlertas = response.data.hasStockAlertas;
 
   // Notify app (simple realtime without sockets)
   try {
     window.dispatchEvent(new CustomEvent('sale:created', { detail: data }));
-    // Also use localStorage for cross-tab communication
     localStorage.setItem('sale:last_updated', Date.now().toString());
     localStorage.setItem('sale:last_data', JSON.stringify(data));
+    // Notificar que el stock cambió para refrescar alertas
+    window.dispatchEvent(new CustomEvent('stock-updated'));
+    if (hasStockAlertas && stockAlertas?.length) {
+      window.dispatchEvent(new CustomEvent('stock-alert', { detail: stockAlertas }));
+    }
   } catch {}
+
+  // Adjuntar alertas al resultado para que POS pueda mostrar toast inmediato
+  if (stockAlertas) data.stockAlertas = stockAlertas;
+  if (hasStockAlertas) data.hasStockAlertas = hasStockAlertas;
 
   return data;
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Package, BarChart3, Wallet, Settings, Users, DollarSign, MoreHorizontal, X, Coffee, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useStockAlerts } from '../../hooks/useStockAlerts.js';
 import Swal from 'sweetalert2';
 import './MobileBottomNav.css';
 
@@ -30,6 +31,7 @@ export default function MobileBottomNav({ variant = 'seller' }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { total: stockTotal } = useStockAlerts({ enabled: true });
   const [moreOpen, setMoreOpen] = useState(false);
 
   const isAdmin = variant === 'admin';
@@ -93,9 +95,14 @@ export default function MobileBottomNav({ variant = 'seller' }) {
           {primary.map(item => {
             const Icon = item.icon;
             const active = isActive(item);
+            const isAlmacen = item.label === 'Almacén' || item.path.includes('almacen');
+            const showBadge = isAlmacen && stockTotal > 0;
             return (
               <Link key={item.path} to={item.path} className={`mobile-nav-item ${active ? 'active' : ''}`}>
-                <span className="mobile-nav-icon"><Icon size={22} /></span>
+                <span className="mobile-nav-icon" style={{position:'relative'}}>
+                  <Icon size={22} />
+                  {showBadge && <span style={{position:'absolute',top:-6,right:-8,minWidth:16,height:16,padding:'0 3px',borderRadius:999,background:'#ef4444',color:'#fff',fontSize:10,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',border:'2px solid #fff'}}>{stockTotal>99?'99+':stockTotal}</span>}
+                </span>
                 <span className="mobile-nav-label">{item.label}</span>
               </Link>
             );

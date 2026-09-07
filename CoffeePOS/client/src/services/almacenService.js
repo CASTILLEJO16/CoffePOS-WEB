@@ -7,21 +7,25 @@ export async function getIngredientes() {
 
 export async function createIngrediente(data) {
   const response = await api.post('/almacen/ingredientes', data);
+  try { window.dispatchEvent(new CustomEvent('stock-updated')); } catch {}
   return response.data.data;
 }
 
 export async function updateIngrediente(id, data) {
   const response = await api.put(`/almacen/ingredientes/${id}`, data);
+  try { window.dispatchEvent(new CustomEvent('stock-updated')); } catch {}
   return response.data;
 }
 
 export async function deleteIngrediente(id) {
   const response = await api.delete(`/almacen/ingredientes/${id}`);
+  try { window.dispatchEvent(new CustomEvent('stock-updated')); } catch {}
   return response.data;
 }
 
 export async function ajustarStock(id, cantidad, tipo = 'agregar') {
   const response = await api.post(`/almacen/ingredientes/${id}/ajuste`, { cantidad, tipo });
+  try { window.dispatchEvent(new CustomEvent('stock-updated')); } catch {}
   return response.data;
 }
 
@@ -43,4 +47,9 @@ export async function getRecetaPersonalizacion(personalizacionId) {
 export async function saveRecetaPersonalizacion(personalizacionId, ingredientes) {
   const response = await api.post(`/almacen/recetas/personalizacion/${personalizacionId}`, { ingredientes });
   return response.data;
+}
+
+export async function getAlertasStock() {
+  const response = await api.get('/almacen/alertas');
+  return response.data.data;
 }

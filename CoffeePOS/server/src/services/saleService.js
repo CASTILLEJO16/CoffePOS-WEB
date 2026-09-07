@@ -454,6 +454,40 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     const result = await getSaleById(ventaId);
     result.iva_rate = ivaRate;
 
+    // --- Alertas de stock bajo tras la venta (no bloqueante) ---
+    try {
+      const ingredientesBajos = await Ingredient.find({ clientId, activo: true });
+      const bajosIng = ingredientesBajos
+        .filter(i => i.stock_actual <= i.stock_minimo)
+        .map(i => ({
+          nombre: i.nombre,
+          stock_actual: i.stock_actual,
+          stock_minimo: i.stock_minimo,
+          unidad_medida: i.unidad_medida,
+          tipo: 'ingrediente',
+          agotado: i.stock_actual <= 0
+        }));
+      // productos bajos (solo los vendidos en esta venta)
+      const prodIdsAfectados = [...new Set(items.map(it => it.producto_id.toString()))];
+      const productosAfectados = await Product.find({ _id: { $in: prodIdsAfectados }, clientId });
+      const bajosProd = productosAfectados
+        .filter(p => p.stock !== undefined && p.stock !== null && p.stock <= (p.stock_minimo ?? 5))
+        .map(p => ({
+          nombre: p.nombre,
+          stock: p.stock,
+          stock_minimo: p.stock_minimo ?? 5,
+          tipo: 'producto',
+          agotado: p.stock <= 0
+        }));
+      const warnings = [...bajosIng, ...bajosProd];
+      if (warnings.length > 0) {
+        result.stockAlertas = warnings;
+        result.hasStockAlertas = true;
+      }
+    } catch (e) {
+      console.warn('Error generando alertas de stock post-venta:', e.message);
+    }
+
     return result;
   } catch (error) {
     throw error;

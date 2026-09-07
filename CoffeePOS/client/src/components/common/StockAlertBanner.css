@@ -1,0 +1,28 @@
+.stock-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #f59e0b;
+  border-left: 4px solid #d97706;
+  border-radius: 10px;
+  color: #92400e;
+  margin-bottom: 16px;
+  animation: banner-in 0.24s ease;
+}
+@keyframes banner-in { from { opacity:0; transform: translateY(-6px);} to { opacity:1; transform:translateY(0);} }
+.stock-banner-icon { display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; background:#f59e0b; color:#fff; flex-shrink:0; }
+.stock-banner-content { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.stock-banner-title { font-size:13px; font-weight:700; }
+.stock-banner-text { font-size:12px; opacity:0.9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.stock-banner-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.stock-banner-btn { padding:6px 12px; border-radius:8px; border:1px solid #d97706; background:#fff; color:#92400e; font-weight:600; font-size:12px; cursor:pointer; }
+.stock-banner-btn:hover { background:#fff7ed; }
+.stock-banner-close { background:none; border:none; cursor:pointer; color:#92400e; padding:4px; border-radius:6px; display:flex; }
+.stock-banner-close:hover { background: rgba(180,83,9,0.12); }
+
+@media (max-width: 768px) {
+  .stock-banner { flex-wrap: wrap; }
+  .stock-banner-text { white-space: normal; }
+}
