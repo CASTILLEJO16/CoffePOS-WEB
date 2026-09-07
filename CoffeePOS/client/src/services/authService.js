@@ -9,6 +9,14 @@ export async function login(usuario, contraseña) {
 }
 
 /**
+ * Inicia sesión con PIN de 4 dígitos
+ */
+export async function loginWithPin(pin) {
+  const response = await api.post('/auth/login-pin', { pin });
+  return response.data.data;
+}
+
+/**
  * Cierra sesión
  */
 export async function logout() {

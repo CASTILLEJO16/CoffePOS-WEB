@@ -32,6 +32,15 @@ const UserSchema = new mongoose.Schema({
   activo: {
     type: Boolean,
     default: true
+  },
+  pin: {
+    type: String,
+    validate: {
+      validator: function(v) {
+        return !v || /^\d{4}$/.test(v);
+      },
+      message: 'PIN debe ser 4 dígitos numéricos'
+    }
   }
 }, {
   timestamps: true
@@ -40,16 +49,22 @@ const UserSchema = new mongoose.Schema({
 // Índice compuesto único para usuario + clientId
 UserSchema.index({ usuario: 1, clientId: 1 }, { unique: true });
 
+// Índice único global para PIN (4 dígitos) - permite login solo con PIN sin ambigüedad multi-tenant
+UserSchema.index({ pin: 1 }, { unique: true, sparse: true });
+
 // Método para verificar contraseña
 UserSchema.methods.verifyPassword = function(password) {
   const bcrypt = require('bcryptjs');
   return bcrypt.compareSync(password, this.contraseña_hash);
 };
 
-// Método para JSON sin contraseña
+// Método para JSON sin contraseña ni PIN
 UserSchema.methods.toJSON = function() {
   const obj = this.toObject();
   delete obj.contraseña_hash;
+  delete obj.pin;
+  // exponer si tiene PIN configurado sin revelar el valor
+  obj.hasPin = !!this.pin;
   return obj;
 };
 

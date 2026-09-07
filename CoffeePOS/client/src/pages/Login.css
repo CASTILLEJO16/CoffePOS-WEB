@@ -64,6 +64,121 @@
   font-weight: var(--font-weight-normal);
 }
 
+.login-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  background: var(--color-surface-hover);
+  padding: 4px;
+  border-radius: var(--border-radius-lg);
+  border: 1px solid var(--color-border);
+}
+
+.login-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border: none;
+  border-radius: var(--border-radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.login-tab.active {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+}
+
+.login-tab:hover:not(.active) {
+  color: var(--color-text);
+}
+
+.pin-display {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.pin-dot {
+  width: 56px;
+  height: 56px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--border-radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  background: var(--color-surface-hover);
+  transition: all 0.2s ease;
+}
+
+.pin-dot.filled {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.pin-hint {
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: 12px;
+}
+
+.numpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.numpad-btn {
+  height: 56px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-lg);
+  background: var(--color-surface);
+  font-size: 20px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.numpad-btn:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.numpad-btn:active {
+  transform: scale(0.97);
+  background: var(--color-primary-light);
+}
+
+.numpad-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.numpad-action {
+  background: var(--color-surface-hover);
+  color: var(--color-text-secondary);
+}
+
 .login-form {
   display: flex;
   flex-direction: column;

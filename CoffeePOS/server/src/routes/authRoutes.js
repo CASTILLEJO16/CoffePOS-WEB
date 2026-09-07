@@ -38,6 +38,7 @@ function validateLogin(req, res, next) {
 
 // Rutas públicas
 router.post('/login', loginLimiter, validateLogin, authController.login);
+router.post('/login-pin', loginLimiter, authController.loginPin);
 
 // Rutas protegidas
 router.post('/logout', authenticateToken, authController.logout);

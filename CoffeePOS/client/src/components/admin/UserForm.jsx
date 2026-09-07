@@ -8,6 +8,7 @@ export default function UserForm({ user, onSubmit, onCancel }) {
     nombre: '',
     usuario: '',
     contraseña: '',
+    pin: '',
     rol: 'cajero',
     activo: true
   });
@@ -18,6 +19,7 @@ export default function UserForm({ user, onSubmit, onCancel }) {
         nombre: user.nombre || '',
         usuario: user.usuario || '',
         contraseña: '',
+        pin: '',
         rol: user.rol || 'cajero',
         activo: user.activo !== undefined ? user.activo : true
       });
@@ -26,11 +28,30 @@ export default function UserForm({ user, onSubmit, onCancel }) {
 
   function handleSubmit(e) {
     e.preventDefault();
-    onSubmit(formData);
+    const payload = { ...formData };
+    // Si es edición y pin vacío, no enviar (mantener actual)
+    if (user && !payload.pin) {
+      delete payload.pin;
+    }
+    // Si es creación y pin vacío, no enviar
+    if (!user && !payload.pin) {
+      delete payload.pin;
+    }
+    // Si pin tiene valor, ya está validado a 4 dígitos por handleChange, pero verificar
+    if (payload.pin && !/^\d{4}$/.test(payload.pin)) {
+      alert('PIN debe ser 4 dígitos numéricos');
+      return;
+    }
+    onSubmit(payload);
   }
 
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
+    if (name === 'pin') {
+      const digits = value.replace(/\D/g, '').slice(0, 4);
+      setFormData(prev => ({ ...prev, pin: digits }));
+      return;
+    }
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
@@ -66,6 +87,33 @@ export default function UserForm({ user, onSubmit, onCancel }) {
         placeholder={user ? "••••••••" : "••••••••"}
         required={!user}
       />
+
+      <Input
+        label={user ? (user.hasPin ? "PIN 4 dígitos (cambiar o dejar vacío)" : "PIN 4 dígitos (opcional)") : "PIN 4 dígitos (opcional)"}
+        name="pin"
+        type="text"
+        inputMode="numeric"
+        pattern="\d{4}"
+        maxLength={4}
+        value={formData.pin}
+        onChange={handleChange}
+        placeholder={user?.hasPin ? "•••• (ya tiene PIN)" : "Ej: 1234"}
+      />
+      {user?.hasPin && <small style={{color:'var(--color-text-secondary)', marginTop:-8, display:'block'}}>Este usuario ya tiene PIN configurado. Ingresa uno nuevo para cambiarlo o deja vacío para mantenerlo.</small>}
+      {!user?.hasPin && <small style={{color:'var(--color-text-secondary)', marginTop:-8, display:'block'}}>Opcional: código rápido de 4 números para entrar sin usuario/contraseña. Cada PIN debe ser único en el sistema.</small>}
+      {user?.hasPin && (
+        <button
+          type="button"
+          onClick={() => {
+            if (confirm('¿Quitar PIN de este usuario? Podrá seguir entrando con usuario/contraseña.')) {
+              onSubmit({ pin: '' });
+            }
+          }}
+          style={{ fontSize: '12px', color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
+        >
+          Quitar PIN actual
+        </button>
+      )}
       
       <div className="form-group">
         <label className="form-label">Rol</label>

@@ -39,6 +39,38 @@ export async function login(req, res) {
 }
 
 /**
+ * Inicia sesión con PIN de 4 dígitos
+ */
+export async function loginPin(req, res) {
+  try {
+    const { pin, codigo } = req.body;
+    const cleanPin = String(pin || codigo || '').trim();
+
+    if (!cleanPin) {
+      return res.status(400).json({
+        success: false,
+        error: 'PIN es requerido'
+      });
+    }
+
+    const result = await authService.loginWithPin(cleanPin);
+
+    await logAction(result.user._id || result.user.id, 'LOGIN_PIN', `Usuario ${result.user.usuario} inició sesión con PIN`);
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error en loginPin:', error);
+    res.status(401).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
  * Cierra sesión
  */
 export async function logout(req, res) {

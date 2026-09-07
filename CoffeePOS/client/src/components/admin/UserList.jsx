@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Power, PowerOff } from 'lucide-react';
+import { Edit, Power, PowerOff, Hash, Check, X } from 'lucide-react';
 import { getUsers, activateUser, deactivateUser } from '../../services/authService.js';
 import Modal from '../common/Modal.jsx';
 import Button from '../common/Button.jsx';
@@ -60,6 +60,7 @@ export default function UserList({ onEdit, onRefresh }) {
             <th>Nombre</th>
             <th>Usuario</th>
             <th>Rol</th>
+            <th>PIN</th>
             <th>Estado</th>
             <th>Acciones</th>
           </tr>
@@ -82,6 +83,13 @@ export default function UserList({ onEdit, onRefresh }) {
                 <span className={`role-badge ${user.rol}`}>
                   {user.rol === 'admin' ? 'Administrador' : 'Vendedor'}
                 </span>
+              </td>
+              <td>
+                {user.hasPin ? (
+                  <span style={{display:'inline-flex',alignItems:'center',gap:4, color:'var(--color-success)', fontWeight:600, fontSize:12}}><Hash size={12}/> <Check size={12}/> PIN</span>
+                ) : (
+                  <span style={{display:'inline-flex',alignItems:'center',gap:4, color:'var(--color-text-muted)', fontSize:12}}><Hash size={12}/> <X size={12}/> No</span>
+                )}
               </td>
               <td>
                 <span className={`status-badge ${user.activo ? 'active' : 'inactive'}`}>

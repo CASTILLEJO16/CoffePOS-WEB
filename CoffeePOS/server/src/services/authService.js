@@ -64,6 +64,50 @@ export async function login(username, password) {
 }
 
 /**
+ * Autentica un usuario con PIN de 4 dígitos
+ * @param {string} pin - Código de 4 dígitos
+ * @returns {Object} Token y datos del usuario
+ */
+export async function loginWithPin(pin) {
+  try {
+    const cleanPin = String(pin).trim();
+    if (!/^\d{4}$/.test(cleanPin)) {
+      throw new Error('PIN debe ser 4 dígitos numéricos');
+    }
+
+    const user = await User.findOne({
+      pin: cleanPin,
+      activo: true
+    });
+
+    if (!user) {
+      throw new Error('PIN inválido');
+    }
+
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        username: user.usuario,
+        role: user.rol,
+        clientId: user.clientId
+      },
+      config.jwtSecret,
+      { expiresIn: '24h' }
+    );
+
+    await logAction(user._id, 'LOGIN_PIN', 'Usuario inició sesión con PIN');
+
+    return {
+      token,
+      user: user.toJSON()
+    };
+  } catch (error) {
+    console.error('Error en loginWithPin:', error.message);
+    throw error;
+  }
+}
+
+/**
  * Verifica un token JWT
  * @param {string} token - Token JWT
  * @returns {Object} Datos decodificados del token
@@ -99,7 +143,7 @@ export async function logout(userId) {
  */
 export async function createUser(userData, creatorId = null, clientId = null) {
   try {
-    let { nombre, usuario, contraseña, rol = 'cajero' } = userData;
+    let { nombre, usuario, contraseña, rol = 'cajero', pin } = userData;
     usuario = String(usuario).toLowerCase();
 
     const allowedRoles = ['admin', 'cajero'];
@@ -148,13 +192,28 @@ export async function createUser(userData, creatorId = null, clientId = null) {
     // Hash de la contraseña
     const hashedPassword = await bcrypt.hash(contraseña, 10);
 
+    // Validar y preparar PIN si se proporciona
+    let pinToSave = undefined;
+    if (pin !== undefined && pin !== null && String(pin).trim() !== '') {
+      const cleanPin = String(pin).trim();
+      if (!/^\d{4}$/.test(cleanPin)) {
+        throw new Error('PIN debe ser 4 dígitos numéricos');
+      }
+      const existingPin = await User.findOne({ pin: cleanPin });
+      if (existingPin) {
+        throw new Error('El PIN ya está en uso por otro usuario');
+      }
+      pinToSave = cleanPin;
+    }
+
     // Crear usuario
     const newUser = await User.create({
       clientId,
       nombre,
       usuario,
       contraseña_hash: hashedPassword,
-      rol
+      rol,
+      ...(pinToSave ? { pin: pinToSave } : {})
     });
 
     // Registrar acción
@@ -177,7 +236,7 @@ export async function createUser(userData, creatorId = null, clientId = null) {
  */
 export async function updateUser(id, userData, updaterId = null) {
   try {
-    let { nombre, usuario, contraseña, rol, activo } = userData;
+    let { nombre, usuario, contraseña, rol, activo, pin } = userData;
 
     const updates = {};
 
@@ -210,11 +269,35 @@ export async function updateUser(id, userData, updaterId = null) {
       updates.activo = activo;
     }
 
+    if (pin !== undefined) {
+      const cleanPin = pin === null ? '' : String(pin).trim();
+      if (cleanPin === '') {
+        // limpiar PIN
+        updates.pin = null;
+      } else {
+        if (!/^\d{4}$/.test(cleanPin)) {
+          throw new Error('PIN debe ser 4 dígitos numéricos');
+        }
+        const existingPin = await User.findOne({ pin: cleanPin, _id: { $ne: id } });
+        if (existingPin) {
+          throw new Error('El PIN ya está en uso por otro usuario');
+        }
+        updates.pin = cleanPin;
+      }
+    }
+
     if (Object.keys(updates).length === 0) {
       throw new Error('No hay datos para actualizar');
     }
 
-    const updatedUser = await User.findByIdAndUpdate(id, updates, { new: true });
+    // Manejar limpieza de PIN (null) con $unset para sparse index
+    let updatedUser;
+    if (updates.pin === null) {
+      const { pin: _p, ...rest } = updates;
+      updatedUser = await User.findByIdAndUpdate(id, { $set: rest, $unset: { pin: 1 } }, { new: true });
+    } else {
+      updatedUser = await User.findByIdAndUpdate(id, updates, { new: true });
+    }
 
     // Registrar acción
     await logAction(updaterId, 'ACTUALIZAR_USUARIO', `Usuario actualizado: ${usuario}`);
