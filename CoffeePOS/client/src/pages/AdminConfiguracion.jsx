@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, Save, Plus, Trash2, Wallet } from 'lucide-react';
+import { Settings, Save, Plus, Trash2, Wallet, AlertTriangle } from 'lucide-react';
 import { getAllConfig, updateConfig } from '../../services/configService.js';
 import { getCashRegisterNames, createCashRegisterName } from '../../services/cashRegisterService.js';
 import Swal from 'sweetalert2';
@@ -216,11 +216,12 @@ export default function AdminConfiguracion() {
                 const alerta = uso && isLongOpen(uso.fecha);
                 return (
                   <li key={caja.id} className="caja-item">
-                    <span style={{ color: alerta ? '#d9534f' : 'inherit', fontWeight: alerta ? '600' : 'normal' }}>
+                    <span style={{ color: alerta ? '#d9534f' : 'inherit', fontWeight: alerta ? '600' : 'normal', display:'inline-flex', alignItems:'center', gap:4 }}>
                       {caja.nombre}
                       {uso
-                        ? ` • En uso por ${uso.usuario} • ${formatDuration(uso.fecha)}${alerta ? ' ⚠️' : ''}`
+                        ? ` • En uso por ${uso.usuario} • ${formatDuration(uso.fecha)}`
                         : ''}
+                      {alerta && <AlertTriangle size={14} style={{color:'#d9534f'}} />}
                     </span>
                     {uso && (
                       <button

@@ -265,7 +265,7 @@ export default function Ventas() {
               color: 'var(--color-warning)',
               fontSize: '13px'
             }}>
-              ⚠️ Esta acción cancelará la venta y descontará el monto de la caja. Esta acción no se puede deshacer.
+               Esta acción cancelará la venta y descontará el monto de la caja. Esta acción no se puede deshacer.
             </div>
           </div>
         )}

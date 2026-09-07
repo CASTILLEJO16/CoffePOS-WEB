@@ -156,13 +156,19 @@ export async function ajustarStock(req, res) {
     const ing = await Ingredient.findOne({ _id: id, clientId });
     if (!ing) return res.status(404).json({ success: false, error: 'Ingrediente no encontrado' });
 
+    const numCantidad = Number(cantidad);
+    if (isNaN(numCantidad)) {
+      return res.status(400).json({ success: false, error: 'Cantidad inválida' });
+    }
+
+    let updated;
     if (tipo === 'agregar') {
-      await Ingredient.findByIdAndUpdate(id, { $inc: { stock_actual: cantidad } });
+      updated = await Ingredient.findByIdAndUpdate(id, { $inc: { stock_actual: numCantidad } }, { new: true });
     } else {
-      await Ingredient.findByIdAndUpdate(id, { stock_actual: cantidad });
+      updated = await Ingredient.findByIdAndUpdate(id, { stock_actual: numCantidad }, { new: true });
     }
     
-    res.json({ success: true });
+    res.json({ success: true, data: updated });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

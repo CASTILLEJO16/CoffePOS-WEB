@@ -16,7 +16,7 @@ export default function AdminLayout() {
       const extra = items.length > 3 ? ` +${items.length-3} más` : '';
       Swal.fire({
         icon: 'warning',
-        title: '⚠️ Stock bajo',
+        title: 'Stock bajo',
         html: `Queda poca cantidad de:<br><b>${nombres}${extra}</b><br><small>Revisa el almacén pronto</small>`,
         confirmButtonText: 'Ver almacén',
         showCancelButton: true,

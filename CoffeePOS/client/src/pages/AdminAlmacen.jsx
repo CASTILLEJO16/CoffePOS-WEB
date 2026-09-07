@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Package, Plus, Edit2, Trash2, Settings } from 'lucide-react';
+import { Package, Plus, Edit2, Trash2, Settings, AlertTriangle, Check, Info } from 'lucide-react';
 import { getIngredientes, createIngrediente, updateIngrediente, deleteIngrediente, ajustarStock, getRecetaProducto, saveRecetaProducto, getRecetaPersonalizacion, saveRecetaPersonalizacion } from '../services/almacenService.js';
 import { getProducts } from '../services/productService.js';
 import { getCustomizations } from '../services/customizationService.js';
@@ -287,8 +287,8 @@ export default function AdminAlmacen() {
                         <td style={{color: 'var(--color-text-secondary)'}}>{ing.stock_minimo} {ing.unidad_medida}</td>
                         <td>
                           {isBajo
-                            ? <span className="badge-bajo">⚠️ Stock bajo</span>
-                            : <span className="badge-ok">✓ Suficiente</span>
+                            ? <span className="badge-bajo"><AlertTriangle size={12} style={{marginRight:4}}/> Stock bajo</span>
+                            : <span className="badge-ok"><Check size={12} style={{marginRight:4}}/> Suficiente</span>
                           }
                         </td>
                         <td className="actions-cell">
@@ -429,7 +429,7 @@ export default function AdminAlmacen() {
       <Modal isOpen={showRecetaModal} onClose={() => setShowRecetaModal(false)} title={`Receta: ${currentRecetaTarget?.nombre}`}>
         <div className="receta-modal-content">
           <div className="receta-info-box">
-            <p><strong>💡 Cómo funciona:</strong></p>
+            <p style={{display:'flex',alignItems:'center',gap:6}}><Info size={16}/><strong>Cómo funciona:</strong></p>
             <ul style={{fontSize: '0.9rem', color: 'var(--color-text-secondary)', paddingLeft: '20px'}}>
               <li>Define los ingredientes que se consumen al vender este producto/extras</li>
               <li>El stock se descontará automáticamente según las cantidades indicadas</li>

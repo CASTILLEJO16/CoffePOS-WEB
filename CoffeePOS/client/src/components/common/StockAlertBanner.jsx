@@ -4,35 +4,23 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './StockAlertBanner.css';
 
-export default function StockAlertBanner({ dismissKey = 'stock-banner-dismissed' }) {
+export default function StockAlertBanner() {
   const { data, hasAlertas } = useStockAlerts();
   const [dismissed, setDismissed] = useState(false);
   const navigate = useNavigate();
 
+  // Si se recarga stock y ya no hay alertas, quitar banner automáticamente
+  // Si cambia el total (se agrega nuevo ingrediente bajo o se resuelve uno), volver a mostrar
+  const total = data.total || 0;
   useEffect(() => {
-    const v = sessionStorage.getItem(dismissKey);
-    if (v) {
-      const ts = parseInt(v, 10);
-      // auto-mostrar de nuevo después de 10 min
-      if (Date.now() - ts > 10 * 60 * 1000) {
-        sessionStorage.removeItem(dismissKey);
-        setDismissed(false);
-      } else {
-        setDismissed(true);
-      }
-    }
-  }, [dismissKey]);
-
-  // reset dismissed cuando hay nuevas alertas y había sido cerrado hace tiempo, pero si hay alertas y dismissed, no mostrar hasta refetch
-  useEffect(() => {
-    if (!hasAlertas) setDismissed(false);
-  }, [hasAlertas]);
+    // cuando cambia el número de alertas o desaparecen, resetear dismiss
+    setDismissed(false);
+  }, [total, hasAlertas]);
 
   if (!hasAlertas || dismissed) return null;
 
   const ingredientes = data.ingredientes || [];
   const productos = data.productos || [];
-  const total = data.total || 0;
   const agotados = [...ingredientes, ...productos].filter(i => i.agotado);
   const bajos = [...ingredientes, ...productos].filter(i => !i.agotado);
   const preview = [...ingredientes, ...productos].slice(0, 3).map(i => i.nombre).join(', ');
@@ -41,7 +29,6 @@ export default function StockAlertBanner({ dismissKey = 'stock-banner-dismissed'
 
   function handleDismiss() {
     setDismissed(true);
-    sessionStorage.setItem(dismissKey, String(Date.now()));
   }
 
   return (
@@ -50,7 +37,7 @@ export default function StockAlertBanner({ dismissKey = 'stock-banner-dismissed'
         <AlertTriangle size={18} />
       </div>
       <div className="stock-banner-content">
-        <strong className="stock-banner-title">{hasAgotados ? `⛔ Sin stock — ${agotados.length} agotado${agotados.length>1?'s':''}` : `Stock bajo en almacén — ${total} alerta${total>1?'s':''}`}</strong>
+        <strong className="stock-banner-title">{hasAgotados ? `Sin stock — ${agotados.length} agotado${agotados.length>1?'s':''}` : `Stock bajo en almacén — ${total} alerta${total>1?'s':''}`}</strong>
         <span className="stock-banner-text">{preview}{extra} — {hasAgotados ? 'No hay stock. No se puede vender.' : 'Queda poca cantidad. Reabastece pronto.'}</span>
       </div>
       <div className="stock-banner-actions">

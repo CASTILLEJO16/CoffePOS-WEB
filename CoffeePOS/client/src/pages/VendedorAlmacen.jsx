@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getIngredientes } from '../services/almacenService.js';
+import { AlertTriangle, Check } from 'lucide-react';
 import Swal from 'sweetalert2';
 import './AdminAlmacen.css';
 
@@ -39,8 +40,8 @@ export default function VendedorAlmacen() {
           <p className="admin-subtitle">Consulta de inventario y disponibilidad</p>
         </div>
         {totalBajos > 0 && (
-          <div className="badge-bajo" style={{ fontSize: '1rem', padding: '0.5rem 1rem' }}>
-            ⚠️ {totalBajos} ingrediente{totalBajos > 1 ? 's' : ''} con stock bajo
+          <div className="badge-bajo" style={{ fontSize: '1rem', padding: '0.5rem 1rem', display:'flex', alignItems:'center', gap:6 }}>
+            <AlertTriangle size={16}/> {totalBajos} ingrediente{totalBajos > 1 ? 's' : ''} con stock bajo
           </div>
         )}
       </div>
@@ -80,8 +81,8 @@ export default function VendedorAlmacen() {
                       <td style={{ color: 'var(--color-text-secondary)' }}>{ing.stock_minimo} {ing.unidad_medida}</td>
                       <td>
                         {isLow
-                          ? <span className="badge-bajo">⚠️ Stock bajo</span>
-                          : <span className="badge-ok">✓ Suficiente</span>
+                          ? <span className="badge-bajo"><AlertTriangle size={12} style={{marginRight:4}}/> Stock bajo</span>
+                          : <span className="badge-ok"><Check size={12} style={{marginRight:4}}/> Suficiente</span>
                         }
                       </td>
                     </tr>
