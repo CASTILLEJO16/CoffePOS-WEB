@@ -71,14 +71,17 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(requestLogger);
 
-// Rate limit global para API
+// Rate limit global para API - aumentado para evitar 429 con polling de stock
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 800,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: {
     success: false,
     error: 'Demasiadas peticiones. Por favor espera antes de intentar nuevamente.'
-  }
+  },
+  skip: (req) => req.path === '/health' || req.path === '/api/health'
 });
 app.use('/api', apiLimiter);
 
