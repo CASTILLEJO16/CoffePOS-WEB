@@ -11,6 +11,13 @@
   margin-bottom: 16px;
   animation: banner-in 0.24s ease;
 }
+.stock-banner.agotado {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border-color: #ef4444;
+  border-left-color: #dc2626;
+  color: #7f1d1d;
+}
+.stock-banner.agotado .stock-banner-icon { background: #ef4444; }
 @keyframes banner-in { from { opacity:0; transform: translateY(-6px);} to { opacity:1; transform:translateY(0);} }
 .stock-banner-icon { display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; background:#f59e0b; color:#fff; flex-shrink:0; }
 .stock-banner-content { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }

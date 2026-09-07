@@ -33,8 +33,11 @@ export default function StockAlertBanner({ dismissKey = 'stock-banner-dismissed'
   const ingredientes = data.ingredientes || [];
   const productos = data.productos || [];
   const total = data.total || 0;
+  const agotados = [...ingredientes, ...productos].filter(i => i.agotado);
+  const bajos = [...ingredientes, ...productos].filter(i => !i.agotado);
   const preview = [...ingredientes, ...productos].slice(0, 3).map(i => i.nombre).join(', ');
   const extra = total > 3 ? ` +${total - 3} más` : '';
+  const hasAgotados = agotados.length > 0;
 
   function handleDismiss() {
     setDismissed(true);
@@ -42,13 +45,13 @@ export default function StockAlertBanner({ dismissKey = 'stock-banner-dismissed'
   }
 
   return (
-    <div className="stock-banner">
+    <div className={`stock-banner ${hasAgotados ? 'agotado' : ''}`}>
       <div className="stock-banner-icon">
         <AlertTriangle size={18} />
       </div>
       <div className="stock-banner-content">
-        <strong className="stock-banner-title">Stock bajo en almacén — {total} alerta{total>1?'s':''}</strong>
-        <span className="stock-banner-text">{preview}{extra} — Queda poca cantidad. Reabastece pronto.</span>
+        <strong className="stock-banner-title">{hasAgotados ? `⛔ Sin stock — ${agotados.length} agotado${agotados.length>1?'s':''}` : `Stock bajo en almacén — ${total} alerta${total>1?'s':''}`}</strong>
+        <span className="stock-banner-text">{preview}{extra} — {hasAgotados ? 'No hay stock. No se puede vender.' : 'Queda poca cantidad. Reabastece pronto.'}</span>
       </div>
       <div className="stock-banner-actions">
         <button className="stock-banner-btn" onClick={() => navigate(window.location.pathname.startsWith('/admin') ? '/admin/almacen' : '/almacen')}>Ver almacén</button>

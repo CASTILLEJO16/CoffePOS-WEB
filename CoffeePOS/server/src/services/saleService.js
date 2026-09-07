@@ -121,8 +121,9 @@ export async function getSaleById(id) {
  * @returns {Object} Venta creada con detalles
  */
 export async function createSale(saleData, usuarioId = null, clientId = null) {
+  let session;
   try {
-    const session = await Sale.startSession();
+    session = await Sale.startSession();
     session.startTransaction();
 
     const { items, metodo_pago = 'efectivo', iva_rate: ivaFromClient } = saleData;
@@ -193,20 +194,16 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
         importe,
         personalizaciones
       });
+    }
 
-      // Verificar si el producto tiene receta (usando el mapa de recetas)
+    // Acumular necesidades de stock de productos sin receta (se descontará después de validar ingredientes)
+    const productStockNeeds = {};
+    for (const item of processedItems) {
       const productRecipes = recipesMap.get(item.producto_id.toString()) || [];
-
-      // Solo descontar stock si NO tiene receta
       if (productRecipes.length === 0) {
-        try {
-          if (product.stock !== undefined && product.stock !== null) {
-            const newStock = product.stock - cantidad;
-            await Product.findByIdAndUpdate(product._id, { stock: newStock });
-          }
-        } catch (e) {
-          console.error('Error actualizando stock de producto:', e);
-        }
+        const key = item.producto_id.toString();
+        if (!productStockNeeds[key]) productStockNeeds[key] = { product: productsMap.get(key), cantidad: 0 };
+        productStockNeeds[key].cantidad += item.cantidad;
       }
     }
 
@@ -352,7 +349,7 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
       }
     }
     
-    // Verificar disponibilidad
+    // Verificar disponibilidad de ingredientes y productos
     const faltantes = [];
     for (const [ingId, need] of Object.entries(ingredientNeeds)) {
       if (need.cantidad <= 0) continue;
@@ -360,15 +357,31 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
       if (ingRow && ingRow.stock_actual < need.cantidad && !allowNegativeStock) {
         faltantes.push(`${need.nombre} (tiene ${ingRow.stock_actual}${need.unidad_medida}, necesita ${need.cantidad}${need.unidad_medida})`);
       }
+      // Si el ingrediente está en 0 o por debajo de mínimo, no bloqueamos pero se avisará después si la venta pasa
+    }
+    // Verificar stock de productos sin receta
+    for (const [pid, need] of Object.entries(productStockNeeds)) {
+      const prod = need.product;
+      if (!prod) continue;
+      if (prod.stock !== undefined && prod.stock !== null && prod.stock < need.cantidad && !allowNegativeStock) {
+        faltantes.push(`${prod.nombre} (producto sin receta: tiene ${prod.stock}, necesita ${need.cantidad})`);
+      }
     }
     if (faltantes.length > 0) {
-      throw new Error(`Stock insuficiente para procesar la venta. Ingredientes faltantes:\n${faltantes.join('\n')}`);
+      const err = new Error(`Stock insuficiente para procesar la venta. Faltantes:\n${faltantes.join('\n')}`);
+      err.code = 'INSUFFICIENT_STOCK';
+      err.faltantes = faltantes;
+      throw err;
     }
     
-    // Descontar stocks
+    // Descontar stocks (dentro de la transacción)
     for (const [ingId, need] of Object.entries(ingredientNeeds)) {
       if (need.cantidad <= 0) continue;
-      await Ingredient.findOneAndUpdate({ _id: ingId, clientId }, { $inc: { stock_actual: -need.cantidad } });
+      await Ingredient.findOneAndUpdate({ _id: ingId, clientId }, { $inc: { stock_actual: -need.cantidad } }, { session });
+    }
+    for (const [pid, need] of Object.entries(productStockNeeds)) {
+      if (need.cantidad <= 0) continue;
+      await Product.findByIdAndUpdate(pid, { $inc: { stock: -need.cantidad } }, { session });
     }
 
     // Manejar pagos en dólar y guardar tipoCambio del sistema para todos los tickets
@@ -449,7 +462,6 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     await logAction(usuarioId, 'CREAR_VENTA', `Venta creada: Total: $${total.toFixed(2)}`);
 
     await session.commitTransaction();
-    session.endSession();
 
     const result = await getSaleById(ventaId);
     result.iva_rate = ivaRate;
@@ -490,7 +502,14 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
 
     return result;
   } catch (error) {
+    if (session) {
+      try { await session.abortTransaction(); } catch {}
+    }
     throw error;
+  } finally {
+    if (session) {
+      try { session.endSession(); } catch {}
+    }
   }
 }
 

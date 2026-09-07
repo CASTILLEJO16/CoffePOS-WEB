@@ -11,6 +11,7 @@
   "dependencies": {
     "axios": "^1.6.2",
     "date-fns-tz": "^3.2.0",
+    "es-toolkit": "^1.52.0",
     "html2pdf.js": "^0.14.0",
     "lucide-react": "^1.25.0",
     "react": "^18.2.0",

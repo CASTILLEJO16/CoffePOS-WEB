@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getAlertasStock } from '../services/almacenService.js';
 
-const POLL_INTERVAL = 60000; // 60s
+const POLL_INTERVAL = 15000; // 15s - alertas más rápidas
 
 export function useStockAlerts({ enabled = true, pollInterval = POLL_INTERVAL } = {}) {
   const [data, setData] = useState({ ingredientes: [], productos: [], total: 0, hasAlertas: false });

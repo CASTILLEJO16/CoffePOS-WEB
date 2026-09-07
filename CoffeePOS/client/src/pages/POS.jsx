@@ -392,7 +392,14 @@ export default function POS() {
       });
     } catch (error) {
       console.error('Error al procesar venta:', error);
-      showToast(error.message || 'Error al procesar la venta', 'error');
+      const msg = error.response?.data?.error || error.message || 'Error al procesar la venta';
+      const isStock = error.response?.data?.code === 'INSUFFICIENT_STOCK' || msg.includes('Stock insuficiente');
+      if (isStock) {
+        Swal.fire({ icon: 'error', title: '🚫 Sin stock suficiente', html: msg.replace(/\n/g, '<br>'), confirmButtonText: 'Ver almacén', showCancelButton: true, cancelButtonText: 'Cerrar', confirmButtonColor: '#ef4444' }).then(r => { if (r.isConfirmed) navigate('/almacen'); });
+        window.dispatchEvent(new CustomEvent('stock-updated'));
+      } else {
+        showToast(msg, 'error');
+      }
     } finally {
       setProcessing(false);
     }
@@ -437,7 +444,14 @@ export default function POS() {
       });
     } catch (error) {
       console.error('Error al procesar venta:', error);
-      showToast(error.message || 'Error al procesar la venta', 'error');
+      const msg = error.response?.data?.error || error.message || 'Error al procesar la venta';
+      const isStock = error.response?.data?.code === 'INSUFFICIENT_STOCK' || msg.includes('Stock insuficiente');
+      if (isStock) {
+        Swal.fire({ icon: 'error', title: '🚫 Sin stock suficiente', html: msg.replace(/\n/g, '<br>'), confirmButtonText: 'Ver almacén', showCancelButton: true, cancelButtonText: 'Cerrar', confirmButtonColor: '#ef4444' }).then(r => { if (r.isConfirmed) navigate('/almacen'); });
+        window.dispatchEvent(new CustomEvent('stock-updated'));
+      } else {
+        showToast(msg, 'error');
+      }
     } finally {
       setProcessing(false);
     }
@@ -482,7 +496,14 @@ export default function POS() {
       });
     } catch (error) {
       console.error('Error al procesar venta:', error);
-      showToast('Error al procesar la venta', 'error');
+      const msg = error.response?.data?.error || error.message || 'Error al procesar la venta';
+      const isStock = error.response?.data?.code === 'INSUFFICIENT_STOCK' || msg.includes('Stock insuficiente');
+      if (isStock) {
+        Swal.fire({ icon: 'error', title: '🚫 Sin stock suficiente', html: msg.replace(/\n/g, '<br>'), confirmButtonText: 'Ver almacén', showCancelButton: true, cancelButtonText: 'Cerrar', confirmButtonColor: '#ef4444' }).then(r => { if (r.isConfirmed) navigate('/almacen'); });
+        window.dispatchEvent(new CustomEvent('stock-updated'));
+      } else {
+        showToast(msg, 'error');
+      }
     } finally {
       setProcessing(false);
     }
@@ -530,7 +551,14 @@ export default function POS() {
       });
     } catch (error) {
       console.error('Error al procesar venta:', error);
-      showToast(error.message || 'Error al procesar la venta', 'error');
+      const msg2 = error.response?.data?.error || error.message || 'Error al procesar la venta';
+      const isStock2 = error.response?.data?.code === 'INSUFFICIENT_STOCK' || msg2.includes('Stock insuficiente');
+      if (isStock2) {
+        Swal.fire({ icon: 'error', title: '🚫 Sin stock suficiente', html: msg2.replace(/\n/g, '<br>'), confirmButtonText: 'Ver almacén', showCancelButton: true, cancelButtonText: 'Cerrar', confirmButtonColor: '#ef4444' }).then(r => { if (r.isConfirmed) navigate('/almacen'); });
+        window.dispatchEvent(new CustomEvent('stock-updated'));
+      } else {
+        showToast(msg2, 'error');
+      }
     } finally {
       setProcessing(false);
     }
@@ -575,7 +603,14 @@ export default function POS() {
       });
     } catch (error) {
       console.error('Error al procesar venta:', error);
-      showToast(error.message || 'Error al procesar la venta', 'error');
+      const msg3 = error.response?.data?.error || error.message || 'Error al procesar la venta';
+      const isStock3 = error.response?.data?.code === 'INSUFFICIENT_STOCK' || msg3.includes('Stock insuficiente');
+      if (isStock3) {
+        Swal.fire({ icon: 'error', title: '🚫 Sin stock suficiente', html: msg3.replace(/\n/g, '<br>'), confirmButtonText: 'Ver almacén', showCancelButton: true, cancelButtonText: 'Cerrar', confirmButtonColor: '#ef4444' }).then(r => { if (r.isConfirmed) navigate('/almacen'); });
+        window.dispatchEvent(new CustomEvent('stock-updated'));
+      } else {
+        showToast(msg3, 'error');
+      }
     } finally {
       setProcessing(false);
     }

@@ -138,9 +138,14 @@ export async function createSale(req, res) {
     });
   } catch (error) {
     console.error('Error en createSale:', error);
-    res.status(500).json({
+    // Stock insuficiente -> 400 con detalles para que el POS muestre alerta de "sin stock"
+    const isStockError = error.code === 'INSUFFICIENT_STOCK' || error.message?.includes('Stock insuficiente');
+    const status = isStockError ? 400 : 500;
+    res.status(status).json({
       success: false,
-      error: error.message
+      error: error.message,
+      code: error.code || (isStockError ? 'INSUFFICIENT_STOCK' : 'SERVER_ERROR'),
+      faltantes: error.faltantes || null
     });
   }
 }
