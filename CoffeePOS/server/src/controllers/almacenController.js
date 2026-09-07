@@ -18,10 +18,11 @@ export async function getAlertasStock(req, res) {
     const clientId = req.user?.clientId;
     if (!clientId) return res.status(400).json({ success: false, error: 'clientId requerido' });
 
-    // Ingredientes con stock bajo: stock_actual <= stock_minimo
+    // Ingredientes con stock bajo: solo si tienen stock_minimo configurado (>0) y stock_actual <= minimo
+    // Así no se mandan alertas falsas de ingredientes sin umbral definido
     const ingredientes = await Ingredient.find({ clientId, activo: true }).sort({ nombre: 1 });
     const ingredientesBajos = ingredientes
-      .filter(i => i.stock_actual <= i.stock_minimo)
+      .filter(i => i.stock_minimo > 0 && i.stock_actual <= i.stock_minimo)
       .map(i => ({
         _id: i._id,
         nombre: i.nombre,
@@ -34,11 +35,12 @@ export async function getAlertasStock(req, res) {
         critico: i.stock_actual <= 0 || i.stock_actual <= i.stock_minimo * 0.5
       }));
 
-    // Productos con stock bajo (solo productos sin receta o con stock gestionado directo)
-    // Usamos Product.stock_minimo si existe, fallback 5
+    // Productos con stock bajo: solo productos SIN receta (stock directo). Los productos CON receta dependen de ingredientes, no de Product.stock
     const Product = (await import('../models/Product.js')).default;
     const productos = await Product.find({ clientId, activo: true }).sort({ nombre: 1 });
+    const productoIdsConReceta = new Set((await Recipe.distinct('producto_id', { clientId: new mongoose.Types.ObjectId(clientId) })).map(id => id.toString()));
     const productosBajos = productos
+      .filter(p => !productoIdsConReceta.has(p._id.toString()))
       .filter(p => {
         const minimo = p.stock_minimo ?? 5;
         return p.stock !== null && p.stock !== undefined && p.stock <= minimo;

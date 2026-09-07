@@ -466,11 +466,11 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     const result = await getSaleById(ventaId);
     result.iva_rate = ivaRate;
 
-    // --- Alertas de stock bajo tras la venta (no bloqueante) ---
+    // --- Alertas de stock bajo tras la venta (no bloqueante) - solo verdaderas ---
     try {
       const ingredientesBajos = await Ingredient.find({ clientId, activo: true });
       const bajosIng = ingredientesBajos
-        .filter(i => i.stock_actual <= i.stock_minimo)
+        .filter(i => i.stock_minimo > 0 && i.stock_actual <= i.stock_minimo)
         .map(i => ({
           nombre: i.nombre,
           stock_actual: i.stock_actual,
@@ -479,10 +479,13 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
           tipo: 'ingrediente',
           agotado: i.stock_actual <= 0
         }));
-      // productos bajos (solo los vendidos en esta venta)
+      // productos bajos: solo los vendidos en esta venta Y sin receta (los con receta dependen de ingredientes)
       const prodIdsAfectados = [...new Set(items.map(it => it.producto_id.toString()))];
       const productosAfectados = await Product.find({ _id: { $in: prodIdsAfectados }, clientId });
+      // ids de productos que tienen receta
+      const prodIdsConReceta = new Set((await Recipe.distinct('producto_id', { clientId: new mongoose.Types.ObjectId(clientId) })).map(id => id.toString()));
       const bajosProd = productosAfectados
+        .filter(p => !prodIdsConReceta.has(p._id.toString()))
         .filter(p => p.stock !== undefined && p.stock !== null && p.stock <= (p.stock_minimo ?? 5))
         .map(p => ({
           nombre: p.nombre,
