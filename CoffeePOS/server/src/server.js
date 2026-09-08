@@ -160,8 +160,8 @@ async function migrateLegacyData() {
       } catch (e) { console.warn(`[migración] ${name} skip:`, e.message); }
     }
 
-    // Eliminar índices únicos legacy que bloquean multi-tenant (clave, usuario, nombre)
-    for (const [model, idxName] of [[Config, 'clave_1'], [Category, 'nombre_1'], [User, 'usuario_1']]) {
+    // Eliminar índices únicos legacy que bloquean multi-tenant (clave, usuario, nombre, pin global)
+    for (const [model, idxName] of [[Config, 'clave_1'], [Category, 'nombre_1'], [User, 'usuario_1'], [User, 'pin_1']]) {
       try {
         const indexes = await model.collection.getIndexes();
         if (indexes[idxName]) {
@@ -169,6 +169,13 @@ async function migrateLegacyData() {
           console.log(`[migración] Índice legacy ${idxName} eliminado`);
         }
       } catch (e) { /* índice no existe */ }
+    }
+    // Asegurar nuevo índice compuesto pin+clientId (scoped por cafetería)
+    try {
+      await User.collection.createIndex({ pin: 1, clientId: 1 }, { unique: true, sparse: true });
+      console.log('[migración] Índice pin+clientId asegurado');
+    } catch (e) {
+      console.warn('[migración] No se pudo crear índice pin+clientId:', e.message);
     }
 
     // Config legacy sin clientId: asignar solo si no existe duplicado por clave+clientId

@@ -64,19 +64,25 @@ export async function login(username, password) {
 }
 
 /**
- * Autentica un usuario con PIN de 4 dígitos
+ * Autentica un usuario con PIN de 4 dígitos - SCOPED POR CAFETERÍA
  * @param {string} pin - Código de 4 dígitos
+ * @param {string} clientId - ID de la cafetería (obligatorio para multi-tenant)
  * @returns {Object} Token y datos del usuario
  */
-export async function loginWithPin(pin) {
+export async function loginWithPin(pin, clientId = null) {
   try {
     const cleanPin = String(pin).trim();
     if (!/^\d{4}$/.test(cleanPin)) {
       throw new Error('PIN debe ser 4 dígitos numéricos');
     }
 
+    if (!clientId) {
+      throw new Error('No se pudo identificar la cafetería. Activa la licencia del dispositivo.');
+    }
+
     const user = await User.findOne({
       pin: cleanPin,
+      clientId,
       activo: true
     });
 
@@ -192,16 +198,18 @@ export async function createUser(userData, creatorId = null, clientId = null) {
     // Hash de la contraseña
     const hashedPassword = await bcrypt.hash(contraseña, 10);
 
-    // Validar y preparar PIN si se proporciona
+    // Validar y preparar PIN si se proporciona - scoped por cafetería
     let pinToSave = undefined;
     if (pin !== undefined && pin !== null && String(pin).trim() !== '') {
       const cleanPin = String(pin).trim();
       if (!/^\d{4}$/.test(cleanPin)) {
         throw new Error('PIN debe ser 4 dígitos numéricos');
       }
-      const existingPin = await User.findOne({ pin: cleanPin });
+      const pinFilter = { pin: cleanPin };
+      if (clientId) pinFilter.clientId = clientId;
+      const existingPin = await User.findOne(pinFilter);
       if (existingPin) {
-        throw new Error('El PIN ya está en uso por otro usuario');
+        throw new Error('El PIN ya está en uso por otro usuario de esta cafetería');
       }
       pinToSave = cleanPin;
     }
@@ -278,9 +286,15 @@ export async function updateUser(id, userData, updaterId = null) {
         if (!/^\d{4}$/.test(cleanPin)) {
           throw new Error('PIN debe ser 4 dígitos numéricos');
         }
-        const existingPin = await User.findOne({ pin: cleanPin, _id: { $ne: id } });
+        // Necesitamos el clientId del usuario para scoped uniqueness
+        const targetUser = await User.findById(id).select('clientId');
+        if (!targetUser) {
+          throw new Error('Usuario no encontrado');
+        }
+        const pinFilter = { pin: cleanPin, clientId: targetUser.clientId, _id: { $ne: id } };
+        const existingPin = await User.findOne(pinFilter);
         if (existingPin) {
-          throw new Error('El PIN ya está en uso por otro usuario');
+          throw new Error('El PIN ya está en uso por otro usuario de esta cafetería');
         }
         updates.pin = cleanPin;
       }

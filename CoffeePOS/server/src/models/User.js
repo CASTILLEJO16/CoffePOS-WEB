@@ -49,8 +49,8 @@ const UserSchema = new mongoose.Schema({
 // Índice compuesto único para usuario + clientId
 UserSchema.index({ usuario: 1, clientId: 1 }, { unique: true });
 
-// Índice único global para PIN (4 dígitos) - permite login solo con PIN sin ambigüedad multi-tenant
-UserSchema.index({ pin: 1 }, { unique: true, sparse: true });
+// Índice único por cafetería para PIN (4 dígitos) - cada cafetería puede reutilizar PINs sin colisión cross-tenant
+UserSchema.index({ pin: 1, clientId: 1 }, { unique: true, sparse: true });
 
 // Método para verificar contraseña
 UserSchema.methods.verifyPassword = function(password) {
