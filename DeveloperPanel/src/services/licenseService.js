@@ -44,6 +44,7 @@ api.interceptors.response.use(
 export const licenseService = {
   // Autenticación de Desarrollador
   login: (usuario, contraseña) => api.post('/auth/dev-login', { usuario, contraseña }),
+  changePassword: (currentPassword, newPassword) => api.post('/auth/change-password', { currentPassword, newPassword }),
 
   // Clientes
   createClient: (data) => api.post('/clientes', data),

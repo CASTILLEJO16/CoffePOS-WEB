@@ -38,6 +38,20 @@ export function authenticateToken(req, res, next) {
           });
         }
 
+        // Bypass total para developer: sin clientId ni verificación de licencia
+        const isDeveloper = decoded.isDeveloper === true || user.rol === 'developer';
+        if (isDeveloper) {
+          req.user = {
+            ...decoded,
+            userId: decoded.userId,
+            role: user.rol,
+            rol: user.rol,
+            clientId: null,
+            isDeveloper: true
+          };
+          return next();
+        }
+
         // Verificar que el usuario tenga clientId asignado (sin auto-reparación)
         const clientId = user.clientId || decoded.clientId;
         if (!clientId) {
@@ -124,14 +138,30 @@ export function authenticateToken(req, res, next) {
 }
 
 /**
- * Middleware de autorización para administradores
- * Verifica que el usuario tenga rol de admin
+ * Middleware de autorización para administradores o developer
+ * Verifica que el usuario tenga rol de admin o developer (Developer Panel)
  */
 export function requireAdmin(req, res, next) {
-  if (!req.user || (req.user.role !== 'admin' && req.user.rol !== 'admin')) {
+  const role = req.user?.role || req.user?.rol;
+  const isDev = req.user?.isDeveloper === true || role === 'developer';
+  if (!req.user || (role !== 'admin' && !isDev)) {
     return res.status(403).json({
       success: false,
       error: 'Se requiere rol de administrador'
+    });
+  }
+  next();
+}
+
+/**
+ * Middleware solo para developer (opcional, para futuro)
+ */
+export function requireDeveloper(req, res, next) {
+  const role = req.user?.role || req.user?.rol;
+  if (!req.user || (role !== 'developer' && req.user?.isDeveloper !== true)) {
+    return res.status(403).json({
+      success: false,
+      error: 'Se requiere rol de desarrollador'
     });
   }
   next();

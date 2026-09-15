@@ -18,9 +18,10 @@ import { logAction } from './logService.js';
 export async function login(username, password) {
   try {
     const normalizedUsername = String(username).toLowerCase();
-    // Buscar usuario por nombre de usuario (sin clientId para login global)
+    // Buscar usuario por nombre de usuario - excluir developer (solo para dev-login)
     const user = await User.findOne({ 
       usuario: normalizedUsername, 
+      rol: { $ne: 'developer' },
       activo: true 
     });
 

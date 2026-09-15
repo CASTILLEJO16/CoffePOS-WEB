@@ -143,10 +143,10 @@ async function migrateLegacyData() {
 
     const clientId = defaultClient._id;
 
-    const legacyUsers = await User.countDocuments({ clientId: { $exists: false } });
-    const nullUsers = await User.countDocuments({ clientId: null });
-    if (legacyUsers + nullUsers > 0) {
-      const r = await User.updateMany({ $or: [{ clientId: { $exists: false } }, { clientId: null }] }, { $set: { clientId } });
+    // Migrar solo usuarios no-developer; developer queda sin clientId global
+    const legacyUsers = await User.countDocuments({ rol: { $ne: 'developer' }, $or: [{ clientId: { $exists: false } }, { clientId: null }] });
+    if (legacyUsers > 0) {
+      const r = await User.updateMany({ rol: { $ne: 'developer' }, $or: [{ clientId: { $exists: false } }, { clientId: null }] }, { $set: { clientId } });
       console.log(`[migración] Usuarios migrados: ${r.modifiedCount}`);
     }
 
@@ -216,7 +216,7 @@ async function startServer() {
       console.log(`🚀 Servidor Coffee POS corriendo en puerto ${PORT}`);
       console.log(`📡 API disponible en http://localhost:${PORT}`);
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`🔑 Usuario admin por defecto: lennyn / Temp2024! (debe cambiar contraseña al primer inicio)`);
+        console.log(`🔑 Developer Panel: lennyn / DevTemp2024! (debe cambiar contraseña al primer inicio - solo vía /api/auth/dev-login)`);
       }
     });
   } catch (error) {

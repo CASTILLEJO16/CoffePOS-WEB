@@ -47,7 +47,8 @@ export async function disconnectDB() {
  */
 async function initializeDefaultData() {
   try {
-    // Verificar si ya existe un usuario developer
+    // Solo usuario developer global - no crear admins/vendedores huérfanos sin clientId
+    // Los usuarios de cafetería se crean via POST /api/clientes con clientId asignado
     const devCount = await User.countDocuments({ rol: 'developer' });
     if (devCount === 0) {
       console.log('📝 Creando usuario developer por defecto...');
@@ -62,68 +63,7 @@ async function initializeDefaultData() {
       });
       console.log('✅ Usuario developer creado: lennyn / DevTemp2024! (debe cambiar contraseña)');
     } else {
-      // Si ya existe un developer, actualizar sus credenciales a las nuevas
-      console.log('📝 Actualizando usuario developer por defecto...');
-      const hashedPassword = bcrypt.hashSync('DevTemp2024!', 10);
-      await User.updateOne(
-        { rol: 'developer' },
-        {
-          $set: {
-            nombre: 'Lennyn Castillejo',
-            usuario: 'lennyn',
-            contraseña_hash: hashedPassword,
-            mustChangePassword: true
-          }
-        }
-      );
-      console.log('✅ Usuario developer actualizado: lennyn / DevTemp2024! (debe cambiar contraseña)');
-    }
-
-    // Verificar si ya existe un usuario admin
-    const adminCount = await User.countDocuments({ rol: 'admin' });
-    if (adminCount === 0) {
-      console.log('📝 Creando usuario admin por defecto...');
-      const hashedPassword = bcrypt.hashSync('Temp2024!', 10);
-      await User.create({
-        nombre: 'Lennyn Castillejo',
-        usuario: 'lennyn',
-        contraseña_hash: hashedPassword,
-        rol: 'admin',
-        activo: true,
-        mustChangePassword: true
-      });
-      console.log('✅ Usuario admin creado: lennyn / Temp2024! (debe cambiar contraseña)');
-    } else {
-      // Si ya existe un admin, actualizar sus credenciales a las nuevas
-      console.log('📝 Actualizando usuario admin por defecto...');
-      const hashedPassword = bcrypt.hashSync('Temp2024!', 10);
-      await User.updateOne(
-        { rol: 'admin' },
-        {
-          $set: {
-            nombre: 'Lennyn Castillejo',
-            usuario: 'lennyn',
-            contraseña_hash: hashedPassword,
-            mustChangePassword: true
-          }
-        }
-      );
-      console.log('✅ Usuario admin actualizado: lennyn / Temp2024! (debe cambiar contraseña)');
-    }
-
-    // Verificar si ya existe un usuario vendedor
-    const vendedorCount = await User.countDocuments({ rol: 'cajero' });
-    if (vendedorCount === 0) {
-      console.log('📝 Creando usuario vendedor por defecto...');
-      const hashedPassword = bcrypt.hashSync('vendedor123', 10);
-      await User.create({
-        nombre: 'Vendedor',
-        usuario: 'vendedor',
-        contraseña_hash: hashedPassword,
-        rol: 'cajero',
-        activo: true
-      });
-      console.log('✅ Usuario vendedor creado: vendedor / vendedor123');
+      console.log('ℹ️ Usuario developer ya existe, se conserva contraseña actual (no se resetea)');
     }
 
     // Verificar si ya existe configuración de IVA

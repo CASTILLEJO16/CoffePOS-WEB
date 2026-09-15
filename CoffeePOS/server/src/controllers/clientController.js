@@ -38,7 +38,13 @@ export const createClient = async (req, res) => {
     const passToSet = password && password.trim() ? password : 'Temp2024!';
     const hashedPassword = bcrypt.hashSync(passToSet, 10);
 
-    const existingUser = await User.findOne({ usuario: usuarioHandle });
+    // No colisionar con usuario developer global (rol developer no tiene clientId)
+    const existingUser = await User.findOne({ usuario: usuarioHandle, rol: { $ne: 'developer' }, clientId: client._id });
+    // Fallback: si existe usuario con mismo nombre pero sin clientId o con otro client (legacy), no reutilizar developer
+    const collisionDev = await User.findOne({ usuario: usuarioHandle, rol: 'developer' });
+    if (collisionDev) {
+      console.warn(`[createClient] username ${usuarioHandle} colisiona con developer, se creará admin scoped sin tocar developer`);
+    }
     if (existingUser) {
       existingUser.nombre = name || businessName || existingUser.nombre;
       existingUser.contraseña_hash = hashedPassword;
@@ -48,6 +54,11 @@ export const createClient = async (req, res) => {
       existingUser.mustChangePassword = true;
       await existingUser.save();
     } else {
+      // Verificar que no exista ya un admin con mismo usuario en esta cafetería (scoped)
+      const duplicateCheck = await User.findOne({ usuario: usuarioHandle, clientId: client._id });
+      if (duplicateCheck && duplicateCheck.rol === 'developer') {
+        throw new Error('El nombre de usuario colisiona con cuenta de desarrollador. Elija otro username.');
+      }
       await User.create({
         clientId: client._id,
         nombre: name || businessName || 'Administrador',
