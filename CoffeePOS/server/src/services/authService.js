@@ -65,6 +65,62 @@ export async function login(username, password) {
 }
 
 /**
+ * Autentica un usuario desarrollador (solo para Developer Panel)
+ * @param {string} username - Nombre de usuario
+ * @param {string} password - Contraseña
+ * @returns {Object} Token y datos del usuario
+ */
+export async function devLogin(username, password) {
+  try {
+    const normalizedUsername = String(username).toLowerCase();
+    // Buscar usuario desarrollador (sin clientId, rol developer)
+    const user = await User.findOne({ 
+      usuario: normalizedUsername, 
+      rol: 'developer',
+      activo: true 
+    });
+
+    if (!user) {
+      throw new Error('Credenciales de desarrollador inválidas');
+    }
+
+    // Verificar contraseña
+    const isValidPassword = await bcrypt.compare(password, user.contraseña_hash);
+
+    if (!isValidPassword) {
+      throw new Error('Credenciales de desarrollador inválidas');
+    }
+
+    // Generar token JWT
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        username: user.usuario,
+        role: user.rol,
+        isDeveloper: true
+      },
+      config.jwtSecret,
+      { expiresIn: '24h' }
+    );
+
+    // Registrar login
+    await logAction(user._id, 'DEV_LOGIN', 'Desarrollador inició sesión');
+
+    // Retornar datos sin contraseña
+    const userWithoutPassword = user.toJSON();
+
+    return {
+      token,
+      user: userWithoutPassword,
+      mustChangePassword: user.mustChangePassword || false
+    };
+  } catch (error) {
+    console.error('Error en devLogin:', error.message);
+    throw error;
+  }
+}
+
+/**
  * Autentica un usuario con PIN de 4 dígitos - SCOPED POR CAFETERÍA
  * @param {string} pin - Código de 4 dígitos
  * @param {string} clientId - ID de la cafetería (obligatorio para multi-tenant)

@@ -47,6 +47,38 @@ export async function disconnectDB() {
  */
 async function initializeDefaultData() {
   try {
+    // Verificar si ya existe un usuario developer
+    const devCount = await User.countDocuments({ rol: 'developer' });
+    if (devCount === 0) {
+      console.log('📝 Creando usuario developer por defecto...');
+      const hashedPassword = bcrypt.hashSync('DevTemp2024!', 10);
+      await User.create({
+        nombre: 'Lennyn Castillejo',
+        usuario: 'lennyn',
+        contraseña_hash: hashedPassword,
+        rol: 'developer',
+        activo: true,
+        mustChangePassword: true
+      });
+      console.log('✅ Usuario developer creado: lennyn / DevTemp2024! (debe cambiar contraseña)');
+    } else {
+      // Si ya existe un developer, actualizar sus credenciales a las nuevas
+      console.log('📝 Actualizando usuario developer por defecto...');
+      const hashedPassword = bcrypt.hashSync('DevTemp2024!', 10);
+      await User.updateOne(
+        { rol: 'developer' },
+        {
+          $set: {
+            nombre: 'Lennyn Castillejo',
+            usuario: 'lennyn',
+            contraseña_hash: hashedPassword,
+            mustChangePassword: true
+          }
+        }
+      );
+      console.log('✅ Usuario developer actualizado: lennyn / DevTemp2024! (debe cambiar contraseña)');
+    }
+
     // Verificar si ya existe un usuario admin
     const adminCount = await User.countDocuments({ rol: 'admin' });
     if (adminCount === 0) {

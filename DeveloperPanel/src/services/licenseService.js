@@ -43,7 +43,7 @@ api.interceptors.response.use(
 // Servicio de licencias y autenticación de desarrollador
 export const licenseService = {
   // Autenticación de Desarrollador
-  login: (usuario, contraseña) => api.post('/auth/login', { usuario, contraseña }),
+  login: (usuario, contraseña) => api.post('/auth/dev-login', { usuario, contraseña }),
 
   // Clientes
   createClient: (data) => api.post('/clientes', data),

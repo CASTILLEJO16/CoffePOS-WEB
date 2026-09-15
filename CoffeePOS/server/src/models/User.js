@@ -9,7 +9,7 @@ const UserSchema = new mongoose.Schema({
   clientId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Client',
-    required: true,
+    required: false,
     index: true
   },
   nombre: {
@@ -26,7 +26,7 @@ const UserSchema = new mongoose.Schema({
   },
   rol: {
     type: String,
-    enum: ['admin', 'cajero'],
+    enum: ['developer', 'admin', 'cajero'],
     default: 'cajero'
   },
   activo: {
@@ -50,8 +50,10 @@ const UserSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Índice compuesto único para usuario + clientId
-UserSchema.index({ usuario: 1, clientId: 1 }, { unique: true });
+// Índice compuesto único para usuario + clientId (para usuarios de cafeterías)
+// Para usuarios developer, el usuario debe ser único globalmente
+UserSchema.index({ usuario: 1, clientId: 1 }, { unique: true, partialFilterExpression: { rol: { $ne: 'developer' } } });
+UserSchema.index({ usuario: 1 }, { unique: true, partialFilterExpression: { rol: 'developer' } });
 
 // Índice único por cafetería para PIN (4 dígitos) - cada cafetería puede reutilizar PINs sin colisión cross-tenant
 UserSchema.index({ pin: 1, clientId: 1 }, { unique: true, sparse: true });

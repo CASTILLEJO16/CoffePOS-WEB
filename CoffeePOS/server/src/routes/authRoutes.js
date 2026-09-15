@@ -37,6 +37,7 @@ function validateLogin(req, res, next) {
 }
 
 // Rutas públicas
+router.post('/dev-login', loginLimiter, validateLogin, authController.devLogin);
 router.post('/login', loginLimiter, validateLogin, authController.login);
 router.post('/login-pin', loginLimiter, authController.loginPin);
 

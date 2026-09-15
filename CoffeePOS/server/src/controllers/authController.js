@@ -8,6 +8,38 @@ import licenseService from '../services/licenseService.js';
  */
 
 /**
+ * Inicia sesión como desarrollador (Developer Panel)
+ */
+export async function devLogin(req, res) {
+  try {
+    const { usuario, contraseña } = req.body;
+
+    if (!usuario || !contraseña) {
+      return res.status(400).json({
+        success: false,
+        error: 'Usuario y contraseña son requeridos'
+      });
+    }
+
+    const result = await authService.devLogin(usuario, contraseña);
+
+    // Registrar inicio de sesión
+    await logAction(result.user.id, 'DEV_LOGIN', `Desarrollador ${usuario} inició sesión`);
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error en devLogin:', error);
+    res.status(401).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
  * Inicia sesión
  */
 export async function login(req, res) {
