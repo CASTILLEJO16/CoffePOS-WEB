@@ -61,6 +61,22 @@ async function initializeDefaultData() {
         mustChangePassword: true
       });
       console.log('✅ Usuario admin creado: lennyn / Temp2024! (debe cambiar contraseña)');
+    } else {
+      // Si ya existe un admin, actualizar sus credenciales a las nuevas
+      console.log('📝 Actualizando usuario admin por defecto...');
+      const hashedPassword = bcrypt.hashSync('Temp2024!', 10);
+      await User.updateOne(
+        { rol: 'admin' },
+        {
+          $set: {
+            nombre: 'Lennyn Castillejo',
+            usuario: 'lennyn',
+            contraseña_hash: hashedPassword,
+            mustChangePassword: true
+          }
+        }
+      );
+      console.log('✅ Usuario admin actualizado: lennyn / Temp2024! (debe cambiar contraseña)');
     }
 
     // Verificar si ya existe un usuario vendedor
