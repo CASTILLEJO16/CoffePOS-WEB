@@ -51,15 +51,16 @@ async function initializeDefaultData() {
     const adminCount = await User.countDocuments({ rol: 'admin' });
     if (adminCount === 0) {
       console.log('📝 Creando usuario admin por defecto...');
-      const hashedPassword = bcrypt.hashSync('admin123', 10);
+      const hashedPassword = bcrypt.hashSync('Temp2024!', 10);
       await User.create({
-        nombre: 'Administrador',
-        usuario: 'admin',
+        nombre: 'Lennyn Castillejo',
+        usuario: 'lennyn',
         contraseña_hash: hashedPassword,
         rol: 'admin',
-        activo: true
+        activo: true,
+        mustChangePassword: true
       });
-      console.log('✅ Usuario admin creado: admin / admin123');
+      console.log('✅ Usuario admin creado: lennyn / Temp2024! (debe cambiar contraseña)');
     }
 
     // Verificar si ya existe un usuario vendedor

@@ -216,7 +216,7 @@ async function startServer() {
       console.log(`🚀 Servidor Coffee POS corriendo en puerto ${PORT}`);
       console.log(`📡 API disponible en http://localhost:${PORT}`);
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`🔑 Usuario admin por defecto: admin / admin123`);
+        console.log(`🔑 Usuario admin por defecto: lennyn / Temp2024! (debe cambiar contraseña al primer inicio)`);
       }
     });
   } catch (error) {

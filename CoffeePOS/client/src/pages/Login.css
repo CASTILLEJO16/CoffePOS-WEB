@@ -202,6 +202,17 @@
   margin-top: 8px;
 }
 
+.login-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.login-buttons .login-button {
+  margin-top: 0;
+  flex: 1;
+}
+
 .login-footer {
   margin-top: 24px;
   display: flex;

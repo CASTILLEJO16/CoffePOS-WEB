@@ -42,6 +42,7 @@ router.post('/login-pin', loginLimiter, authController.loginPin);
 
 // Rutas protegidas
 router.post('/logout', authenticateToken, authController.logout);
+router.post('/change-password', authenticateToken, authController.changePassword);
 router.get('/verify', authenticateToken, authController.verifyToken);
 
 export default router;

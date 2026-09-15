@@ -35,7 +35,7 @@ export const createClient = async (req, res) => {
     await client.save();
 
     // Crear o actualizar usuario administrador en CoffeePOS para este cliente
-    const passToSet = password && password.trim() ? password : 'admin123';
+    const passToSet = password && password.trim() ? password : 'Temp2024!';
     const hashedPassword = bcrypt.hashSync(passToSet, 10);
 
     const existingUser = await User.findOne({ usuario: usuarioHandle });
@@ -45,6 +45,7 @@ export const createClient = async (req, res) => {
       existingUser.rol = 'admin';
       existingUser.activo = true;
       existingUser.clientId = client._id;
+      existingUser.mustChangePassword = true;
       await existingUser.save();
     } else {
       await User.create({
@@ -53,7 +54,8 @@ export const createClient = async (req, res) => {
         usuario: usuarioHandle,
         contraseña_hash: hashedPassword,
         rol: 'admin',
-        activo: true
+        activo: true,
+        mustChangePassword: true
       });
     }
 

@@ -136,6 +136,44 @@ export async function logout(req, res) {
 }
 
 /**
+ * Cambia la contraseña del usuario actual
+ */
+export async function changePassword(req, res) {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user?.userId;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Contraseña actual y nueva son requeridas'
+      });
+    }
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Usuario no autenticado'
+      });
+    }
+
+    const result = await authService.changePassword(userId, currentPassword, newPassword);
+
+    res.json({
+      success: true,
+      data: result,
+      message: 'Contraseña cambiada exitosamente'
+    });
+  } catch (error) {
+    console.error('Error en changePassword:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
  * Verifica el token actual
  */
 export async function verifyToken(req, res) {

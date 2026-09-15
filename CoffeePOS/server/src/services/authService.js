@@ -55,7 +55,8 @@ export async function login(username, password) {
 
     return {
       token,
-      user: userWithoutPassword
+      user: userWithoutPassword,
+      mustChangePassword: user.mustChangePassword || false
     };
   } catch (error) {
     console.error('Error en login:', error.message);
@@ -244,7 +245,7 @@ export async function createUser(userData, creatorId = null, clientId = null) {
  */
 export async function updateUser(id, userData, updaterId = null) {
   try {
-    let { nombre, usuario, contraseña, rol, activo, pin } = userData;
+    let { nombre, usuario, contraseña, rol, activo, pin, mustChangePassword } = userData;
 
     const updates = {};
 
@@ -267,6 +268,10 @@ export async function updateUser(id, userData, updaterId = null) {
 
     if (contraseña !== undefined) {
       updates.contraseña_hash = await bcrypt.hash(contraseña, 10);
+      // Si se cambia la contraseña, opcionalmente quitar el flag de cambio obligatorio
+      if (mustChangePassword === false) {
+        updates.mustChangePassword = false;
+      }
     }
 
     if (rol !== undefined) {
@@ -275,6 +280,10 @@ export async function updateUser(id, userData, updaterId = null) {
 
     if (activo !== undefined) {
       updates.activo = activo;
+    }
+
+    if (mustChangePassword !== undefined) {
+      updates.mustChangePassword = mustChangePassword;
     }
 
     if (pin !== undefined) {
@@ -378,6 +387,50 @@ export async function verifyUserPassword(userId, password) {
   } catch (error) {
     console.error('Error al verificar contraseña:', error);
     return false;
+  }
+}
+
+/**
+ * Cambia la contraseña de un usuario
+ * @param {string} userId - ID del usuario
+ * @param {string} currentPassword - Contraseña actual
+ * @param {string} newPassword - Nueva contraseña
+ * @returns {Object} Usuario actualizado
+ */
+export async function changePassword(userId, currentPassword, newPassword) {
+  try {
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      throw new Error('Usuario no encontrado');
+    }
+
+    // Verificar contraseña actual
+    const isValidPassword = await bcrypt.compare(currentPassword, user.contraseña_hash);
+    if (!isValidPassword) {
+      throw new Error('Contraseña actual incorrecta');
+    }
+
+    // Validar nueva contraseña
+    if (!newPassword || newPassword.length < 6) {
+      throw new Error('La nueva contraseña debe tener al menos 6 caracteres');
+    }
+
+    // Hash de la nueva contraseña
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Actualizar contraseña y quitar flag de cambio obligatorio
+    user.contraseña_hash = hashedPassword;
+    user.mustChangePassword = false;
+    await user.save();
+
+    // Registrar acción
+    await logAction(userId, 'CAMBIAR_CONTRASEÑA', 'Usuario cambió su contraseña');
+
+    return user.toJSON();
+  } catch (error) {
+    console.error('Error al cambiar contraseña:', error.message);
+    throw error;
   }
 }
 

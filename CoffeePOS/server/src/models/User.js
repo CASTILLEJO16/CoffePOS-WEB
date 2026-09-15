@@ -41,6 +41,10 @@ const UserSchema = new mongoose.Schema({
       },
       message: 'PIN debe ser 4 dígitos numéricos'
     }
+  },
+  mustChangePassword: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true
@@ -65,6 +69,8 @@ UserSchema.methods.toJSON = function() {
   delete obj.pin;
   // exponer si tiene PIN configurado sin revelar el valor
   obj.hasPin = !!this.pin;
+  // exponer si debe cambiar contraseña
+  obj.mustChangePassword = this.mustChangePassword || false;
   return obj;
 };
 
