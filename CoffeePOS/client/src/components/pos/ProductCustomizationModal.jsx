@@ -57,6 +57,7 @@ export default function ProductCustomizationModal({ product, isOpen, onClose, on
   const isTea = product?.categoria?.includes('Té') || product?.categoria === 'Tés';
   const isColdDrink = product?.categoria?.includes('Frío') || product?.categoria?.includes('Frappé') || 
                       product?.categoria === 'Cafés Fríos' || product?.categoria === 'Frappés';
+  const isDessert = product?.categoria?.includes('Postre') || product?.categoria === 'Postres';
 
   const toggleOption = (tipo, option) => {
     setCustomization(prev => {
@@ -105,12 +106,11 @@ export default function ProductCustomizationModal({ product, isOpen, onClose, on
   const extraPrice = calculateExtraPrice();
   const finalPrice = product.precio + extraPrice;
 
-  // Filtrar tipos según el producto (p. ej. té vs leche)
+  // Filtrar tipos según el producto
+  // Mostrar todas las categorías excepto cuando es postre
   let renderableTipos = tipos.filter(tipo => {
-    if (tipo === 'tea_option' && !isTea) return false;
-    if (tipo === 'milk' && isTea) return false;
-    if (tipo === 'cold_foam' && !isColdDrink) return false;
-    return true;
+    if (isDessert) return false; // No mostrar personalizaciones en postres
+    return true; // Mostrar todas las categorías para otros productos
   });
 
   // Si estamos editando, también incluir tipos que están en la personalización original
