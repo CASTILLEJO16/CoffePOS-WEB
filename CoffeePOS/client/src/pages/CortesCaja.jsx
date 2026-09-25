@@ -79,6 +79,107 @@ export default function CortesCaja() {
     window.print();
   }
 
+  function handleDownloadTicket(corte) {
+    const totalContado = corte.total_contado || 0;
+    const diferencia = (corte.total_contado || 0) - (corte.total_esperado || 0);
+
+    const ticketHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Ticket Corte de Caja</title>
+        <style>
+          @page { size: 110mm 210mm; margin: 5mm; }
+          body { font-family: 'Courier New', monospace; font-size: 11px; width: 100%; margin: 0 auto; background: white; }
+          .ticket { width: 100%; max-width: 400px; margin: 0 auto; }
+          .ticket-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 10px; }
+          .ticket-header h1 { font-size: 18px; margin-bottom: 2px; }
+          .ticket-header p { font-size: 11px; color: #555; }
+          .ticket-info { margin-bottom: 8px; font-size: 10px; }
+          .ticket-info-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+          .ticket-divider { border-top: 1px solid #000; padding-top: 4px; margin-top: 4px; }
+          .ticket-footer { text-align: center; border-top: 2px solid #000; padding-top: 8px; margin-top: 8px; font-size: 10px; color: #555; }
+          .ticket-signature { margin-top: 20px; padding-top: 15px; border-top: 1px solid #000; }
+          .ticket-signature p { margin: 3px 0; }
+          .ticket-signature .line { width: 45%; border-bottom: 1px solid #000; display: inline-block; margin: 0 5%; }
+        </style>
+      </head>
+      <body>
+        <div class="ticket">
+          <div class="ticket-header">
+            <h1>Coffee POS</h1>
+            <p>Corte de Caja #${corte.id}</p>
+          </div>
+
+          <div class="ticket-info">
+            <div class="ticket-info-row">
+              <strong>Vendedor:</strong> ${corte.usuario_nombre || '-'}
+            </div>
+            <div class="ticket-info-row">
+              <strong>Caja:</strong> ${corte.nombre_caja || 'Sin nombre'}
+            </div>
+            <div class="ticket-info-row">
+              <strong>Apertura:</strong> ${formatBusinessDateTime(corte.fecha_apertura)}
+            </div>
+            ${corte.fecha_cierre ? `<div class="ticket-info-row"><strong>Cierre:</strong> ${formatBusinessDateTime(corte.fecha_cierre)}</div>` : ''}
+          </div>
+
+          <div class="ticket-divider"></div>
+
+          <div class="ticket-info">
+            <div class="ticket-info-row">
+              <strong>Fondo Inicial:</strong> ${formatCurrency(corte.fondo_inicial)}
+            </div>
+            <div class="ticket-info-row">
+              <strong>Ventas Efectivo:</strong> ${formatCurrency(corte.ventas_efectivo)}
+            </div>
+            <div class="ticket-info-row">
+              <strong>Ventas Tarjeta:</strong> ${formatCurrency(corte.ventas_tarjeta)}
+            </div>
+            ${corte.ventas_dolar > 0 ? `<div class="ticket-info-row"><strong>Ventas USD:</strong> ${formatCurrency(corte.ventas_dolar)}</div>` : ''}
+            <div class="ticket-info-row">
+              <strong>Total Vendido:</strong> ${formatCurrency(corte.ventas_efectivo + corte.ventas_tarjeta)}
+            </div>
+          </div>
+
+          <div class="ticket-divider"></div>
+
+          <div class="ticket-info">
+            ${corte.estado === 'cerrada' ? `
+            <div class="ticket-info-row">
+              <strong>Total Esperado:</strong> ${formatCurrency(corte.total_esperado)}
+            </div>
+            <div class="ticket-info-row">
+              <strong>Total Contado:</strong> ${formatCurrency(corte.total_contado)}
+            </div>
+            <div class="ticket-info-row">
+              <strong>Diferencia:</strong> ${formatCurrency(corte.diferencia)}
+            </div>` : ''}
+          </div>
+
+          <div class="ticket-signature">
+            <p>_______________________________</p>
+            <p>Firma: _________________________</p>
+            <p>Fecha: ${new Date().toLocaleDateString()}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(ticketHTML);
+      printWindow.document.close();
+      printWindow.onload = function() {
+        printWindow.focus();
+      };
+    } else {
+      console.error('No se pudo abrir la ventana del ticket');
+    }
+  }
+
   function handleExportPDF(corte, index) {
     const element = document.createElement('div');
     element.innerHTML = `
@@ -263,6 +364,13 @@ export default function CortesCaja() {
                     </span>
                   </div>
                   <div className="corte-actions">
+                    <button
+                      className="action-icon-btn"
+                      onClick={() => handleDownloadTicket(corte)}
+                      title="Descargar Ticket"
+                    >
+                      <Download size={18} />
+                    </button>
                     <button
                       className="action-icon-btn"
                       onClick={() => handleExportPDF(corte, index)}
