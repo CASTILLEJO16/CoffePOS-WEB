@@ -37,11 +37,22 @@ export default function AdminCustomizations() {
     return tipoId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   }
 
+  // Helper para obtener ID compatible con _id e id (Mongoose)
+  function getId(c) {
+    return c?.id || c?._id || c?._id?.toString();
+  }
+
   async function loadCustomizations() {
     try {
       setLoading(true);
       const data = await getCustomizations();
-      setCustomizations(data);
+      // Normalizar: asegurar que cada item tenga `id` aunque backend solo mande _id
+      const normalized = data.map(c => ({
+        ...c,
+        id: c.id || c._id?.toString() || String(c._id),
+        _id: c._id
+      }));
+      setCustomizations(normalized);
 
       const tiposUnicos = Array.from(new Set(data.map(c => c.tipo))).map(tipoId => {
          return { id: tipoId, nombre: formatTipoNombre(tipoId) };
@@ -80,6 +91,10 @@ export default function AdminCustomizations() {
   }
 
   async function handleDelete(id) {
+    if (!id || id === 'undefined') {
+      Swal.fire('Error', 'ID no válido: recarga la página', 'error');
+      return;
+    }
     const result = await Swal.fire({
       title: '¿Eliminar personalización?',
       text: 'Esta acción no se puede deshacer',
@@ -98,16 +113,22 @@ export default function AdminCustomizations() {
       Swal.fire('Eliminado', 'Personalización eliminada correctamente', 'success');
     } catch (error) {
       console.error('Error al eliminar personalización:', error);
-      Swal.fire('Error', 'Error al eliminar personalización', 'error');
+      const msg = error.response?.data?.error || error.message || 'Error al eliminar personalización';
+      Swal.fire('Error', msg, 'error');
     }
   }
 
   async function handleToggleActivo(customization) {
     try {
-      setTogglingId(customization.id);
+      const cid = getId(customization);
+      if (!cid || cid === 'undefined') {
+        Swal.fire('Error', 'ID de personalización no válido', 'error');
+        return;
+      }
+      setTogglingId(cid);
       // Reutilizamos el mismo endpoint de actualización, enviando
       // únicamente el campo activo (el backend soporta updates parciales).
-      await updateCustomization(customization.id, { activo: !customization.activo });
+      await updateCustomization(cid, { activo: !customization.activo });
       await loadCustomizations();
       // Notificar a otras pantallas (POS) que las personalizaciones cambiaron
       window.dispatchEvent(new Event('customizationsUpdated'));
@@ -120,7 +141,8 @@ export default function AdminCustomizations() {
       });
     } catch (error) {
       console.error('Error al cambiar estado de la personalización:', error);
-      Swal.fire('Error', 'Error al cambiar el estado de la personalización', 'error');
+      const msg = error.response?.data?.error || error.message || 'Error al cambiar el estado de la personalización';
+      Swal.fire('Error', msg, 'error');
     } finally {
       setTogglingId(null);
     }
@@ -144,7 +166,9 @@ export default function AdminCustomizations() {
       };
 
       if (editingCustomization) {
-        await updateCustomization(editingCustomization.id, data);
+        const eid = getId(editingCustomization);
+        if (!eid || eid === 'undefined') throw new Error('ID no válido para actualizar');
+        await updateCustomization(eid, data);
       } else {
         await createCustomization(data);
       }
@@ -163,7 +187,8 @@ export default function AdminCustomizations() {
       });
     } catch (error) {
       console.error('Error al guardar personalización:', error);
-      Swal.fire('Error', 'Error al guardar personalización', 'error');
+      const msg = error.response?.data?.error || error.message || 'Error al guardar personalización';
+      Swal.fire('Error', msg, 'error');
     }
   }
 
@@ -209,7 +234,7 @@ export default function AdminCustomizations() {
         ) : (
           <div className="customizations-grid">
             {filteredCustomizations.map((customization, index) => (
-              <div key={customization.id || `customization-${index}`} className="customization-card">
+              <div key={getId(customization) || `customization-${index}`} className="customization-card">
                 <div className="customization-card-header">
                   <span className="customization-tipo-badge">
                     {tiposPersonalizacion.find(t => t.id === customization.tipo)?.nombre || customization.tipo}
@@ -229,9 +254,9 @@ export default function AdminCustomizations() {
                     variant={customization.activo ? 'secondary' : 'primary'}
                     size="small"
                     onClick={() => handleToggleActivo(customization)}
-                    disabled={togglingId === customization.id}
+                    disabled={togglingId === getId(customization)}
                   >
-                    {togglingId === customization.id
+                    {togglingId === getId(customization)
                       ? 'Guardando...'
                       : customization.activo ? 'Desactivar' : 'Activar'}
                   </Button>
@@ -245,7 +270,7 @@ export default function AdminCustomizations() {
                   <Button 
                     variant="danger" 
                     size="small"
-                    onClick={() => handleDelete(customization.id)}
+                    onClick={() => handleDelete(getId(customization))}
                   >
                     Eliminar
                   </Button>

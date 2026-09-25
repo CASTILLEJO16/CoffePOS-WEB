@@ -1,5 +1,15 @@
+import mongoose from 'mongoose';
 import Personalization from '../models/Personalization.js';
 import { logAction } from './logService.js';
+
+function validateObjectId(id) {
+  if (!id || id === 'undefined' || id === 'null') {
+    throw new Error('ID no válido: se recibió undefined/null');
+  }
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error(`ID no válido: ${id} no es un ObjectId`);
+  }
+}
 
 /**
  * Servicio de Personalizaciones
@@ -47,6 +57,7 @@ export async function getAllCustomizations(clientId = null) {
  */
 export async function getCustomizationById(id) {
   try {
+    validateObjectId(id);
     const customization = await Personalization.findById(id);
     return customization;
   } catch (error) {
@@ -95,6 +106,7 @@ export async function createCustomization(customizationData, usuarioId = null, c
  */
 export async function updateCustomization(id, customizationData, usuarioId = null) {
   try {
+    validateObjectId(id);
     const { tipo, nombre, precio_adicional, activo } = customizationData;
 
     const existing = await getCustomizationById(id);
@@ -130,6 +142,7 @@ export async function updateCustomization(id, customizationData, usuarioId = nul
  */
 export async function deleteCustomization(id, usuarioId = null) {
   try {
+    validateObjectId(id);
     const existing = await getCustomizationById(id);
     if (!existing) {
       throw new Error('Personalización no encontrada');

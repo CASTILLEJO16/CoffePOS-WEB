@@ -33,6 +33,13 @@ export async function getCustomizations(req, res) {
   }
 }
 
+function getErrorStatus(err) {
+  const msg = err.message || '';
+  if (msg.includes('no encontrada')) return 404;
+  if (msg.includes('ID no válido') || msg.includes('requerido') || msg.includes('No hay campos') || msg.includes('Cast to ObjectId')) return 400;
+  return 500;
+}
+
 /**
  * Obtiene una personalización por ID
  */
@@ -54,7 +61,7 @@ export async function getCustomization(req, res) {
     });
   } catch (error) {
     console.error('Error en getCustomization:', error);
-    res.status(500).json({
+    res.status(getErrorStatus(error)).json({
       success: false,
       error: error.message
     });
@@ -78,7 +85,7 @@ export async function createCustomization(req, res) {
     });
   } catch (error) {
     console.error('Error en createCustomization:', error);
-    res.status(500).json({
+    res.status(getErrorStatus(error)).json({
       success: false,
       error: error.message
     });
@@ -102,7 +109,7 @@ export async function updateCustomization(req, res) {
     });
   } catch (error) {
     console.error('Error en updateCustomization:', error);
-    res.status(500).json({
+    res.status(getErrorStatus(error)).json({
       success: false,
       error: error.message
     });
@@ -125,7 +132,7 @@ export async function deleteCustomization(req, res) {
     });
   } catch (error) {
     console.error('Error en deleteCustomization:', error);
-    res.status(500).json({
+    res.status(getErrorStatus(error)).json({
       success: false,
       error: error.message
     });

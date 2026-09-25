@@ -29,7 +29,19 @@ const PersonalizationSchema = new mongoose.Schema({
     default: true
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
+
+// Asegurar que `id` esté disponible junto a `_id` para compatibilidad frontend
+PersonalizationSchema.set('toJSON', {
+  virtuals: true,
+  transform: (doc, ret) => {
+    ret.id = ret._id?.toString();
+    return ret;
+  }
+});
+PersonalizationSchema.set('toObject', { virtuals: true });
 
 export default mongoose.model('Personalization', PersonalizationSchema);
