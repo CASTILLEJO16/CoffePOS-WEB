@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Settings, Plus } from 'lucide-react';
+// fix: tamaño ñ
 import Swal from 'sweetalert2';
 import { getCustomizations, createCustomization, updateCustomization, deleteCustomization } from '../services/customizationService.js';
 import Modal from '../components/common/Modal.jsx';
