@@ -34,7 +34,12 @@ export default function AdminCustomizations() {
       'sweetness': 'Nivel de Dulzura'
     };
     if (map[tipoId]) return map[tipoId];
-    return tipoId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    // Fix: no usar /\b\w/g porque rompe con acentos/ñ (ej. "tamaño" -> "TamañO")
+    return tipoId
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map(w => w ? w.charAt(0).toLocaleUpperCase('es-ES') + w.slice(1) : '')
+      .join(' ');
   }
 
   // Helper para obtener ID compatible con _id e id (Mongoose)
