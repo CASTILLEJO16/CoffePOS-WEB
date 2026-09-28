@@ -117,7 +117,9 @@ function App() {
               element={
                 <AdminRoute>
                   <AdminOrderProvider>
-                    <AdminLayout />
+                    <OrderProvider promotions={[]} productsMap={new Map()}>
+                      <AdminLayout />
+                    </OrderProvider>
                   </AdminOrderProvider>
                 </AdminRoute>
               }
