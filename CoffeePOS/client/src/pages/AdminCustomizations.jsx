@@ -45,7 +45,9 @@ export default function AdminCustomizations() {
 
   // Helper para obtener ID compatible con _id e id (Mongoose)
   function getId(c) {
-    return c?.id || c?._id || c?._id?.toString();
+    const id = c?.id || c?._id;
+    if (!id) return null;
+    return id.toString();
   }
 
   async function loadCustomizations() {
@@ -53,11 +55,14 @@ export default function AdminCustomizations() {
       setLoading(true);
       const data = await getCustomizations();
       // Normalizar: asegurar que cada item tenga `id` aunque backend solo mande _id
-      const normalized = data.map(c => ({
-        ...c,
-        id: c.id || c._id?.toString() || String(c._id),
-        _id: c._id
-      }));
+      const normalized = data.map(c => {
+        const id = c.id || c._id;
+        return {
+          ...c,
+          id: id ? id.toString() : null,
+          _id: c._id
+        };
+      });
       setCustomizations(normalized);
 
       const tiposUnicos = Array.from(new Set(data.map(c => c.tipo))).map(tipoId => {

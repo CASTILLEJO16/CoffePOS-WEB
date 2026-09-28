@@ -231,6 +231,140 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     const impuestos = Number((subtotal * ivaRate).toFixed(2));
     const total = Number((subtotal + impuestos).toFixed(2));
 
+    // Aplicar promociones activas - calcular descuento y ajustar totales
+    let promotionDiscount = 0;
+    let promotionDetails = [];
+    if (processedItems.length > 0) {
+      const now = new Date();
+      const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+      const todayDay = dayNames[now.getDay()];
+      
+      // Buscar promociones activas para el cliente y fecha actual
+      const promotions = await Promotion.find({
+        clientId,
+        estado: 'Activa',
+        fechaInicio: { $lte: now },
+        fechaFinalizacion: { $gte: now }
+      });
+      
+      // Crear mapa de productos en el carrito: producto_id -> cantidad total
+      const cartProducts = new Map();
+      for (const item of processedItems) {
+        const key = item.producto_id.toString();
+        cartProducts.set(key, (cartProducts.get(key) || 0) + item.cantidad);
+      }
+      
+      // Para cada promoción, verificar si aplica y calcular descuento
+      for (const promo of promotions) {
+        // Verificar días de la semana
+        if (promo.diasSemana && promo.diasSemana.length > 0 && !promo.diasSemana.includes(todayDay)) {
+          continue;
+        }
+        
+        // Verificar hora de vigencia
+        const promoHourStart = promo.horaInicio || '00:00';
+        const promoHourEnd = promo.horaFinalizacion || '23:59';
+        const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+        const startMinutes = parseInt(promoHourStart.split(':')[0]) * 60 + parseInt(promoHourStart.split(':')[1]);
+        const endMinutes = parseInt(promoHourEnd.split(':')[0]) * 60 + parseInt(promoHourEnd.split(':')[1]);
+        
+        if (currentTimeInMinutes < startMinutes || currentTimeInMinutes > endMinutes) {
+          continue;
+        }
+        
+        // Verificar que los productos de la promoción están en el carrito
+        const promoProductIds = new Set(promo.productosParticipantes.map(pp => pp.producto_id.toString()));
+        const cartProductIds = new Set([...cartProducts.keys()]);
+        const matchingProducts = [...promoProductIds].filter(id => cartProductIds.has(id));
+        
+        if (matchingProducts.length === 0) continue;
+        
+        // Aplicar lógica según el tipo de promoción
+        if (promo.tipo === 'BUY_X_PAY_Y') {
+          const { cantidadComprar, cantidadPagar } = promo;
+          const participatingItems = processedItems.filter(item => promoProductIds.has(item.producto_id.toString()));
+          
+          let discountAmount = 0;
+          let freeItems = [];
+          
+          // Ordenar por precio (de menor a mayor) para que el más barato sea el gratis
+          participatingItems.sort((a, b) => a.precio - b.precio);
+          
+          // Para cada item participante, determinar cuántos son gratuitos
+          for (const item of participatingItems) {
+            const totalQtyInCart = cartProducts.get(item.producto_id.toString()) || 0;
+            const qtyToApply = Math.min(item.cantidad, totalQtyInCart);
+            const groups = Math.floor(qtyToApply / cantidadComprar);
+            const freeInThisGroup = groups * cantidadPagar;
+            
+            if (freeInThisGroup > 0) {
+              const freePrice = item.precio * freeInThisGroup;
+              discountAmount += freePrice;
+              freeItems.push({
+                producto_id: item.producto_id,
+                producto_nombre: item.producto_nombre,
+                cantidad: freeInThisGroup,
+                precio_unitario: item.precio,
+                descuento: freePrice
+              });
+            }
+          }
+          
+          if (discountAmount > 0) {
+            promotionDiscount += discountAmount;
+            promotionDetails.push({
+              promocion_id: promo._id,
+              tipo: promo.tipo,
+              nombre: promo.nombre,
+              descuento: discountAmount,
+              freeItems
+            });
+          }
+        }
+        // Tipo percentage discount - ya se aplica con product.descuento, no hacer nada extra
+        else if (promo.tipo === 'PERCENTAGE_DISCOUNT') {
+          // Ya está aplicado en el producto.descuento
+        }
+        // Tipo fixed discount
+        else if (promo.tipo === 'FIXED_DISCOUNT') {
+          const participatingItems = processedItems.filter(item => promoProductIds.has(item.producto_id.toString()));
+          let fixedDiscount = 0;
+          
+          for (const item of participatingItems) {
+            const totalQtyInCart = cartProducts.get(item.producto_id.toString()) || 0;
+            const groups = Math.floor(totalQtyInCart / cantidadComprar);
+            fixedDiscount += groups * (cantidadPagar || 0);
+          }
+          
+          if (fixedDiscount > 0) {
+            promotionDiscount += fixedDiscount;
+            promotionDetails.push({
+              promocion_id: promo._id,
+              tipo: promo.tipo,
+              nombre: promo.nombre,
+              descuento: fixedDiscount
+            });
+          }
+        }
+      }
+    }
+
+    // Ajustar subtotal, impuestos y total con el descuento de promoción
+    const adjustedSubtotal = subtotal - promotionDiscount;
+    const adjustedIvaRate = ivaRate; // Usar la misma tasa
+    const adjustedImpuestos = Number((adjustedSubtotal * adjustedIvaRate).toFixed(2));
+    const adjustedTotal = Number((adjustedSubtotal + adjustedImpuestos).toFixed(2));
+
+    // Acumular necesidades de stock - incluir items gratuitos de promociones
+    // Los items "free" deben descontar inventario
+    for (const pd of promotionDetails) {
+      for (const freeItem of pd.freeItems) {
+        const key = freeItem.producto_id.toString();
+        if (!productStockNeeds[key]) productStockNeeds[key] = { product: productsMap.get(key), cantidad: 0 };
+        productStockNeeds[key].cantidad += freeItem.cantidad;
+      }
+    }
+
     // Lógica de almacén POR CLIENTE
     const configRow = await Config.findOne({ clave: 'permitir_stock_negativo', clientId });
     const allowNegativeStock = configRow ? (configRow.valor === '1' || configRow.valor === 'true') : false;

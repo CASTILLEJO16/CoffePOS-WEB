@@ -29,6 +29,31 @@ function calculatePriceWithDiscount(precio, descuento) {
   return precio * (1 - descuento / 100);
 }
 
+function calculatePromotionDiscount(item, promotions, productsMap) {
+  // Verificar si el producto tiene una promoción activa aplicada
+  const promo = promotions.find(p => 
+    p.promocion_tipo === 'BUY_X_PAY_Y' &&
+    p.freeItems && 
+    p.freeItems.some(fi => fi.producto_id.toString() === item.producto_id.toString())
+  );
+  
+  if (!promo) return { precioFinal: calculatePriceWithDiscount(item.precio_base, item.descuento), descuento: 0 };
+  
+  // Encontrar el item gratuito correspondiente
+  const freeItem = promo.freeItems.find(fi => fi.producto_id.toString() === item.producto_id.toString());
+  if (!freeItem) return { precioFinal: calculatePriceWithDiscount(item.precio_base, item.descuento), descuento: 0 };
+  
+  // El precio final es el precio con descuento del producto base
+  // El descuento es el precio del item gratuito
+  const discountedBase = calculatePriceWithDiscount(item.precio_base, item.descuento || 0);
+  const freePrice = freeItem.precio_unitario; // Precio original del gratis
+  
+  return {
+    precioFinal: discountedBase, // Se cobra solo el base, el gratis se descuenta en el total
+    descuento: freePrice
+  };
+}
+
 function orderReducer(state, action) {
   switch (action.type) {
     case 'ADD_ITEM': {
@@ -41,8 +66,15 @@ function orderReducer(state, action) {
 
       const existingItem = state.items.find(item => item.uniqueId === uniqueId);
 
-      // Calcular precio con descuento
+      // Calcular precio con descuento de producto
       const discountedPrice = calculatePriceWithDiscount(product.precio, product.descuento);
+
+      // Calcular descuento de promoción
+      const promoDiscount = calculatePromotionDiscount(
+        { producto_id: product._id, producto_nombre: product.nombre, precio_base: product.precio },
+        state.promotions || [],
+        state.productsMap || new Map()
+      );
 
       // Calcular precio adicional por personalizaciones
       const customizationPrice = calculateCustomizationPrice(customization);
@@ -64,16 +96,21 @@ function orderReducer(state, action) {
             producto_nombre: product.nombre,
             precio_base: product.precio,
             precio_final: finalPrice,
-            descuento: product.descuento || 0,
+            descuento: promoDiscount.descuento,
             cantidad: 1,
             importe: finalPrice,
             personalizaciones: customization || {},
-            categoria: product.categoria || ''
+            categoria: product.categoria || '',
+            promoDescuento: promoDiscount.descuento
           }
         ];
       }
 
-      const { subtotal, impuestos, total } = calculateTotals(newItems);
+      // Recalcular totales con el nuevo subtotal
+      const subtotal = newItems.reduce((sum, item) => sum + item.importe, 0);
+      const ivaRate = getIVARate();
+      const impuestos = subtotal * ivaRate;
+      const total = subtotal + impuestos;
 
       return {
         ...state,
@@ -87,7 +124,10 @@ function orderReducer(state, action) {
     case 'REMOVE_ITEM': {
       const { uniqueId } = action.payload;
       const newItems = state.items.filter(item => item.uniqueId !== uniqueId);
-      const { subtotal, impuestos, total } = calculateTotals(newItems);
+      const subtotal = newItems.reduce((sum, item) => sum + item.importe, 0);
+      const ivaRate = getIVARate();
+      const impuestos = subtotal * ivaRate;
+      const total = subtotal + impuestos;
 
       return {
         ...state,
@@ -110,7 +150,10 @@ function orderReducer(state, action) {
           : item
       );
 
-      const { subtotal, impuestos, total } = calculateTotals(newItems);
+      const subtotal = newItems.reduce((sum, item) => sum + item.importe, 0);
+      const ivaRate = getIVARate();
+      const impuestos = subtotal * ivaRate;
+      const total = subtotal + impuestos;
 
       return {
         ...state,
@@ -157,12 +200,17 @@ function orderReducer(state, action) {
               ...item, 
               personalizaciones: customization, 
               precio_final: finalPrice,
-              importe: item.cantidad * finalPrice
+              importe: item.cantidad * finalPrice,
+              promoDescuento: item.promoDescuento
             }
           : item
       );
 
-      const { subtotal, impuestos, total } = calculateTotals(newItems);
+      const subtotal = newItems.reduce((sum, item) => sum + item.importe, 0);
+      const ivaRate = getIVARate();
+      const impuestos = subtotal * ivaRate;
+      const total = subtotal + impuestos;
+
       return {
         ...state,
         items: newItems,
@@ -172,13 +220,32 @@ function orderReducer(state, action) {
       };
     }
 
+    case 'SET_PROMOTIONS': {
+      // Recibir promociones del servidor y aplicarlas al estado
+      const { promotions, productsMap } = action.payload;
+      // Mapear productos para búsqueda rápida
+      const mappedProducts = new Map();
+      if (productsMap && productsMap.size) {
+        productsMap.forEach((p, key) => mappedProducts.set(key.toString(), p));
+      }
+      
+      return {
+        ...state,
+        promotions,
+        productsMap: mappedProducts
+      };
+    }
+
     default:
       return state;
   }
 }
 
-export function OrderProvider({ children }) {
-  const [state, dispatch] = useReducer(orderReducer, initialState);
+export function OrderProvider({ children, promotions = [], productsMap = new Map() }) {
+  const [state, dispatch] = useReducer(orderReducer, initialState, {
+    promotions,
+    productsMap
+  });
 
   // 🔥 Escuchar cambios de IVA y recalcular automáticamente
   useEffect(() => {
@@ -192,7 +259,7 @@ export function OrderProvider({ children }) {
 
     window.addEventListener('ivaUpdated', handleIVAUpdate);
     return () => window.removeEventListener('ivaUpdated', handleIVAUpdate);
-  }, []);
+  }, [promotions, productsMap]);
 
   const addItem = (product, customization) => {
     dispatch({ type: 'ADD_ITEM', payload: { product, customization } });
@@ -246,23 +313,4 @@ export function useOrder() {
     throw new Error('useOrder must be used within an OrderProvider');
   }
   return context;
-}
-
-function calculateCustomizationPrice(customization) {
-  if (!customization) return 0;
-  
-  let total = 0;
-  
-  // Iterar sobre todas las claves de personalización
-  Object.values(customization).forEach(selections => {
-    if (Array.isArray(selections)) {
-      selections.forEach(option => {
-        total += option.price || 0;
-      });
-    } else if (selections && selections.price) {
-      total += selections.price;
-    }
-  });
-  
-  return total;
 }

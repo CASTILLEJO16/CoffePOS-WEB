@@ -21,6 +21,7 @@ import configRoutes from './routes/configRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import clientRoutes from './routes/clientRoutes.js';
 import licenseRoutes from './routes/licenseRoutes.js';
+import promotionRoutes from './routes/promotionRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -97,6 +98,7 @@ app.use('/api/configuracion', configRoutes);
 app.use('/api/categorias', categoryRoutes);
 app.use('/api/clientes', clientRoutes);
 app.use('/api/licencias', licenseRoutes);
+app.use('/api/promociones', promotionRoutes);
 
 // Ruta de health check
 app.get('/api/health', (req, res) => {
