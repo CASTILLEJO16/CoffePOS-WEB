@@ -5,6 +5,7 @@ import Swal from 'sweetalert2';
 import { Plus, Flame } from 'lucide-react';
 import { getPromotions, createPromotion, updatePromotion, togglePromotion, deletePromotion } from '../services/promotionService.js';
 import Button from '../components/common/Button.jsx';
+import Modal from '../components/common/Modal.jsx';
 import './AdminPromociones.css';
 
 export default function AdminPromociones() {
@@ -52,7 +53,7 @@ export default function AdminPromociones() {
   async function loadProducts() {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/productos', {
+      const response = await fetch('/productos', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -286,169 +287,172 @@ export default function AdminPromociones() {
           </div>
         )}
 
-        {showForm && (
-          <div className="promotion-form-overlay">
-            <div className="promotion-form-card">
-              <h2>{editing ? 'Editar Promoción' : 'Nueva Promoción'}</h2>
-              <form onSubmit={handleSubmit} className="promotion-form">
-                <div className="form-group">
-                  <label>Nombre *</label>
-                  <input 
-                    type="text" 
-                    name="nombre"
-                    value={formData.nombre}
-                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Tipo *</label>
-                  <select 
-                    name="tipo"
-                    value={formData.tipo}
-                    onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
-                    required
-                  >
-                    <option value="BUY_X_PAY_Y">2x1 / X/Y (Comprar X, pagar Y)</option>
-                    <option value="PERCENTAGE_DISCOUNT">Descuento porcentual</option>
-                    <option value="FIXED_DISCOUNT">Descuento fijo</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Productos participantes *</label>
-                  <select 
-                    name="productosParticipantes"
-                    multiple
-                    value={formData.productosParticipantes}
-                    onChange={handleProductChange}
-                    style={{ width: '100%', minHeight: '120px' }}
-                    required
-                  >
-                    {products.map(producto => (
-                      <option key={producto._id} value={producto._id}>
-                        {producto.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  <small className="form-hint">Mantén presionada Ctrl para seleccionar múltiples</small>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group half">
-                    <label>Comprar *</label>
-                    <input 
-                      type="number" 
-                      name="cantidadComprar"
-                      value={formData.cantidadComprar}
-                      onChange={(e) => setFormData({ ...formData, cantidadComprar: parseInt(e.target.value) })}
-                      required
-                      min="1"
-                    />
-                  </div>
-                  <div className="form-group half">
-                    <label>Pagar *</label>
-                    <input 
-                      type="number" 
-                      name="cantidadPagar"
-                      value={formData.cantidadPagar}
-                      onChange={(e) => setFormData({ ...formData, cantidadPagar: parseInt(e.target.value) })}
-                      required
-                      min="1"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group half">
-                    <label>Fecha de inicio *</label>
-                    <input 
-                      type="date" 
-                      name="fechaInicio"
-                      value={formData.fechaInicio}
-                      onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="form-group half">
-                    <label>Fecha de finalización *</label>
-                    <input 
-                      type="date" 
-                      name="fechaFinalizacion"
-                      value={formData.fechaFinalizacion}
-                      onChange={(e) => setFormData({ ...formData, fechaFinalizacion: e.target.value })}
-                      required
-                      min={formData.fechaInicio}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group half">
-                    <label>Hora de inicio</label>
-                    <input 
-                      type="time" 
-                      name="horaInicio"
-                      value={formData.horaInicio}
-                      onChange={(e) => setFormData({ ...formData, horaInicio: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group half">
-                    <label>Hora de finalización</label>
-                    <input 
-                      type="time" 
-                      name="horaFinalizacion"
-                      value={formData.horaFinalizacion}
-                      onChange={(e) => setFormData({ ...formData, horaFinalizacion: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>Días de la semana</label>
-                  <select 
-                    name="diasSemana"
-                    multiple
-                    value={formData.diasSemana}
-                    onChange={handleDaysChange}
-                    style={{ width: '100%', minHeight: '120px' }}
-                  >
-                    <option value="Lunes">Lunes</option>
-                    <option value="Martes">Martes</option>
-                    <option value="Miércoles">Miércoles</option>
-                    <option value="Jueves">Jueves</option>
-                    <option value="Viernes">Viernes</option>
-                    <option value="Sábado">Sábado</option>
-                    <option value="Domingo">Domingo</option>
-                  </select>
-                  <small className="form-hint">Mantén presionada Ctrl para seleccionar múltiples</small>
-                </div>
-
-                <div className="form-group">
-                  <label>Estado</label>
-                  <select 
-                    name="estado"
-                    value={formData.estado}
-                    onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
-                  >
-                    <option value="Activa">Activa</option>
-                    <option value="Inactiva">Inactiva</option>
-                  </select>
-                </div>
-
-                <div className="form-actions">
-                  <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit">
-                    {editing ? 'Actualizar' : 'Crear'}
-                  </Button>
-                </div>
-              </form>
+        <Modal
+          isOpen={showForm}
+          onClose={() => {
+            setShowForm(false);
+            setEditing(null);
+          }}
+          title={editing ? 'Editar Promoción' : 'Nueva Promoción'}
+        >
+          <form onSubmit={handleSubmit} className="promotion-form">
+            <div className="form-group">
+              <label>Nombre *</label>
+              <input 
+                type="text" 
+                name="nombre"
+                value={formData.nombre}
+                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                required
+                placeholder="Ej: 2x1 Café Americano"
+              />
             </div>
-          </div>
-        )}
+
+            <div className="form-group">
+              <label>Tipo *</label>
+              <select 
+                name="tipo"
+                value={formData.tipo}
+                onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
+                required
+              >
+                <option value="BUY_X_PAY_Y">2x1 / X/Y (Comprar X, pagar Y)</option>
+                <option value="PERCENTAGE_DISCOUNT">Descuento porcentual</option>
+                <option value="FIXED_DISCOUNT">Descuento fijo</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Productos participantes *</label>
+              <select 
+                name="productosParticipantes"
+                multiple
+                value={formData.productosParticipantes}
+                onChange={handleProductChange}
+                style={{ width: '100%', minHeight: '120px' }}
+                required
+              >
+                {products.map(producto => (
+                  <option key={producto._id} value={producto._id}>
+                    {producto.nombre}
+                  </option>
+                ))}
+              </select>
+              <small className="form-hint">Mantén presionada Ctrl para seleccionar múltiples</small>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group half">
+                <label>Comprar *</label>
+                <input 
+                  type="number" 
+                  name="cantidadComprar"
+                  value={formData.cantidadComprar}
+                  onChange={(e) => setFormData({ ...formData, cantidadComprar: parseInt(e.target.value) })}
+                  required
+                  min="1"
+                />
+              </div>
+              <div className="form-group half">
+                <label>Pagar *</label>
+                <input 
+                  type="number" 
+                  name="cantidadPagar"
+                  value={formData.cantidadPagar}
+                  onChange={(e) => setFormData({ ...formData, cantidadPagar: parseInt(e.target.value) })}
+                  required
+                  min="1"
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group half">
+                <label>Fecha de inicio *</label>
+                <input 
+                  type="date" 
+                  name="fechaInicio"
+                  value={formData.fechaInicio}
+                  onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group half">
+                <label>Fecha de finalización *</label>
+                <input 
+                  type="date" 
+                  name="fechaFinalizacion"
+                  value={formData.fechaFinalizacion}
+                  onChange={(e) => setFormData({ ...formData, fechaFinalizacion: e.target.value })}
+                  required
+                  min={formData.fechaInicio}
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group half">
+                <label>Hora de inicio</label>
+                <input 
+                  type="time" 
+                  name="horaInicio"
+                  value={formData.horaInicio}
+                  onChange={(e) => setFormData({ ...formData, horaInicio: e.target.value })}
+                />
+              </div>
+              <div className="form-group half">
+                <label>Hora de finalización</label>
+                <input 
+                  type="time" 
+                  name="horaFinalizacion"
+                  value={formData.horaFinalizacion}
+                  onChange={(e) => setFormData({ ...formData, horaFinalizacion: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Días de la semana</label>
+              <select 
+                name="diasSemana"
+                multiple
+                value={formData.diasSemana}
+                onChange={handleDaysChange}
+                style={{ width: '100%', minHeight: '120px' }}
+              >
+                <option value="Lunes">Lunes</option>
+                <option value="Martes">Martes</option>
+                <option value="Miércoles">Miércoles</option>
+                <option value="Jueves">Jueves</option>
+                <option value="Viernes">Viernes</option>
+                <option value="Sábado">Sábado</option>
+                <option value="Domingo">Domingo</option>
+              </select>
+              <small className="form-hint">Mantén presionada Ctrl para seleccionar múltiples</small>
+            </div>
+
+            <div className="form-group">
+              <label>Estado</label>
+              <select 
+                name="estado"
+                value={formData.estado}
+                onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
+              >
+                <option value="Activa">Activa</option>
+                <option value="Inactiva">Inactiva</option>
+              </select>
+            </div>
+
+            <div className="form-actions">
+              <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit">
+                {editing ? 'Actualizar' : 'Crear'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
       </div>
     </div>
   );

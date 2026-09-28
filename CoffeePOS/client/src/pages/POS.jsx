@@ -7,6 +7,7 @@ import { useOrder } from '../context/OrderContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import Loader from '../components/common/Loader.jsx';
 import { getProducts } from '../services/productService.js';
+import {	getPromotions } from '../services/promotionService.js';
 import api from '../services/api.js';
 import { createSale } from '../services/saleService.js';
 import { printTicket } from '../services/ticketService.js';
@@ -29,12 +30,13 @@ import Swal from 'sweetalert2';
 import './POS.css';
 
 export default function POS() {
-  const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem } = useOrder();
+  const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem, dispatch } = useOrder();
   console.log('[POS] Estado de la orden - Items:', items.length, 'Subtotal:', subtotal, 'Impuestos:', impuestos, 'Total:', total);
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [promotions, setPromotions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -94,16 +96,47 @@ export default function POS() {
 
   useEffect(() => {
     loadProducts();
+    loadPromotions();
   }, [searchTerm, selectedCategory]);
 
   useEffect(() => {
     loadCategories();
+    loadPromotions();
     loadCashRegister();
     loadTipoCambio();
     loadIVA();
     loadLabelConfig();
     loadBusinessInfo();
   }, []);
+
+  async function loadPromotions() {
+    try {
+      const response = await getPromotions();
+      const activePromos = response.data?.filter(p => p.estado === 'Activa') || [];
+      setPromotions(activePromos);
+      
+      // Enviar promociones al OrderContext
+      dispatch({ 
+        type: 'SET_PROMOTIONS', 
+        payload: { 
+          promotions: activePromos,
+          productsMap: new Map()
+        } 
+      });
+      
+      // Agregar promociones a las categorías si hay promociones activas
+      if (activePromos.length > 0) {
+        setCategories(prev => {
+          if (!prev.includes('Promociones')) {
+            return [...prev, 'Promociones'];
+          }
+          return prev;
+        });
+      }
+    } catch (error) {
+      console.error('Error al cargar promociones:', error);
+    }
+  }
 
   async function loadBusinessInfo() {
     try {
@@ -250,9 +283,27 @@ export default function POS() {
   async function loadProducts() {
     try {
       setLoading(true);
-      const category = selectedCategory === 'Todas' ? '' : selectedCategory;
-      const data = await getProducts(searchTerm, category);
-      setProducts(data);
+      
+      // Si seleccionó "Promociones", mostrar promociones
+      if (selectedCategory === 'Promociones') {
+        const activePromos = promotions.filter(p => p.estado === 'Activa');
+        // Convertir promociones a formato similar a productos para mostrarlas como cards
+        const promoProducts = activePromos.map(promo => ({
+          _id: promo._id,
+          id: promo._id,
+          nombre: promo.nombre,
+          precio: 0,
+          categoria: 'Promociones',
+          descripcion: `${formatTipo(promo.tipo)} - ${promo.productosParticipantes?.map(p => p.nombre).join(', ') || ''}`,
+          isPromotion: true,
+          promotionData: promo
+        }));
+        setProducts(promoProducts);
+      } else {
+        const category = selectedCategory === 'Todas' ? '' : selectedCategory;
+        const data = await getProducts(searchTerm, category);
+        setProducts(data);
+      }
     } catch (error) {
       console.error('Error al cargar productos:', error);
     } finally {
@@ -260,9 +311,55 @@ export default function POS() {
     }
   }
 
+  function formatTipo(tipo) {
+    const map = {
+      'BUY_X_PAY_Y': '2x1 / X/Y',
+      'PERCENTAGE_DISCOUNT': 'Descuento %',
+      'FIXED_DISCOUNT': 'Descuento fijo'
+    };
+    return map[tipo] || tipo;
+  }
+
   function handleProductClick(product) {
+    // Si es una promoción, agregar los productos participantes automáticamente
+    if (product.isPromotion && product.promotionData) {
+      handlePromotionClick(product.promotionData);
+      return;
+    }
+    
     setSelectedProduct(product);
     setShowCustomizationModal(true);
+  }
+
+  async function handlePromotionClick(promotion) {
+    try {
+      // Obtener los productos participantes de la promoción
+      const allProducts = await getProducts();
+      const participantProducts = allProducts.filter(p => 
+        promotion.productosParticipantes.some(pp => pp.producto_id === (p._id || p.id))
+      );
+
+      if (participantProducts.length === 0) {
+        Swal.fire('Info', 'No hay productos disponibles para esta promoción', 'info');
+        return;
+      }
+
+      // Agregar cada producto participante al carrito
+      for (const product of participantProducts) {
+        addItem(product, {});
+      }
+
+      Swal.fire({
+        title: '¡Promoción aplicada!',
+        text: `Se agregaron ${participantProducts.length} productos al carrito`,
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false
+      });
+    } catch (error) {
+      console.error('Error al aplicar promoción:', error);
+      Swal.fire('Error', 'No se pudo aplicar la promoción', 'error');
+    }
   }
 
   function handleCustomizationConfirm(customization) {

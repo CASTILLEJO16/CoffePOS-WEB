@@ -64,6 +64,15 @@
   font-style: italic;
 }
 
+.order-item-promotion {
+  font-size: var(--font-size-xs);
+  color: var(--color-success);
+  font-weight: var(--font-weight-semibold);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .order-item-actions {
   display: flex;
   align-items: center;
@@ -71,10 +80,24 @@
   flex-shrink: 0;
 }
 
+.order-item-price-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
 .order-item-price {
   font-weight: var(--font-weight-semibold);
   color: var(--color-text);
   min-width: 80px;
+  text-align: right;
+}
+
+.order-item-original-price {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-decoration: line-through;
   text-align: right;
 }
 

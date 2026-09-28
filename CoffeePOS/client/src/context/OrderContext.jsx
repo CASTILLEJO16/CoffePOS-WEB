@@ -1,4 +1,5 @@
 import { createContext, useContext, useReducer, useEffect } from 'react';
+import { getPromotions } from '../services/promotionService.js';
 
 const OrderContext = createContext();
 
@@ -7,7 +8,9 @@ const initialState = {
   subtotal: 0,
   impuestos: 0,
   total: 0,
-  customerName: ''
+  customerName: '',
+  promotions: [],
+  productsMap: new Map()
 };
 
 function getIVARate() {
@@ -297,7 +300,8 @@ export function OrderProvider({ children, promotions = [], productsMap = new Map
     clearOrder,
     recalcTotals,
     setCustomerName,
-    updateItem
+    updateItem,
+    dispatch
   };
 
   return (

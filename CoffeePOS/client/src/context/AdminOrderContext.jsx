@@ -25,12 +25,39 @@ function calculatePriceWithDiscount(precio, descuento) {
   return precio * (1 - descuento / 100);
 }
 
+function calculatePromotionDiscount(item, promotions, productsMap) {
+  // Verificar si el producto tiene una promoción activa aplicada
+  const promo = promotions.find(p => 
+    p.promocion_tipo === 'BUY_X_PAY_Y' &&
+    p.freeItems && 
+    p.freeItems.some(fi => fi.producto_id.toString() === item.producto_id.toString())
+  );
+  
+  if (!promo) return { precioFinal: calculatePriceWithDiscount(item.precio_base, item.descuento), descuento: 0 };
+  
+  // Encontrar el item gratuito correspondiente
+  const freeItem = promo.freeItems.find(fi => fi.producto_id.toString() === item.producto_id.toString());
+  if (!freeItem) return { precioFinal: calculatePriceWithDiscount(item.precio_base, item.descuento), descuento: 0 };
+  
+  // El precio final es el precio con descuento del producto base
+  // El descuento es el precio del item gratuito
+  const discountedBase = calculatePriceWithDiscount(item.precio_base, item.descuento || 0);
+  const freePrice = freeItem.precio_unitario; // Precio original del gratis
+  
+  return {
+    precioFinal: discountedBase, // Se cobra solo el base, el gratis se descuenta en el total
+    descuento: freePrice
+  };
+}
+
 const initialState = {
   items: [],
   subtotal: 0,
   impuestos: 0,
   total: 0,
-  customerName: ''
+  customerName: '',
+  promotions: [],
+  productsMap: new Map()
 };
 
 function orderReducer(state, action) {
@@ -47,6 +74,13 @@ function orderReducer(state, action) {
 
       // Calcular precio con descuento
       const discountedPrice = calculatePriceWithDiscount(product.precio, product.descuento);
+
+      // Calcular descuento de promoción
+      const promoDiscount = calculatePromotionDiscount(
+        { producto_id: product._id, producto_nombre: product.nombre, precio_base: product.precio },
+        state.promotions || [],
+        state.productsMap || new Map()
+      );
 
       // Calcular precio adicional por personalizaciones
       const customizationPrice = calculateCustomizationPrice(customization);
@@ -68,10 +102,11 @@ function orderReducer(state, action) {
             producto_nombre: product.nombre,
             precio_base: product.precio,
             precio_final: finalPrice,
-            descuento: product.descuento || 0,
+            descuento: promoDiscount.descuento,
             cantidad: 1,
             importe: finalPrice,
-            personalizaciones: customization || {}
+            personalizaciones: customization || {},
+            promoDescuento: promoDiscount.descuento
           }
         ];
       }

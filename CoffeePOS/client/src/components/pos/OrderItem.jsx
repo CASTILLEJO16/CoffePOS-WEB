@@ -4,6 +4,7 @@ import { formatCurrency } from '../../utils/formatCurrency.js';
 
 export default function OrderItem({ item, onUpdateQuantity, onRemove, onEdit }) {
   const hasCustomizations = item.personalizaciones && Object.keys(item.personalizaciones).length > 0;
+  const hasPromotion = item.promoDescuento && item.promoDescuento > 0;
   
   const getCustomizationText = () => {
     if (!hasCustomizations) return null;
@@ -79,10 +80,22 @@ export default function OrderItem({ item, onUpdateQuantity, onRemove, onEdit }) 
               {customizationText}
             </span>
           )}
+          {hasPromotion && (
+            <span className="order-item-promotion">
+              🎉 Promoción aplicada: -${formatCurrency(item.promoDescuento)}
+            </span>
+          )}
         </div>
       </div>
       <div className="order-item-actions">
-        <span className="order-item-price">{formatCurrency(item.importe)}</span>
+        <div className="order-item-price-container">
+          <span className="order-item-price">{formatCurrency(item.importe)}</span>
+          {hasPromotion && (
+            <span className="order-item-original-price">
+              {formatCurrency(item.importe + item.promoDescuento)}
+            </span>
+          )}
+        </div>
         <button 
           type="button"
           className="order-item-remove" 
