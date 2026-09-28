@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import Swal from 'sweetalert2';
 import { Plus, Flame } from 'lucide-react';
 import { getPromotions, createPromotion, updatePromotion, togglePromotion, deletePromotion } from '../services/promotionService.js';
