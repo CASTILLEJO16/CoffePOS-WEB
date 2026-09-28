@@ -1,211 +1,167 @@
 import { useState, useEffect } from 'react';
-import { useParams, useRouteMatch, useLocation, useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { useForm } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
-import { LoadingButton } from '../components/common/LoadingButton.jsx';
 import Swal from 'sweetalert2';
-import { useOrder } from '../../context/OrderContext.jsx';
-import { deletePromotion as deletePromotionApi, getPromotions as getPromotionsApi } from '../services/promotionService.js';
+import { Plus, Flame } from 'lucide-react';
+import { getPromotions, createPromotion, updatePromotion, togglePromotion, deletePromotion } from '../services/promotionService.js';
 import Button from '../components/common/Button.jsx';
 import './AdminPromociones.css';
 
-const usePromotionForm = (initialData = null) => {
-  const { register, handleSubmit, reset, watch, formState: { errors, isSubmiting } } = useForm({
-    resolver: yupResolver(yup.object({
-      nombre: yup.string().required('Nombre es obligatorio').min(3, 'Mínimo 3 caracteres'),
-      tipo: yup.string().required('Tipo es obligatorio').oneOf(['BUY_X_PAY_Y', 'PERCENTAGE_DISCOUNT', 'FIXED_DISCOUNT']),
-      productosParticipantes: yup.array().min(1, 'Debe seleccionar al menos un producto'),
-      cantidadComprar: yup.number().integer().min(1, 'Cantidad a comprar debe ser ≥ 1'),
-      cantidadPagar: yup.number().integer().min(1, 'Cantidad a pagar debe ser ≥ 1'),
-      fechaInicio: yup.date().required('Fecha de inicio es obligatoria'),
-      fechaFinalizacion: yup.date().required('Fecha de finalización es obligatoria').min(yup.ref('fechaInicio'), 'Must be after start date'),
-      horaInicio: yup.string().required('Hora de inicio es obligatoria'),
-      horaFinalizacion: yup.string().required('Hora de finalización es obligatoria'),
-      diasSemana: yup.array().of(yup.string().oneOf(['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'])),
-      estado: yup.string().oneOf(['Activa', 'Inactiva'])
-    }))
-  });
-
-  const [productos, setProductos] = useState([]);
-  const [promoTypes] = useState(['BUY_X_PAY_Y', 'PERCENTAGE_DISCOUNT', 'FIXED_DISCOUNT']);
-  const [selectedProducts, setSelectedProducts] = useState([]);
-  const [promoData, setPromoData] = useState({
+export default function AdminPromociones() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [promotions, setPromotions] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [editing, setEditing] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [togglingId, setTogglingId] = useState(null);
+  
+  const [formData, setFormData] = useState({
     nombre: '',
     tipo: 'BUY_X_PAY_Y',
     productosParticipantes: [],
     cantidadComprar: 2,
     cantidadPagar: 1,
-    fechaInicio: new Date(),
-    fechaFinalizacion: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    fechaInicio: new Date().toISOString().split('T')[0],
+    fechaFinalizacion: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     horaInicio: '00:00',
     horaFinalizacion: '23:59',
-    diasSemana: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'],
+    diasSemana: [],
     estado: 'Activa'
   });
 
   useEffect(() => {
-    if (initialData) {
-      setPromoData({
-        nombre: initialData.nombre || '',
-        tipo: initialData.tipo || 'BUY_X_PAY_Y',
-        productosParticipantes: initialData.productosParticipantes || [],
-        cantidadComprar: initialData.cantidadComprar || 2,
-        cantidadPagar: initialData.cantidadPagar || 1,
-        fechaInicio: initialData.fechaInicio ? new Date(initialData.fechaInicio) : new Date(),
-        fechaFinalizacion: initialData.fechaFinalizacion ? new Date(initialData.fechaFinalizacion) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        horaInicio: initialData.horaInicio || '00:00',
-        horaFinalizacion: initialData.horaFinalizacion || '23:59',
-        diasSemana: initialData.diasSemana || ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'],
-        estado: initialData.estado || 'Activa'
-      });
-    }
-  }, [initialData]);
-
-  const onSubmit = async (data) => {
-    console.log('Form submitted:', data);
-  };
-
-  return { register, handleSubmit, reset, watch, errors, isSubmiting, promoData, setPromoData, onSubmit };
-};
-
-export default function AdminPromociones() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const { register, handleSubmit, reset, watch, formState: { errors, isSubmiting } } = usePromotionForm();
-  const [promotions, setPromotions] = useState([]);
-  const [editing, setEditing] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const { addItem, items, subtotal, impuestos, total } = useOrder();
-
-  // Cargar promociones al montar
-  useEffect(() => {
-    const loadPromotions = async () => {
-      try {
-        const response = await fetch('/api/promociones', {
-          headers: {
-            'Authorization': `Bearer ${user?.token}`
-          }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setPromotions(data.data || []);
-        }
-      } catch (error) {
-        console.error('Error cargando promociones:', error);
-      }
-    };
     loadPromotions();
-  }, [user]);
-
-  // Cargar productos disponibles
-  useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        // Obtener productos del cliente actual
-        const token = user?.token;
-        if (!token) return;
-        
-        // Usar la endpoint existente o consultar products
-        const response = await fetch('/api/productos', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setProductos(data.data || []);
-        }
-      } catch (error) {
-        console.error('Error cargando productos:', error);
-      }
-    };
     loadProducts();
-  }, [user]);
+  }, []);
 
-  const onSubmitForm = async (data) => {
+  async function loadPromotions() {
     try {
-      setShowForm(false);
-      
-      if (editing) {
-        // Actualizar promoción existente
-        await fetch(`/api/promociones/${editing._id}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${user?.token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            nombre: data.nombre,
-            tipo: data.tipo,
-            productosParticipantes: data.productosParticipantes.map(pp => ({
-              producto_id: pp.producto_id,
-              nombre: pp.nombre
-            })),
-            cantidadComprar: data.cantidadComprar,
-            cantidadPagar: data.cantidadPagar,
-            fechaInicio: data.fechaInicio,
-            fechaFinalizacion: data.fechaFinalizacion,
-            horaInicio: data.horaInicio,
-            horaFinalizacion: data.horaFinalizacion,
-            diasSemana: data.diasSemana,
-            estado: data.estado
-          })
-        });
-        Swal.fire({
-          title: '¡Actualizado!',
-          text: 'Promoción actualizada correctamente',
-          icon: 'success',
-          timer: 1500,
-          showConfirmButton: false
-        });
-      } else {
-        // Crear nueva promoción
-        await fetch('/api/promociones', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${user?.token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            nombre: data.nombre,
-            tipo: data.tipo,
-            productosParticipantes: data.productosParticipantes.map(pp => ({
-              producto_id: pp.producto_id,
-              nombre: pp.nombre
-            })),
-            cantidadComprar: data.cantidadComprar,
-            cantidadPagar: data.cantidadPagar,
-            fechaInicio: data.fechaInicio,
-            fechaFinalizacion: data.fechaFinalizacion,
-            horaInicio: data.horaInicio,
-            horaFinalizacion: data.horaFinalizacion,
-            diasSemana: data.diasSemana,
-            estado: data.estado
-          })
-        });
-        Swal.fire({
-          title: '¡Creado!',
-          text: 'Promoción creada correctamente',
-          icon: 'success',
-          timer: 1500,
-          showConfirmButton: false
-        });
+      setLoading(true);
+      const response = await getPromotions();
+      setPromotions(response.data || []);
+    } catch (error) {
+      console.error('Error cargando promociones:', error);
+      Swal.fire('Error', 'No se pudieron cargar las promociones', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadProducts() {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/productos', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data.data || []);
       }
-      
+    } catch (error) {
+      console.error('Error cargando productos:', error);
+    }
+  }
+
+  function handleAdd() {
+    setEditing(null);
+    setFormData({
+      nombre: '',
+      tipo: 'BUY_X_PAY_Y',
+      productosParticipantes: [],
+      cantidadComprar: 2,
+      cantidadPagar: 1,
+      fechaInicio: new Date().toISOString().split('T')[0],
+      fechaFinalizacion: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      horaInicio: '00:00',
+      horaFinalizacion: '23:59',
+      diasSemana: [],
+      estado: 'Activa'
+    });
+    setShowForm(true);
+  }
+
+  function handleEdit(promo) {
+    setEditing(promo);
+    setFormData({
+      nombre: promo.nombre || '',
+      tipo: promo.tipo || 'BUY_X_PAY_Y',
+      productosParticipantes: promo.productosParticipantes?.map(p => p.producto_id) || [],
+      cantidadComprar: promo.cantidadComprar || 2,
+      cantidadPagar: promo.cantidadPagar || 1,
+      fechaInicio: promo.fechaInicio ? new Date(promo.fechaInicio).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      fechaFinalizacion: promo.fechaFinalizacion ? new Date(promo.fechaFinalizacion).toISOString().split('T')[0] : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      horaInicio: promo.horaInicio || '00:00',
+      horaFinalizacion: promo.horaFinalizacion || '23:59',
+      diasSemana: promo.diasSemana || [],
+      estado: promo.estado || 'Activa'
+    });
+    setShowForm(true);
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    try {
+      const productosParticipantes = formData.productosParticipantes.map(id => {
+        const product = products.find(p => p._id === id);
+        return {
+          producto_id: id,
+          nombre: product?.nombre || ''
+        };
+      });
+
+      const data = {
+        ...formData,
+        productosParticipantes,
+        fechaInicio: new Date(formData.fechaInicio),
+        fechaFinalizacion: new Date(formData.fechaFinalizacion)
+      };
+
+      if (editing) {
+        await updatePromotion(editing._id, data);
+        Swal.fire('¡Actualizado!', 'Promoción actualizada correctamente', 'success');
+      } else {
+        await createPromotion(data);
+        Swal.fire('¡Creado!', 'Promoción creada correctamente', 'success');
+      }
+
+      setShowForm(false);
+      setEditing(null);
       await loadPromotions();
     } catch (error) {
       console.error('Error al guardar promoción:', error);
       const msg = error.response?.data?.error || error.message || 'Error al guardar promoción';
       Swal.fire('Error', msg, 'error');
     }
-  };
+  }
+
+  async function handleToggle(promo) {
+    try {
+      setTogglingId(promo._id);
+      await togglePromotion(promo._id);
+      await loadPromotions();
+      Swal.fire({
+        title: '¡Actualizado!',
+        text: `Promoción ${promo.estado === 'Activa' ? 'desactivada' : 'activada'} correctamente`,
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false
+      });
+    } catch (error) {
+      console.error('Error al cambiar estado:', error);
+      const msg = error.response?.data?.error || error.message || 'Error al cambiar estado';
+      Swal.fire('Error', msg, 'error');
+    } finally {
+      setTogglingId(null);
+    }
+  }
 
   async function handleDelete(id) {
-    if (!id || id === 'undefined') {
-      Swal.fire('Error', 'ID no válido: recarga la página', 'error');
+    if (!id) {
+      Swal.fire('Error', 'ID no válido', 'error');
       return;
     }
     const result = await Swal.fire({
@@ -220,7 +176,7 @@ export default function AdminPromociones() {
     if (!result.isConfirmed) return;
     
     try {
-      await deletePromotionApi(id);
+      await deletePromotion(id);
       await loadPromotions();
       Swal.fire('Eliminado', 'Promoción eliminada correctamente', 'success');
     } catch (error) {
@@ -239,29 +195,42 @@ export default function AdminPromociones() {
     return map[tipo] || tipo;
   }
 
+  function handleProductChange(e) {
+    const selectedOptions = Array.from(e.target.selectedOptions).map(option => option.value);
+    setFormData({ ...formData, productosParticipantes: selectedOptions });
+  }
+
+  function handleDaysChange(e) {
+    const selectedOptions = Array.from(e.target.selectedOptions).map(option => option.value);
+    setFormData({ ...formData, diasSemana: selectedOptions });
+  }
+
   return (
     <div className="admin-promociones-page">
       <div className="admin-promociones-header">
         <div className="admin-promociones-header-left">
           <div className="admin-promociones-title-wrapper">
-            <package className="admin-promociones-title-icon" size={28} />
+            <Flame className="admin-promociones-title-icon" size={28} />
             <h1 className="admin-promociones-title">Promociones</h1>
           </div>
-          <Button onClick={() => setShowForm(true)} icon={Plus} variant="primary">
-            Nueva Promoción
-          </Button>
+          <p className="admin-promociones-subtitle">Administra las promociones de productos</p>
         </div>
+        <Button onClick={handleAdd} icon={Plus}>
+          Nueva Promoción
+        </Button>
       </div>
 
       <div className="admin-promociones-content">
-        {promotions.length === 0 ? (
+        {loading ? (
+          <div className="loading">Cargando promociones...</div>
+        ) : promotions.length === 0 ? (
           <div className="empty-state">
-            <p>No hay promociones activas</p>
+            <p>No hay promociones para mostrar</p>
             <p>Crea tu primera promoción para comenzar</p>
           </div>
         ) : (
           <div className="promotions-grid">
-            {promotions.map((promo, index) => (
+            {promotions.map((promo) => (
               <div key={promo._id} className="promotion-card">
                 <div className="promotion-card-header">
                   <span className="promotion-type-badge">
@@ -274,24 +243,33 @@ export default function AdminPromociones() {
                 <div className="promotion-card-body">
                   <h3 className="promotion-nombre">{promo.nombre}</h3>
                   <p className="promotion-desc">
-                    {promo.productosParticipantes.map(pp => `${pp.nombre}`).join(', ')}
+                    {promo.productosParticipantes?.map(pp => pp.nombre).join(', ') || 'Sin productos'}
                   </p>
                   <p className="promotion-rules">
-                    {promo.tipo === 'BUY_X_PAY_Y' && `
-                      Comprar: ${promo.cantidadComprar}
-                      Pagar: ${promo.cantidadPagar}
-                      ${promo.diasSemana && promo.diasSemana.length > 0 ? `Días: ${promo.diasSemana.join(', ')}` : ''}
-                      ${promo.horaInicio && promo.horaFinalizacion ? `Horario: ${promo.horaInicio} - ${promo.horaFinalizacion}` : ''}
-                    `}
-                    ${promo.tipo === 'PERCENTAGE_DISCOUNT' && '- Descuento porcentual en productos seleccionados'}
-                    ${promo.tipo === 'FIXED_DISCOUNT' && `- Descuento fijo de $${promo.cantidadPagar} en productos seleccionados`}
+                    {promo.tipo === 'BUY_X_PAY_Y' && (
+                      <>
+                        Comprar: {promo.cantidadComprar} | Pagar: {promo.cantidadPagar}
+                        {promo.diasSemana && promo.diasSemana.length > 0 && ` | Días: ${promo.diasSemana.join(', ')}`}
+                        {promo.horaInicio && promo.horaFinalizacion && ` | Horario: ${promo.horaInicio} - ${promo.horaFinalizacion}`}
+                      </>
+                    )}
+                    {promo.tipo === 'PERCENTAGE_DISCOUNT' && '- Descuento porcentual en productos seleccionados'}
+                    {promo.tipo === 'FIXED_DISCOUNT' && `- Descuento fijo de $${promo.cantidadPagar} en productos seleccionados`}
                   </p>
                 </div>
                 <div className="promotion-card-footer">
+                  <Button
+                    variant={promo.estado === 'Activa' ? 'secondary' : 'primary'}
+                    size="small"
+                    onClick={() => handleToggle(promo)}
+                    disabled={togglingId === promo._id}
+                  >
+                    {togglingId === promo._id ? 'Guardando...' : promo.estado === 'Activa' ? 'Desactivar' : 'Activar'}
+                  </Button>
                   <Button 
                     variant="secondary" 
                     size="small"
-                    onClick={() => setEditing(promo)}
+                    onClick={() => handleEdit(promo)}
                   >
                     Editar
                   </Button>
@@ -311,36 +289,26 @@ export default function AdminPromociones() {
         {showForm && (
           <div className="promotion-form-overlay">
             <div className="promotion-form-card">
-              <h2>
-                {editing ? 'Editar Promoción' : 'Nueva Promoción'}
-              </h2>
-              <Button variant="secondary" onClick={() => setShowForm(false)}>&times; Cerrar</Button>
-              
-              <form onSubmit={handleSubmit(e => {
-                e.preventDefault();
-                onSubmitForm(watch();
-              })} className="promotion-form">
-                
+              <h2>{editing ? 'Editar Promoción' : 'Nueva Promoción'}</h2>
+              <form onSubmit={handleSubmit} className="promotion-form">
                 <div className="form-group">
                   <label>Nombre *</label>
                   <input 
                     type="text" 
-                    name="nombre" 
-                    ref={register} 
-                    required 
-                    value={promoData.nombre}
-                    onChange={(e) => setPromoData({ ...promoData, nombre: e.target.value })}
+                    name="nombre"
+                    value={formData.nombre}
+                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                    required
                   />
                 </div>
 
                 <div className="form-group">
                   <label>Tipo *</label>
                   <select 
-                    name="tipo" 
-                    ref={register} 
-                    required 
-                    value={promoData.tipo}
-                    onChange={(e) => setPromoData({ ...promoData, tipo: e.target.value })}
+                    name="tipo"
+                    value={formData.tipo}
+                    onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
+                    required
                   >
                     <option value="BUY_X_PAY_Y">2x1 / X/Y (Comprar X, pagar Y)</option>
                     <option value="PERCENTAGE_DISCOUNT">Descuento porcentual</option>
@@ -351,20 +319,20 @@ export default function AdminPromociones() {
                 <div className="form-group">
                   <label>Productos participantes *</label>
                   <select 
-                    name="productosParticipantes" 
-                    multiple 
-                    ref={register} 
-                    style={{ width: '100%', minHeight: '100px' }}
+                    name="productosParticipantes"
+                    multiple
+                    value={formData.productosParticipantes}
+                    onChange={handleProductChange}
+                    style={{ width: '100%', minHeight: '120px' }}
+                    required
                   >
-                    {productos.map(producto => (
-                      <option 
-                        key={producto._id} 
-                        value={{ producto_id: producto._id, nombre: producto.nombre }}
-                      >
+                    {products.map(producto => (
+                      <option key={producto._id} value={producto._id}>
                         {producto.nombre}
                       </option>
                     ))}
                   </select>
+                  <small className="form-hint">Mantén presionada Ctrl para seleccionar múltiples</small>
                 </div>
 
                 <div className="form-row">
@@ -372,51 +340,48 @@ export default function AdminPromociones() {
                     <label>Comprar *</label>
                     <input 
                       type="number" 
-                      name="cantidadComprar" 
-                      ref={register} 
-                      required 
-                      min="1" 
-                      value={promoData.cantidadComprar}
-                      onChange={(e) => setPromoData({ ...promoData, cantidadComprar: parseInt(e.target.value) })}
+                      name="cantidadComprar"
+                      value={formData.cantidadComprar}
+                      onChange={(e) => setFormData({ ...formData, cantidadComprar: parseInt(e.target.value) })}
+                      required
+                      min="1"
                     />
                   </div>
                   <div className="form-group half">
                     <label>Pagar *</label>
                     <input 
                       type="number" 
-                      name="cantidadPagar" 
-                      ref={register} 
-                      required 
-                      min="1" 
-                      value={promoData.cantidadPagar}
-                      onChange={(e) => setPromoData({ ...promoData, cantidadPagar: parseInt(e.target.value) })}
+                      name="cantidadPagar"
+                      value={formData.cantidadPagar}
+                      onChange={(e) => setFormData({ ...formData, cantidadPagar: parseInt(e.target.value) })}
+                      required
+                      min="1"
                     />
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label>Fecha de inicio *</label>
-                  <input 
-                    type="date" 
-                    name="fechaInicio" 
-                    ref={register} 
-                    required 
-                    value={promoData.fechaInicio.toISOString().split('T')[0]}
-                    onChange={(e) => setPromoData({ ...promoData, fechaInicio: new Date(e.target.value) })}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Fecha de finalización *</label>
-                  <input 
-                    type="date" 
-                    name="fechaFinalizacion" 
-                    ref={register} 
-                    required 
-                    min={promoData.fechaInicio.toISOString().split('T')[0]}
-                    value={promoData.fechaFinalizacion.toISOString().split('T')[0]}
-                    onChange={(e) => setPromoData({ ...promoData, fechaFinalizacion: new Date(e.target.value) })}
-                  />
+                <div className="form-row">
+                  <div className="form-group half">
+                    <label>Fecha de inicio *</label>
+                    <input 
+                      type="date" 
+                      name="fechaInicio"
+                      value={formData.fechaInicio}
+                      onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group half">
+                    <label>Fecha de finalización *</label>
+                    <input 
+                      type="date" 
+                      name="fechaFinalizacion"
+                      value={formData.fechaFinalizacion}
+                      onChange={(e) => setFormData({ ...formData, fechaFinalizacion: e.target.value })}
+                      required
+                      min={formData.fechaInicio}
+                    />
+                  </div>
                 </div>
 
                 <div className="form-row">
@@ -424,20 +389,18 @@ export default function AdminPromociones() {
                     <label>Hora de inicio</label>
                     <input 
                       type="time" 
-                      name="horaInicio" 
-                      ref={register} 
-                      value={promoData.horaInicio}
-                      onChange={(e) => setPromoData({ ...promoData, horaInicio: e.target.value })}
+                      name="horaInicio"
+                      value={formData.horaInicio}
+                      onChange={(e) => setFormData({ ...formData, horaInicio: e.target.value })}
                     />
                   </div>
                   <div className="form-group half">
                     <label>Hora de finalización</label>
                     <input 
                       type="time" 
-                      name="horaFinalizacion" 
-                      ref={register} 
-                      value={promoData.horaFinalizacion}
-                      onChange={(e) => setPromoData({ ...promoData, horaFinalizacion: e.target.value })}
+                      name="horaFinalizacion"
+                      value={formData.horaFinalizacion}
+                      onChange={(e) => setFormData({ ...formData, horaFinalizacion: e.target.value })}
                     />
                   </div>
                 </div>
@@ -445,10 +408,11 @@ export default function AdminPromociones() {
                 <div className="form-group">
                   <label>Días de la semana</label>
                   <select 
-                    name="diasSemana" 
-                    multiple 
-                    ref={register} 
-                    style={{ width: '100%', minHeight: '100px' }}
+                    name="diasSemana"
+                    multiple
+                    value={formData.diasSemana}
+                    onChange={handleDaysChange}
+                    style={{ width: '100%', minHeight: '120px' }}
                   >
                     <option value="Lunes">Lunes</option>
                     <option value="Martes">Martes</option>
@@ -458,15 +422,15 @@ export default function AdminPromociones() {
                     <option value="Sábado">Sábado</option>
                     <option value="Domingo">Domingo</option>
                   </select>
+                  <small className="form-hint">Mantén presionada Ctrl para seleccionar múltiples</small>
                 </div>
 
                 <div className="form-group">
                   <label>Estado</label>
                   <select 
-                    name="estado" 
-                    ref={register} 
-                    value={promoData.estado}
-                    onChange={(e) => setPromoData({ ...promoData, estado: e.target.value })}
+                    name="estado"
+                    value={formData.estado}
+                    onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
                   >
                     <option value="Activa">Activa</option>
                     <option value="Inactiva">Inactiva</option>
@@ -474,7 +438,7 @@ export default function AdminPromociones() {
                 </div>
 
                 <div className="form-actions">
-                  <Button type="button" variant="secondary" onClick={onCancel}>
+                  <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
                     Cancelar
                   </Button>
                   <Button type="submit">
@@ -488,8 +452,4 @@ export default function AdminPromociones() {
       </div>
     </div>
   );
-}
-
-function onCancel() {
-  setShowForm(false);
 }

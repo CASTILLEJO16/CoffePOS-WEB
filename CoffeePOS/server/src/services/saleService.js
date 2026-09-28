@@ -13,6 +13,7 @@ import Ingredient from '../models/Ingredient.js';
 import Recipe from '../models/Recipe.js';
 import RecipePersonalization from '../models/RecipePersonalization.js';
 import Personalization from '../models/Personalization.js';
+import Promotion from '../models/Promotion.js';
 
 /**
  * Servicio de Ventas
@@ -557,6 +558,8 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
       subtotal,
       impuestos,
       total,
+      descuento_promociones: promotionDiscount,
+      promociones_aplicadas: promotionDetails,
       metodo_pago,
       tipo_tarjeta: saleData.tipo_tarjeta || null,
       usuario_id: usuarioId,
@@ -580,6 +583,19 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
       const product = productsMap.get(item.producto_id.toString());
       const descuento = product ? (product.descuento || 0) : 0;
 
+      // Buscar si este item tiene promoción aplicada
+      let itemPromotion = null;
+      for (const pd of promotionDetails) {
+        if (pd.freeItems && pd.freeItems.some(fi => fi.producto_id.toString() === item.producto_id.toString())) {
+          itemPromotion = {
+            promocion_id: pd.promocion_id,
+            promocion_nombre: pd.nombre,
+            promocion_tipo: pd.tipo
+          };
+          break;
+        }
+      }
+
       await SaleDetail.create([{
         clientId,
         venta_id: ventaId,
@@ -588,7 +604,8 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
         precio: item.precio,
         importe: item.importe,
         personalizaciones: item.personalizaciones,
-        descuento
+        descuento,
+        ...itemPromotion
       }], { session });
     }
 

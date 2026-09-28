@@ -17,6 +17,7 @@ import VentasVendedor from './pages/VentasVendedor.jsx';
 import Configuracion from './pages/Configuracion.jsx';
 import AdminAlmacen from './pages/AdminAlmacen.jsx';
 import AdminKPIs from './pages/AdminKPIs.jsx';
+import AdminPromociones from './pages/AdminPromociones.jsx';
 import VendedorAlmacen from './pages/VendedorAlmacen.jsx';
 import AperturaCaja from './pages/AperturaCaja.jsx';
 import CierreCaja from './pages/CierreCaja.jsx';
@@ -134,6 +135,7 @@ function App() {
               {/* ✅ Permitir cierre de caja en admin usando la misma pantalla */}
               <Route path="cierre-caja/:id" element={<CierreCaja />} />
               <Route path="personalizaciones" element={<AdminCustomizations />} />
+              <Route path="promociones" element={<AdminPromociones />} />
               <Route path="usuarios" element={<Usuarios />} />
               <Route path="usuarios/:userId" element={<UserActivity />} />
               <Route path="ventas" element={<Ventas />} />

@@ -32,6 +32,19 @@ const SaleSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  descuento_promociones: {
+    type: Number,
+    default: 0
+  },
+  promociones_aplicadas: [{
+    promocion_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Promotion'
+    },
+    nombre: String,
+    tipo: String,
+    descuento: Number
+  }],
   metodo_pago: {
     type: String,
     enum: ['efectivo', 'tarjeta', 'transferencia', 'otros', 'dolar', 'mixto'],

@@ -40,6 +40,16 @@ const SaleDetailSchema = new mongoose.Schema({
   descuento: {
     type: Number,
     default: 0
+  },
+  promocion_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Promotion'
+  },
+  promocion_nombre: {
+    type: String
+  },
+  promocion_tipo: {
+    type: String
   }
 }, {
   timestamps: true

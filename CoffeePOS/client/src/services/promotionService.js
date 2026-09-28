@@ -15,6 +15,11 @@ export async function updatePromotion(id, promoData) {
   return response.data;
 }
 
+export async function togglePromotion(id) {
+  const response = await axiosInstance.patch(`/api/promociones/${id}/toggle`);
+  return response.data;
+}
+
 export async function deletePromotion(id) {
   const response = await axiosInstance.delete(`/api/promociones/${id}`);
   return response.data;
