@@ -49,12 +49,20 @@ export async function createPromotion(req, res) {
     }
 
     const clientId = req.user.clientId;
-    const usuarioAdmin = req.user._id;
+    const usuarioAdmin = req.user.userId || req.user._id;
 
     if (!usuarioAdmin) {
       return res.status(400).json({
         success: false,
         error: 'Usuario no autenticado correctamente'
+      });
+    }
+
+    // Para developers, no requerir clientId
+    if (!clientId && !req.user.isDeveloper) {
+      return res.status(400).json({
+        success: false,
+        error: 'Usuario sin clientId asignado'
       });
     }
 
@@ -68,12 +76,15 @@ export async function createPromotion(req, res) {
       });
     }
 
-    // Normalizar productosParticipantes
+    // Normalizar productosParticipantes (solo si no es developer)
     let normalizedProducts = [];
     if (productosParticipantes && productosParticipantes.length > 0) {
       for (const pp of productosParticipantes) {
         const productId = typeof pp === 'string' ? pp : pp.producto_id;
-        const product = await Product.findOne({ _id: productId, clientId });
+        const productQuery = req.user.isDeveloper
+          ? { _id: productId }
+          : { _id: productId, clientId };
+        const product = await Product.findOne(productQuery);
         if (!product) {
           return res.status(400).json({
             success: false,
@@ -84,13 +95,16 @@ export async function createPromotion(req, res) {
       }
     }
 
-    // Normalizar productosCombo para combos
+    // Normalizar productosCombo para combos (solo si no es developer)
     let normalizedCombo = [];
     if (productosCombo && productosCombo.length > 0) {
       for (const pc of productosCombo) {
         const productId = typeof pc === 'string' ? pc : pc.producto_id;
         const cantidad = typeof pc === 'string' ? 1 : (pc.cantidad || 1);
-        const product = await Product.findOne({ _id: productId, clientId });
+        const productQuery = req.user.isDeveloper
+          ? { _id: productId }
+          : { _id: productId, clientId };
+        const product = await Product.findOne(productQuery);
         if (!product) {
           return res.status(400).json({
             success: false,
@@ -102,7 +116,7 @@ export async function createPromotion(req, res) {
     }
 
     const promotionData = {
-      clientId,
+      ...(clientId && { clientId }),
       nombre,
       tipo,
       productosParticipantes: normalizedProducts,
@@ -147,6 +161,7 @@ export async function updatePromotion(req, res) {
              fechaInicio, fechaFinalizacion, horaInicio, horaFinalizacion, diasSemana, estado } = req.body;
 
     const clientId = req.user.clientId;
+    const usuarioAdmin = req.user.userId || req.user._id;
 
     if (fechaInicio && fechaFinalizacion) {
       const startDate = new Date(fechaInicio);
@@ -160,7 +175,10 @@ export async function updatePromotion(req, res) {
     if (productosParticipantes && productosParticipantes.length > 0) {
       for (const pp of productosParticipantes) {
         const productId = typeof pp === 'string' ? pp : pp.producto_id;
-        const product = await Product.findOne({ _id: productId, clientId });
+        const productQuery = req.user.isDeveloper
+          ? { _id: productId }
+          : { _id: productId, clientId };
+        const product = await Product.findOne(productQuery);
         if (!product) {
           return res.status(400).json({ success: false, error: 'Producto no encontrado o no pertenece a este cliente' });
         }
@@ -173,7 +191,10 @@ export async function updatePromotion(req, res) {
       for (const pc of productosCombo) {
         const productId = typeof pc === 'string' ? pc : pc.producto_id;
         const cantidad = typeof pc === 'string' ? 1 : (pc.cantidad || 1);
-        const product = await Product.findOne({ _id: productId, clientId });
+        const productQuery = req.user.isDeveloper
+          ? { _id: productId }
+          : { _id: productId, clientId };
+        const product = await Product.findOne(productQuery);
         if (!product) {
           return res.status(400).json({ success: false, error: 'Producto del combo no encontrado o no pertenece a este cliente' });
         }
@@ -199,11 +220,17 @@ export async function updatePromotion(req, res) {
       horaInicio,
       horaFinalizacion,
       diasSemana: diasSemana || [],
-      ...(estado !== undefined ? { estado } : {})
+      ...(estado !== undefined ? { estado } : {}),
+      ...(usuarioAdmin && { usuarioAdmin })
     };
 
+    // Para developers, buscar solo por ID. Para usuarios normales, también por clientId
+    const query = req.user.isDeveloper
+      ? { _id: id }
+      : { _id: id, clientId };
+
     const promotion = await Promotion.findOneAndUpdate(
-      { _id: id, clientId },
+      query,
       updateData,
       { new: true, runValidators: true }
     );
