@@ -39,8 +39,24 @@ export async function createPromotion(req, res) {
              descuentoPorcentaje, descuentoFijo, productosCombo, precioCombo, descripcion,
              fechaInicio, fechaFinalizacion, horaInicio, horaFinalizacion, diasSemana } = req.body;
 
+    console.log('Datos recibidos:', { nombre, tipo, productosParticipantes, productosCombo, fechaInicio, fechaFinalizacion });
+
+    if (!nombre || !tipo || !fechaInicio || !fechaFinalizacion) {
+      return res.status(400).json({
+        success: false,
+        error: 'Faltan campos requeridos: nombre, tipo, fechaInicio, fechaFinalizacion'
+      });
+    }
+
     const clientId = req.user.clientId;
     const usuarioAdmin = req.user._id;
+
+    if (!usuarioAdmin) {
+      return res.status(400).json({
+        success: false,
+        error: 'Usuario no autenticado correctamente'
+      });
+    }
 
     const startDate = new Date(fechaInicio);
     const endDate = new Date(fechaFinalizacion);
@@ -61,7 +77,7 @@ export async function createPromotion(req, res) {
         if (!product) {
           return res.status(400).json({
             success: false,
-            error: `Producto no encontrado o no pertenece a este cliente`
+            error: `Producto no encontrado o no pertenece a este cliente: ${productId}`
           });
         }
         normalizedProducts.push({ producto_id: product._id, nombre: product.nombre });
@@ -78,14 +94,14 @@ export async function createPromotion(req, res) {
         if (!product) {
           return res.status(400).json({
             success: false,
-            error: `Producto del combo no encontrado o no pertenece a este cliente`
+            error: `Producto del combo no encontrado o no pertenece a este cliente: ${productId}`
           });
         }
         normalizedCombo.push({ producto_id: product._id, nombre: product.nombre, cantidad });
       }
     }
 
-    const promotion = await Promotion.create({
+    const promotionData = {
       clientId,
       nombre,
       tipo,
@@ -104,11 +120,21 @@ export async function createPromotion(req, res) {
       diasSemana: diasSemana || [],
       estado: 'Activa',
       usuarioAdmin
-    });
+    };
+
+    console.log('Datos a guardar:', promotionData);
+
+    const promotion = await Promotion.create(promotionData);
 
     res.status(201).json({ success: true, data: promotion });
   } catch (error) {
     console.error('Error al crear promoción:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Error de validación: ' + Object.values(error.errors).map(e => e.message).join(', ')
+      });
+    }
     res.status(500).json({ success: false, error: error.message });
   }
 }
