@@ -289,7 +289,8 @@ export default function AdminPOS() {
   async function loadPromotions() {
     try {
       const response = await getPromotions();
-      const activePromos = response.data?.filter(p => p.estado === 'Activa') || [];
+      const promosData = Array.isArray(response.data) ? response.data : [];
+      const activePromos = promosData.filter(p => p.estado === 'Activa') || [];
       setPromotions(activePromos);
 
       // Enviar promociones al OrderContext
@@ -317,6 +318,7 @@ export default function AdminPOS() {
       });
     } catch (error) {
       console.error('Error al cargar promociones:', error);
+      setPromotions([]); // Asegurar que siempre sea un array
     }
   }
 

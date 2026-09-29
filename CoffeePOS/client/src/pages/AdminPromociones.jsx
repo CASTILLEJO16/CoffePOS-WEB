@@ -23,6 +23,7 @@ export default function AdminPromociones() {
   const [products, setProducts] = useState([]);
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [diasSeleccionados, setDiasSeleccionados] = useState(DIAS_SEMANA);
   const [productosSeleccionados, setProductosSeleccionados] = useState([]);
   const [productosCombo, setProductosCombo] = useState([]);
@@ -35,13 +36,20 @@ export default function AdminPromociones() {
 
   async function loadData() {
     try {
-      const promoResp = await getPromotionsApi();
-      setPromotions(promoResp || []);
-    } catch (e) { console.error('Error promo:', e); }
-    try {
-      const prodResp = await getProducts();
-      setProducts(prodResp || []);
-    } catch (e) { console.error('Error productos:', e); }
+      setLoading(true);
+      const [prodResp, promoResp] = await Promise.all([
+        getProducts(),
+        getPromotionsApi()
+      ]);
+      setProducts(prodResp.data || []);
+      const promosData = Array.isArray(promoResp) ? promoResp : [];
+      setPromotions(promosData);
+    } catch (err) {
+      console.error('Error al cargar datos:', err);
+      setPromotions([]); // Asegurar que siempre sea un array
+    } finally {
+      setLoading(false);
+    }
   }
 
   const { register, handleSubmit, reset } = useForm();
