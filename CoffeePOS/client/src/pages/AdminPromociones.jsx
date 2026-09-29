@@ -45,6 +45,7 @@ export default function AdminPromociones() {
       setProducts(productsData);
       const promosData = Array.isArray(promoResp) ? promoResp : [];
       setPromotions(promosData);
+      console.log('Promociones cargadas:', promosData);
     } catch (err) {
       console.error('Error al cargar datos:', err);
       setProducts([]);

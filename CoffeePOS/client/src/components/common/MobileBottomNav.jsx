@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Package, BarChart3, Wallet, Settings, Users, DollarSign, MoreHorizontal, X, Coffee, LogOut } from 'lucide-react';
+import { ShoppingCart, Package, BarChart3, Wallet, Settings, Users, DollarSign, MoreHorizontal, X, Coffee, LogOut, Tag } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useStockAlerts } from '../../hooks/useStockAlerts.js';
 import Swal from 'sweetalert2';
@@ -14,6 +14,7 @@ const adminPrimary = [
 ];
 
 const adminMore = [
+  { path: '/admin/promociones', icon: Tag, label: 'Promociones' },
   { path: '/admin/personalizaciones', icon: Settings, label: 'Personalizaciones' },
   { path: '/admin/usuarios', icon: Users, label: 'Usuarios' },
   { path: '/admin/almacen', icon: Package, label: 'Almacén' },
