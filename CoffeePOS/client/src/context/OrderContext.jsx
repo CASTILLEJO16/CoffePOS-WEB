@@ -245,7 +245,8 @@ function orderReducer(state, action) {
 }
 
 export function OrderProvider({ children, promotions = [], productsMap = new Map() }) {
-  const [state, dispatch] = useReducer(orderReducer, initialState, {
+  const [state, dispatch] = useReducer(orderReducer, {
+    ...initialState,
     promotions,
     productsMap
   });
