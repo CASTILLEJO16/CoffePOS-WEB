@@ -25,30 +25,8 @@ function calculatePriceWithDiscount(precio, descuento) {
   return precio * (1 - descuento / 100);
 }
 
-function calculatePromotionDiscount(item, promotions, productsMap) {
-  // Verificar si el producto tiene una promoción activa aplicada
-  const promo = promotions.find(p => 
-    p.promocion_tipo === 'BUY_X_PAY_Y' &&
-    p.freeItems && 
-    p.freeItems.some(fi => fi.producto_id.toString() === item.producto_id.toString())
-  );
-  
-  if (!promo) return { precioFinal: calculatePriceWithDiscount(item.precio_base, item.descuento), descuento: 0 };
-  
-  // Encontrar el item gratuito correspondiente
-  const freeItem = promo.freeItems.find(fi => fi.producto_id.toString() === item.producto_id.toString());
-  if (!freeItem) return { precioFinal: calculatePriceWithDiscount(item.precio_base, item.descuento), descuento: 0 };
-  
-  // El precio final es el precio con descuento del producto base
-  // El descuento es el precio del item gratuito
-  const discountedBase = calculatePriceWithDiscount(item.precio_base, item.descuento || 0);
-  const freePrice = freeItem.precio_unitario; // Precio original del gratis
-  
-  return {
-    precioFinal: discountedBase, // Se cobra solo el base, el gratis se descuenta en el total
-    descuento: freePrice
-  };
-}
+
+
 
 const initialState = {
   items: [],
@@ -108,20 +86,21 @@ function orderReducer(state, action) {
         return { ...state, items: newItems, subtotal, impuestos, total };
       }
 
-      // Producto normal
-      // Calcular precio con descuento
+      // Producto normal (con o sin promoción pre-calculada desde handlePromotionClick)
+      // Si el producto tiene promoAplicada, product.precio ya es el precio con descuento.
+      // product.precioOriginal guarda el precio sin descuento para mostrarlo tachado en el carrito.
       const discountedPrice = calculatePriceWithDiscount(product.precio, product.descuento);
-
-      // Calcular descuento de promoción
-      const promoDiscount = calculatePromotionDiscount(
-        { producto_id: product._id, producto_nombre: product.nombre, precio_base: product.precio },
-        state.promotions || [],
-        state.productsMap || new Map()
-      );
 
       // Calcular precio adicional por personalizaciones
       const customizationPrice = calculateCustomizationPrice(customization);
       const finalPrice = discountedPrice + customizationPrice;
+
+      // Precio original para mostrar tachado si hay promo
+      const precioOriginal = product.precioOriginal ?? product.precio;
+      // promoDescuento = ahorro por unidad (para badge visual en OrderItem)
+      const promoDescuento = product.promoAplicada
+        ? Math.max(0, precioOriginal - discountedPrice)
+        : 0;
 
       let newItems;
       if (existingItem) {
@@ -137,13 +116,14 @@ function orderReducer(state, action) {
             uniqueId: uniqueId,
             producto_id: product._id || product.id,
             producto_nombre: product.nombre,
-            precio_base: product.precio,
+            precio_base: precioOriginal,
             precio_final: finalPrice,
-            descuento: promoDiscount.descuento,
+            descuento: product.descuento || 0,
             cantidad: 1,
             importe: finalPrice,
             personalizaciones: customization || {},
-            promoDescuento: promoDiscount.descuento
+            promoDescuento,
+            promoAplicada: product.promoAplicada || null
           }
         ];
       }
@@ -152,6 +132,7 @@ function orderReducer(state, action) {
 
       return { ...state, items: newItems, subtotal, impuestos, total };
     }
+
 
     case 'REMOVE_ITEM': {
       const { uniqueId } = action.payload;

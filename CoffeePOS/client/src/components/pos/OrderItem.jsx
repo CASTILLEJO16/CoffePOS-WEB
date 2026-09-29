@@ -100,7 +100,7 @@ export default function OrderItem({ item, onUpdateQuantity, onRemove, onEdit }) 
           )}
           {hasPromotion && (
             <span className="order-item-promotion">
-              🎉 Promoción aplicada: -${formatCurrency(item.promoDescuento)}
+              🎉 {item.promoAplicada || 'Promoción'} · ahorro: {formatCurrency(item.promoDescuento)}
             </span>
           )}
         </div>
@@ -110,7 +110,7 @@ export default function OrderItem({ item, onUpdateQuantity, onRemove, onEdit }) 
           <span className="order-item-price">{formatCurrency(item.importe)}</span>
           {hasPromotion && (
             <span className="order-item-original-price">
-              {formatCurrency(item.importe + item.promoDescuento)}
+              {formatCurrency((item.precio_base) * item.cantidad)}
             </span>
           )}
         </div>

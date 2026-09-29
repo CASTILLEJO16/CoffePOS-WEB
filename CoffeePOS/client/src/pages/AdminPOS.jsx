@@ -289,8 +289,9 @@ export default function AdminPOS() {
   async function loadPromotions() {
     try {
       const response = await getPromotions();
-      const promosData = Array.isArray(response.data) ? response.data : [];
-      const activePromos = promosData.filter(p => p.estado === 'Activa') || [];
+      // getPromotions() ya devuelve el array directamente (desenvuelve .data.data internamente)
+      const promosData = Array.isArray(response) ? response : [];
+      const activePromos = promosData.filter(p => p.estado === 'Activa');
       setPromotions(activePromos);
 
       // Enviar promociones al OrderContext
@@ -312,9 +313,10 @@ export default function AdminPOS() {
       });
     } catch (error) {
       console.error('Error al cargar promociones:', error);
-      setPromotions([]); // Asegurar que siempre sea un array
+      setPromotions([]);
     }
   }
+
 
   function formatTipo(tipo) {
     const map = {
@@ -343,9 +345,23 @@ export default function AdminPOS() {
     setShowCustomizationModal(true);
   }
 
+  function calcPrecioConPromo(precio, promotion) {
+    if (promotion.tipo === 'BUY_X_PAY_Y') {
+      // Comprar X, pagar Y → precio efectivo por unidad = precio × (Y/X)
+      const factor = promotion.cantidadPagar / promotion.cantidadComprar;
+      return parseFloat((precio * factor).toFixed(2));
+    }
+    if (promotion.tipo === 'PERCENTAGE_DISCOUNT') {
+      return parseFloat((precio * (1 - promotion.descuentoPorcentaje / 100)).toFixed(2));
+    }
+    if (promotion.tipo === 'FIXED_DISCOUNT') {
+      return Math.max(0, parseFloat((precio - promotion.descuentoFijo).toFixed(2)));
+    }
+    return precio;
+  }
+
   async function handlePromotionClick(promotion) {
     try {
-      // Obtener los productos participantes de la promoción
       const allProducts = await getProducts();
       const participantProducts = allProducts.filter(p =>
         promotion.productosParticipantes.some(pp => pp.producto_id === (p._id || p.id))
@@ -356,14 +372,20 @@ export default function AdminPOS() {
         return;
       }
 
-      // Agregar cada producto participante al carrito
+      // Agregar cada producto con el precio descontado según el tipo de promo
       for (const product of participantProducts) {
-        addItem(product, {});
+        const precioConPromo = calcPrecioConPromo(product.precio, promotion);
+        addItem({
+          ...product,
+          precio: precioConPromo,          // precio ya con descuento → el contexto lo usará
+          precioOriginal: product.precio,  // precio original → para mostrar tachado en carrito
+          promoAplicada: promotion.nombre  // nombre de la promo → para el badge visual
+        }, {});
       }
 
       Swal.fire({
         title: '¡Promoción aplicada!',
-        text: `Se agregaron ${participantProducts.length} productos al carrito`,
+        text: `Se agregaron ${participantProducts.length} producto(s) al carrito`,
         icon: 'success',
         timer: 1500,
         showConfirmButton: false
@@ -373,6 +395,7 @@ export default function AdminPOS() {
       Swal.fire('Error', 'No se pudo aplicar la promoción', 'error');
     }
   }
+
 
   async function handleComboClick(combo) {
     try {
