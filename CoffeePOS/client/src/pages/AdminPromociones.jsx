@@ -41,11 +41,13 @@ export default function AdminPromociones() {
         getProducts(),
         getPromotionsApi()
       ]);
-      setProducts(prodResp.data || []);
+      const productsData = Array.isArray(prodResp) ? prodResp : [];
+      setProducts(productsData);
       const promosData = Array.isArray(promoResp) ? promoResp : [];
       setPromotions(promosData);
     } catch (err) {
       console.error('Error al cargar datos:', err);
+      setProducts([]);
       setPromotions([]); // Asegurar que siempre sea un array
     } finally {
       setLoading(false);
