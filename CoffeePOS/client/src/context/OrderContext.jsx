@@ -273,15 +273,17 @@ function orderReducer(state, action) {
     case 'SET_PROMOTIONS': {
       // Recibir promociones del servidor y aplicarlas al estado
       const { promotions, productsMap } = action.payload;
+      // Validar que promotions sea un array
+      const validPromotions = Array.isArray(promotions) ? promotions : [];
       // Mapear productos para búsqueda rápida
       const mappedProducts = new Map();
       if (productsMap && productsMap.size) {
         productsMap.forEach((p, key) => mappedProducts.set(key.toString(), p));
       }
-      
+
       return {
         ...state,
-        promotions,
+        promotions: validPromotions,
         productsMap: mappedProducts
       };
     }
@@ -340,6 +342,10 @@ export function OrderProvider({ children, promotions = [], productsMap = new Map
     dispatch({ type: 'UPDATE_ITEM', payload: { uniqueId, customization } });
   };
 
+  const setPromotions = (promotions, productsMap) => {
+    dispatch({ type: 'SET_PROMOTIONS', payload: { promotions, productsMap } });
+  };
+
   const value = {
     ...state,
     addItem,
@@ -347,6 +353,7 @@ export function OrderProvider({ children, promotions = [], productsMap = new Map
     updateQuantity,
     clearOrder,
     recalcTotals,
+    setPromotions,
     setCustomerName,
     updateItem,
     dispatch

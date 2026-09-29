@@ -30,7 +30,7 @@ import Swal from 'sweetalert2';
 import './POS.css';
 
 export default function POS() {
-  const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem, dispatch } = useOrder();
+  const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem, setPromotions: setContextPromotions } = useOrder();
   console.log('[POS] Estado de la orden - Items:', items.length, 'Subtotal:', subtotal, 'Impuestos:', impuestos, 'Total:', total);
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -117,13 +117,7 @@ export default function POS() {
       setPromotions(activePromos);
 
       // Enviar promociones al OrderContext
-      dispatch({
-        type: 'SET_PROMOTIONS',
-        payload: {
-          promotions: activePromos,
-          productsMap: new Map()
-        }
-      });
+      setContextPromotions(activePromos, new Map());
 
       // Agregar categorías de promociones y combos si hay activas
       const hasPromotions = activePromos.some(p => p.tipo !== 'COMBO');

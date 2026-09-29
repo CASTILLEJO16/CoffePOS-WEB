@@ -30,7 +30,7 @@ import Swal from 'sweetalert2';
 import './AdminPOS.css';
 
 export default function AdminPOS() {
-  const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem, dispatch } = useAdminOrder();
+  const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem, setPromotions: setContextPromotions } = useAdminOrder();
   console.log('[AdminPOS] Estado de la orden - Items:', items.length, 'Subtotal:', subtotal, 'Impuestos:', impuestos, 'Total:', total);
   const { theme, toggleTheme } = useTheme();
   const [products, setProducts] = useState([]);
@@ -294,13 +294,7 @@ export default function AdminPOS() {
       setPromotions(activePromos);
 
       // Enviar promociones al OrderContext
-      dispatch({
-        type: 'SET_PROMOTIONS',
-        payload: {
-          promotions: activePromos,
-          productsMap: new Map()
-        }
-      });
+      setContextPromotions(activePromos, new Map());
 
       // Agregar categorías de promociones y combos si hay activas
       const hasPromotions = activePromos.some(p => p.tipo !== 'COMBO');

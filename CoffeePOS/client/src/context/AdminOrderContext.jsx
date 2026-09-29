@@ -198,9 +198,9 @@ function orderReducer(state, action) {
 
       const newItems = state.items.map(item =>
         item.uniqueId === uniqueId
-          ? { 
-              ...item, 
-              personalizaciones: customization, 
+          ? {
+              ...item,
+              personalizaciones: customization,
               precio_final: finalPrice,
               importe: item.cantidad * finalPrice
             }
@@ -209,6 +209,24 @@ function orderReducer(state, action) {
 
       const { subtotal, impuestos, total } = calculateTotals(newItems);
       return { ...state, items: newItems, subtotal, impuestos, total };
+    }
+
+    case 'SET_PROMOTIONS': {
+      // Recibir promociones del servidor y aplicarlas al estado
+      const { promotions, productsMap } = action.payload;
+      // Validar que promotions sea un array
+      const validPromotions = Array.isArray(promotions) ? promotions : [];
+      // Mapear productos para búsqueda rápida
+      const mappedProducts = new Map();
+      if (productsMap && productsMap.size) {
+        productsMap.forEach((p, key) => mappedProducts.set(key.toString(), p));
+      }
+
+      return {
+        ...state,
+        promotions: validPromotions,
+        productsMap: mappedProducts
+      };
     }
 
     case 'CLEAR_ORDER':
@@ -227,10 +245,11 @@ export function AdminOrderProvider({ children }) {
   const updateQuantity = (uniqueId, cantidad) => dispatch({ type: 'UPDATE_QUANTITY', payload: { uniqueId, cantidad } });
   const clearOrder = () => dispatch({ type: 'CLEAR_ORDER' });
   const recalcTotals = () => dispatch({ type: 'RECALC_TOTALS' });
+  const setPromotions = (promotions, productsMap) => dispatch({ type: 'SET_PROMOTIONS', payload: { promotions, productsMap } });
   const setCustomerName = (name) => dispatch({ type: 'SET_CUSTOMER_NAME', payload: name });
   const updateItem = (uniqueId, customization) => dispatch({ type: 'UPDATE_ITEM', payload: { uniqueId, customization } });
 
-  const value = { ...state, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, setCustomerName, updateItem };
+  const value = { ...state, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, setPromotions, setCustomerName, updateItem };
 
   return (
     <AdminOrderContext.Provider value={value}>
