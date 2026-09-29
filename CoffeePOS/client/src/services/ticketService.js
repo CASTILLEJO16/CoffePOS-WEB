@@ -48,45 +48,74 @@ export function generateTicketHTML(sale, customerName = null, businessInfo = nul
   const itemsHTML = sale.detalles.map(detail => {
     const extras = getCustomizationItems(detail.personalizaciones);
     const hasDiscount = detail.descuento && detail.descuento > 0;
+    const isCombo = detail.personalizaciones?.isCombo || detail.isCombo;
+    const comboProducts = detail.personalizaciones?.comboProducts || detail.comboProducts;
     const nombreProducto = detail.producto_nombre || detail.producto_id?.nombre || detail.nombre || 'Producto';
 
-    // Calcular base sin extras (detail.precio ya incluye extras)
-    const extrasPerUnit = extras.reduce((s, e) => s + (e.price || 0), 0);
-    const basePrecioUnit = detail.precio - extrasPerUnit;
-    const baseImporte = basePrecioUnit * detail.cantidad;
+    let rows = '';
 
-    // línea principal del producto (precio base sin extras)
-    let rows = `
-    <tr class="ticket-item">
-      <td class="ticket-qty">${detail.cantidad}</td>
-      <td class="ticket-name">${nombreProducto}${hasDiscount ? ` <span style="color: var(--color-warning); font-size: 0.8em;">(-${detail.descuento}%)</span>` : ''}</td>
-      <td class="ticket-price">${formatCurrency(basePrecioUnit)}</td>
-      <td class="ticket-total">${formatCurrency(baseImporte)}</td>
-    </tr>`;
-
-    // línea de descuento si aplica (sobre base)
-    if (hasDiscount) {
-      const discountAmount = basePrecioUnit * (detail.descuento / 100) * detail.cantidad;
+    // Si es un combo, mostrar el combo con desglose de productos
+    if (isCombo && comboProducts && comboProducts.length > 0) {
+      // Línea principal del combo
       rows += `
-      <tr class="ticket-item">
-        <td></td>
-        <td class="ticket-name ticket-extra" style="color: var(--color-success);">Descuento</td>
-        <td class="ticket-price" style="color: var(--color-success);">-${detail.descuento}%</td>
-        <td class="ticket-total" style="color: var(--color-success);">-${formatCurrency(discountAmount)}</td>
+      <tr class="ticket-item" style="border-top: 1px dashed #000;">
+        <td class="ticket-qty">${detail.cantidad}</td>
+        <td class="ticket-name" style="font-weight: bold;">📦 ${nombreProducto}</td>
+        <td class="ticket-price">${formatCurrency(detail.precio)}</td>
+        <td class="ticket-total">${formatCurrency(detail.precio * detail.cantidad)}</td>
       </tr>`;
-    }
 
-    // líneas separadas de extras (ya no duplica en total, solo desglose)
-    if (extras.length > 0) {
-      extras.forEach(extra => {
+      // Desglose de productos del combo
+      comboProducts.forEach(cp => {
+        const qty = cp.cantidadCombo || 1;
         rows += `
         <tr class="ticket-item">
           <td></td>
-          <td class="ticket-name ticket-extra">+ ${extra.name}</td>
-          <td class="ticket-price">${formatCurrency(extra.price)}</td>
-          <td class="ticket-total">${formatCurrency(extra.price * detail.cantidad)}</td>
+          <td class="ticket-name ticket-extra">  • ${cp.nombre} (x${qty})</td>
+          <td class="ticket-price"></td>
+          <td class="ticket-total"></td>
         </tr>`;
       });
+    } else {
+      // Producto normal
+      // Calcular base sin extras (detail.precio ya incluye extras)
+      const extrasPerUnit = extras.reduce((s, e) => s + (e.price || 0), 0);
+      const basePrecioUnit = detail.precio - extrasPerUnit;
+      const baseImporte = basePrecioUnit * detail.cantidad;
+
+      // línea principal del producto (precio base sin extras)
+      rows = `
+      <tr class="ticket-item">
+        <td class="ticket-qty">${detail.cantidad}</td>
+        <td class="ticket-name">${nombreProducto}${hasDiscount ? ` <span style="color: var(--color-warning); font-size: 0.8em;">(-${detail.descuento}%)</span>` : ''}</td>
+        <td class="ticket-price">${formatCurrency(basePrecioUnit)}</td>
+        <td class="ticket-total">${formatCurrency(baseImporte)}</td>
+      </tr>`;
+
+      // línea de descuento si aplica (sobre base)
+      if (hasDiscount) {
+        const discountAmount = basePrecioUnit * (detail.descuento / 100) * detail.cantidad;
+        rows += `
+        <tr class="ticket-item">
+          <td></td>
+          <td class="ticket-name ticket-extra" style="color: var(--color-success);">Descuento</td>
+          <td class="ticket-price" style="color: var(--color-success);">-${detail.descuento}%</td>
+          <td class="ticket-total" style="color: var(--color-success);">-${formatCurrency(discountAmount)}</td>
+        </tr>`;
+      }
+
+      // líneas separadas de extras (ya no duplica en total, solo desglose)
+      if (extras.length > 0) {
+        extras.forEach(extra => {
+          rows += `
+          <tr class="ticket-item">
+            <td></td>
+            <td class="ticket-name ticket-extra">+ ${extra.name}</td>
+            <td class="ticket-price">${formatCurrency(extra.price)}</td>
+            <td class="ticket-total">${formatCurrency(extra.price * detail.cantidad)}</td>
+          </tr>`;
+        });
+      }
     }
 
     return rows;

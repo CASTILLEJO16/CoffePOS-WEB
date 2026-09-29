@@ -5,41 +5,54 @@ import { formatCurrency } from '../../utils/formatCurrency.js';
 export default function OrderItem({ item, onUpdateQuantity, onRemove, onEdit }) {
   const hasCustomizations = item.personalizaciones && Object.keys(item.personalizaciones).length > 0;
   const hasPromotion = item.promoDescuento && item.promoDescuento > 0;
-  
+  const isCombo = item.personalizaciones?.isCombo || item.isCombo;
+  const comboProducts = item.personalizaciones?.comboProducts || item.comboProducts;
+
   const getCustomizationText = () => {
     if (!hasCustomizations) return null;
-    
+
     const parts = [];
     const p = item.personalizaciones;
-    
+
     if (p.milkType && p.milkType.id !== 'entera') {
       parts.push(p.milkType.name);
     }
-    
+
     if (p.toppings && p.toppings.length > 0) {
       parts.push(p.toppings.map(t => t.name).join(', '));
     }
-    
+
     if (p.coldFoam && p.coldFoam.id !== 'none') {
       parts.push(p.coldFoam.name);
     }
-    
+
     if (p.syrup && p.syrup.id !== 'none') {
       parts.push(p.syrup.name);
     }
-    
+
     if (p.sweetness && p.sweetness.id !== '50') {
       parts.push(p.sweetness.name);
     }
-    
+
     if (p.teaOption && p.teaOption.id !== 'hot') {
       parts.push(p.teaOption.name);
     }
-    
+
     return parts.length > 0 ? parts.join(' • ') : null;
   };
-  
+
   const customizationText = getCustomizationText();
+
+  const getComboBreakdown = () => {
+    if (!isCombo || !comboProducts || comboProducts.length === 0) return null;
+
+    return comboProducts.map((cp, index) => (
+      <div key={index} className="combo-breakdown-item">
+        <span className="combo-breakdown-name">• {cp.nombre}</span>
+        <span className="combo-breakdown-qty">x{cp.cantidadCombo || 1}</span>
+      </div>
+    ));
+  };
   
   return (
     <div className="order-item">
@@ -62,8 +75,8 @@ export default function OrderItem({ item, onUpdateQuantity, onRemove, onEdit }) 
           </button>
         </div>
         <div className="order-item-details">
-          <span 
-            className="order-item-name" 
+          <span
+            className="order-item-name"
             style={{ cursor: 'pointer', textDecoration: 'underline' }}
             onClick={() => onEdit && onEdit(item)}
             title="Click para editar personalizaciones"
@@ -71,7 +84,7 @@ export default function OrderItem({ item, onUpdateQuantity, onRemove, onEdit }) 
             {item.producto_nombre}
           </span>
           {customizationText && (
-            <span 
+            <span
               className="order-item-customization"
               style={{ cursor: 'pointer' }}
               onClick={() => onEdit && onEdit(item)}
@@ -79,6 +92,11 @@ export default function OrderItem({ item, onUpdateQuantity, onRemove, onEdit }) 
             >
               {customizationText}
             </span>
+          )}
+          {isCombo && (
+            <div className="combo-breakdown">
+              {getComboBreakdown()}
+            </div>
           )}
           {hasPromotion && (
             <span className="order-item-promotion">

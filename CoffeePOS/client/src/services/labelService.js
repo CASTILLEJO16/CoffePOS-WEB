@@ -42,13 +42,30 @@ function getCustomizationDetails(personalizaciones) {
 
 // Fragmento exacto al boceto ASCII: caja centrada, todo en mayúsculas y centrado
 function buildLabelFragment(detail, customerName, folio, businessName) {
-  const rawDetails = getCustomizationDetails(detail.personalizaciones);
-  // Para etiqueta minimalista, mostrar solo el valor (sin "Leche: ")
-  const customizationLines = rawDetails.map(s => {
-    const parts = s.split(':');
-    return parts.length > 1 ? parts.slice(1).join(':').trim() : s;
-  });
-  const productName = escapeLabel((detail.producto_nombre || detail.producto_id?.nombre || detail.nombre || 'Producto').toUpperCase());
+  const isCombo = detail.personalizaciones?.isCombo || detail.isCombo;
+  const comboProducts = detail.personalizaciones?.comboProducts || detail.comboProducts;
+
+  let customizationLines = [];
+  let productName = '';
+
+  if (isCombo && comboProducts && comboProducts.length > 0) {
+    // Para combos, mostrar el nombre del combo y los productos incluidos
+    productName = escapeLabel((detail.producto_nombre || detail.nombre || 'COMBO').toUpperCase());
+    customizationLines = comboProducts.map(cp => {
+      const qty = cp.cantidadCombo || 1;
+      return `• ${escapeLabel(cp.nombre)} x${qty}`;
+    });
+  } else {
+    // Producto normal
+    const rawDetails = getCustomizationDetails(detail.personalizaciones);
+    // Para etiqueta minimalista, mostrar solo el valor (sin "Leche: ")
+    customizationLines = rawDetails.map(s => {
+      const parts = s.split(':');
+      return parts.length > 1 ? parts.slice(1).join(':').trim() : s;
+    });
+    productName = escapeLabel((detail.producto_nombre || detail.producto_id?.nombre || detail.nombre || 'Producto').toUpperCase());
+  }
+
   const safeBusiness = escapeLabel((businessName || 'COFFEEPOS').toUpperCase());
   const safeCustomer = escapeLabel((customerName || 'CLIENTE').toUpperCase());
   const safeFolio = escapeLabel(folio || '—');

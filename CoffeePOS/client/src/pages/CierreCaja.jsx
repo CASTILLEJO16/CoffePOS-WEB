@@ -109,20 +109,25 @@ export default function CierreCaja() {
         <meta charset="UTF-8">
         <title>Ticket Cierre de Caja</title>
         <style>
-          @page { size: 110mm 210mm; margin: 5mm; }
-          body { font-family: 'Courier New', monospace; font-size: 11px; width: 100%; margin: 0 auto; background: white; }
-          .ticket { width: 100%; max-width: 400px; margin: 0 auto; }
-          .ticket-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 10px; }
-          .ticket-header h1 { font-size: 18px; margin-bottom: 2px; }
-          .ticket-header p { font-size: 11px; color: #555; }
-          .ticket-info { margin-bottom: 8px; font-size: 10px; }
-          .ticket-info-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
-          .ticket-divider { border-top: 1px solid #000; padding-top: 4px; margin-top: 4px; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          @page { margin: 0; size: 110mm 220mm; }
+          body { font-family: 'Courier New', monospace; font-size: 12px; width: 110mm; padding: 5mm; margin: 0 auto; background: white; }
+          .ticket { width: 100%; }
+          .ticket-header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 5px; margin-bottom: 10px; }
+          .ticket-header h1 { font-size: 16px; margin-bottom: 4px; word-break: break-word; }
+          .ticket-header p { font-size: 10px; color: #333; margin-bottom: 2px; }
+          .ticket-info { margin-bottom: 10px; font-size: 11px; }
+          .ticket-info-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+          .ticket-divider { border-top: 2px dashed #000; padding-top: 5px; margin-top: 5px; }
           .ticket-item { margin-bottom: 4px; }
-          .ticket-footer { text-align: center; border-top: 2px solid #000; padding-top: 8px; margin-top: 8px; font-size: 10px; color: #555; }
+          .ticket-footer { text-align: center; border-top: 2px dashed #000; padding-top: 10px; margin-top: 10px; font-size: 11px; color: #555; }
           .ticket-signature { margin-top: 20px; padding-top: 15px; border-top: 1px solid #000; }
           .ticket-signature p { margin: 3px 0; }
-          .ticket-signature .line { width: 45%; border-bottom: 1px solid #000; display: inline-block; margin: 0 5%; }
+          @media print {
+            html, body { margin: 0; padding: 0; }
+            body { width: 110mm; margin: 0 auto; padding: 0; }
+            @page { margin: 0; size: 110mm 220mm; }
+          }
         </style>
       </head>
       <body>
@@ -134,32 +139,39 @@ export default function CierreCaja() {
 
           <div class="ticket-info">
             <div class="ticket-info-row">
-              <strong>Vendedor:</strong> ${summary.usuario_nombre}
+              <span>Vendedor:</span>
+              <span>${summary.usuario_nombre}</span>
             </div>
             <div class="ticket-info-row">
-              <strong>Caja:</strong> ${summary.nombre_caja || 'Sin nombre'}
+              <span>Caja:</span>
+              <span>${summary.nombre_caja || 'Sin nombre'}</span>
             </div>
             <div class="ticket-info-row">
-              <strong>Apertura:</strong> ${formatBusinessDateTime(summary.fecha_apertura)}
+              <span>Apertura:</span>
+              <span>${formatBusinessDateTime(summary.fecha_apertura)}</span>
             </div>
-            ${summary.fecha_cierre ? `<div class="ticket-info-row"><strong>Cierre:</strong> ${formatBusinessDateTime(summary.fecha_cierre)}</div>` : ''}
+            ${summary.fecha_cierre ? `<div class="ticket-info-row"><span>Cierre:</span><span>${formatBusinessDateTime(summary.fecha_cierre)}</span></div>` : ''}
           </div>
 
           <div class="ticket-divider"></div>
 
           <div class="ticket-info">
             <div class="ticket-info-row">
-              <strong>Fondo Inicial:</strong> ${formatCurrency(summary.fondo_inicial)}
+              <span>Fondo Inicial:</span>
+              <span>${formatCurrency(summary.fondo_inicial)}</span>
             </div>
             <div class="ticket-info-row">
-              <strong>Ventas Efectivo:</strong> ${formatCurrency(summary.ventas_efectivo)}
+              <span>Ventas Efectivo:</span>
+              <span>${formatCurrency(summary.ventas_efectivo)}</span>
             </div>
             <div class="ticket-info-row">
-              <strong>Ventas Tarjeta:</strong> ${formatCurrency(summary.ventas_tarjeta)}
+              <span>Ventas Tarjeta:</span>
+              <span>${formatCurrency(summary.ventas_tarjeta)}</span>
             </div>
-            ${summary.ventas_dolar > 0 ? `<div class="ticket-info-row"><strong>Ventas USD:</strong> ${formatCurrency(summary.ventas_dolar)}</div>` : ''}
+            ${summary.ventas_dolar > 0 ? `<div class="ticket-info-row"><span>Ventas USD:</span><span>${formatCurrency(summary.ventas_dolar)}</span></div>` : ''}
             <div class="ticket-info-row">
-              <strong>Total Vendido:</strong> ${formatCurrency(summary.ventas_efectivo + summary.ventas_tarjeta)}
+              <span>Total Vendido:</span>
+              <span>${formatCurrency(summary.ventas_efectivo + summary.ventas_tarjeta)}</span>
             </div>
           </div>
 
@@ -167,19 +179,23 @@ export default function CierreCaja() {
 
           <div class="ticket-info">
             <div class="ticket-info-row">
-              <strong>Total Esperado:</strong> ${formatCurrency(summary.total_esperado)}
+              <span>Total Esperado:</span>
+              <span>${formatCurrency(summary.total_esperado)}</span>
             </div>
             <div class="ticket-info-row">
-              <strong>Total Contado:</strong> ${formatCurrency(totalContado)}
+              <span>Total Contado:</span>
+              <span>${formatCurrency(totalContado)}</span>
             </div>
             <div class="ticket-info-row">
-              <strong>Diferencia:</strong> ${formatCurrency(diferencia)}
+              <span>Diferencia:</span>
+              <span>${formatCurrency(diferencia)}</span>
             </div>
           </div>
 
           <div class="ticket-info">
             <div class="ticket-info-row">
-              <strong>Observaciones:</strong> ${formData.observaciones || 'Ninguna'}
+              <span>Observaciones:</span>
+              <span>${formData.observaciones || 'Ninguna'}</span>
             </div>
           </div>
 
@@ -197,11 +213,13 @@ export default function CierreCaja() {
     if (printWindow) {
       printWindow.document.write(ticketHTML);
       printWindow.document.close();
+
       printWindow.onload = function() {
-        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
       };
     } else {
-      console.error('No se pudo abrir la ventana del ticket');
+      console.error('No se pudo abrir la ventana de impresión');
     }
   }
 

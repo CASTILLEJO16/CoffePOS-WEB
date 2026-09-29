@@ -114,25 +114,30 @@ export default function POS() {
       const response = await getPromotions();
       const activePromos = response.data?.filter(p => p.estado === 'Activa') || [];
       setPromotions(activePromos);
-      
+
       // Enviar promociones al OrderContext
-      dispatch({ 
-        type: 'SET_PROMOTIONS', 
-        payload: { 
+      dispatch({
+        type: 'SET_PROMOTIONS',
+        payload: {
           promotions: activePromos,
           productsMap: new Map()
-        } 
+        }
       });
-      
-      // Agregar promociones a las categorías si hay promociones activas
-      if (activePromos.length > 0) {
-        setCategories(prev => {
-          if (!prev.includes('Promociones')) {
-            return [...prev, 'Promociones'];
-          }
-          return prev;
-        });
-      }
+
+      // Agregar categorías de promociones y combos si hay activas
+      const hasPromotions = activePromos.some(p => p.tipo !== 'COMBO');
+      const hasCombos = activePromos.some(p => p.tipo === 'COMBO');
+
+      setCategories(prev => {
+        const newCategories = [...prev];
+        if (hasPromotions && !newCategories.includes('Promociones')) {
+          newCategories.push('Promociones');
+        }
+        if (hasCombos && !newCategories.includes('Combos')) {
+          newCategories.push('Combos');
+        }
+        return newCategories;
+      });
     } catch (error) {
       console.error('Error al cargar promociones:', error);
     }
@@ -283,10 +288,10 @@ export default function POS() {
   async function loadProducts() {
     try {
       setLoading(true);
-      
+
       // Si seleccionó "Promociones", mostrar promociones
       if (selectedCategory === 'Promociones') {
-        const activePromos = promotions.filter(p => p.estado === 'Activa');
+        const activePromos = promotions.filter(p => p.estado === 'Activa' && p.tipo !== 'COMBO');
         // Convertir promociones a formato similar a productos para mostrarlas como cards
         const promoProducts = activePromos.map(promo => ({
           _id: promo._id,
@@ -299,6 +304,20 @@ export default function POS() {
           promotionData: promo
         }));
         setProducts(promoProducts);
+      } else if (selectedCategory === 'Combos') {
+        // Si seleccionó "Combos", mostrar combos
+        const activeCombos = promotions.filter(p => p.estado === 'Activa' && p.tipo === 'COMBO');
+        const comboProducts = activeCombos.map(combo => ({
+          _id: combo._id,
+          id: combo._id,
+          nombre: combo.nombre,
+          precio: combo.precioCombo,
+          categoria: 'Combos',
+          descripcion: combo.descripcion || combo.productosCombo?.map(pc => `${pc.nombre} (x${pc.cantidad})`).join(', ') || '',
+          isCombo: true,
+          comboData: combo
+        }));
+        setProducts(comboProducts);
       } else {
         const category = selectedCategory === 'Todas' ? '' : selectedCategory;
         const data = await getProducts(searchTerm, category);
@@ -315,7 +334,8 @@ export default function POS() {
     const map = {
       'BUY_X_PAY_Y': '2x1 / X/Y',
       'PERCENTAGE_DISCOUNT': 'Descuento %',
-      'FIXED_DISCOUNT': 'Descuento fijo'
+      'FIXED_DISCOUNT': 'Descuento fijo',
+      'COMBO': 'Combo'
     };
     return map[tipo] || tipo;
   }
@@ -326,7 +346,13 @@ export default function POS() {
       handlePromotionClick(product.promotionData);
       return;
     }
-    
+
+    // Si es un combo, agregar el combo al carrito
+    if (product.isCombo && product.comboData) {
+      handleComboClick(product.comboData);
+      return;
+    }
+
     setSelectedProduct(product);
     setShowCustomizationModal(true);
   }
@@ -335,7 +361,7 @@ export default function POS() {
     try {
       // Obtener los productos participantes de la promoción
       const allProducts = await getProducts();
-      const participantProducts = allProducts.filter(p => 
+      const participantProducts = allProducts.filter(p =>
         promotion.productosParticipantes.some(pp => pp.producto_id === (p._id || p.id))
       );
 
@@ -359,6 +385,54 @@ export default function POS() {
     } catch (error) {
       console.error('Error al aplicar promoción:', error);
       Swal.fire('Error', 'No se pudo aplicar la promoción', 'error');
+    }
+  }
+
+  async function handleComboClick(combo) {
+    try {
+      // Obtener los productos del combo
+      const allProducts = await getProducts();
+      const comboProducts = [];
+
+      for (const pc of combo.productosCombo) {
+        const product = allProducts.find(p => (p._id || p.id) === pc.producto_id);
+        if (product) {
+          comboProducts.push({
+            ...product,
+            cantidadCombo: pc.cantidad
+          });
+        }
+      }
+
+      if (comboProducts.length === 0) {
+        Swal.fire('Info', 'No hay productos disponibles para este combo', 'info');
+        return;
+      }
+
+      // Agregar el combo como un item especial al carrito
+      const comboItem = {
+        _id: combo._id,
+        id: combo._id,
+        nombre: combo.nombre,
+        precio: combo.precioCombo,
+        categoria: 'Combos',
+        isCombo: true,
+        comboData: combo,
+        comboProducts: comboProducts
+      };
+
+      addItem(comboItem, { isCombo: true, comboProducts });
+
+      Swal.fire({
+        title: '¡Combo agregado!',
+        text: `Se agregó el combo "${combo.nombre}" al carrito`,
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false
+      });
+    } catch (error) {
+      console.error('Error al agregar combo:', error);
+      Swal.fire('Error', 'No se pudo agregar el combo', 'error');
     }
   }
 

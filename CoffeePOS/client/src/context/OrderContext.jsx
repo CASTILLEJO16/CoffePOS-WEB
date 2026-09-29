@@ -69,6 +69,53 @@ function orderReducer(state, action) {
 
       const existingItem = state.items.find(item => item.uniqueId === uniqueId);
 
+      // Si es un combo, usar el precio del combo directamente
+      if (customization?.isCombo) {
+        const finalPrice = product.precio;
+
+        let newItems;
+        if (existingItem) {
+          newItems = state.items.map(item =>
+            item.uniqueId === uniqueId
+              ? { ...item, cantidad: item.cantidad + 1, importe: (item.cantidad + 1) * item.precio_final }
+              : item
+          );
+        } else {
+          newItems = [
+            ...state.items,
+            {
+              uniqueId: uniqueId,
+              producto_id: product._id || product.id,
+              producto_nombre: product.nombre,
+              precio_base: product.precio,
+              precio_final: finalPrice,
+              descuento: 0,
+              cantidad: 1,
+              importe: finalPrice,
+              personalizaciones: customization || {},
+              categoria: product.categoria || 'Combos',
+              promoDescuento: 0,
+              isCombo: true,
+              comboProducts: customization.comboProducts || []
+            }
+          ];
+        }
+
+        const subtotal = newItems.reduce((sum, item) => sum + item.importe, 0);
+        const ivaRate = getIVARate();
+        const impuestos = subtotal * ivaRate;
+        const total = subtotal + impuestos;
+
+        return {
+          ...state,
+          items: newItems,
+          subtotal,
+          impuestos,
+          total
+        };
+      }
+
+      // Producto normal
       // Calcular precio con descuento de producto
       const discountedPrice = calculatePriceWithDiscount(product.precio, product.descuento);
 

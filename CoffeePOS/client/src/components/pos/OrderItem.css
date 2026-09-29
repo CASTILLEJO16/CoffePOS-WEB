@@ -122,3 +122,31 @@
   background: var(--color-danger-light);
   color: var(--color-danger);
 }
+
+.combo-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: var(--color-surface-hover);
+  border-radius: var(--border-radius-sm);
+  border-left: 3px solid var(--color-primary);
+}
+
+.combo-breakdown-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.combo-breakdown-name {
+  font-weight: var(--font-weight-normal);
+}
+
+.combo-breakdown-qty {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+}

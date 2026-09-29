@@ -29,13 +29,50 @@ const PromotionSchema = new mongoose.Schema({
   }],
   cantidadComprar: {
     type: Number,
-    required: true,
+    required: function() { return this.tipo === 'BUY_X_PAY_Y'; },
     min: 1
   },
   cantidadPagar: {
     type: Number,
-    required: true,
+    required: function() { return this.tipo === 'BUY_X_PAY_Y'; },
     min: 1
+  },
+  descuentoPorcentaje: {
+    type: Number,
+    required: function() { return this.tipo === 'PERCENTAGE_DISCOUNT'; },
+    min: 0,
+    max: 100
+  },
+  descuentoFijo: {
+    type: Number,
+    required: function() { return this.tipo === 'FIXED_DISCOUNT'; },
+    min: 0
+  },
+  productosCombo: [{
+    producto_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product',
+      required: true
+    },
+    nombre: {
+      type: String,
+      required: true
+    },
+    cantidad: {
+      type: Number,
+      required: true,
+      default: 1,
+      min: 1
+    }
+  }],
+  precioCombo: {
+    type: Number,
+    required: function() { return this.tipo === 'COMBO'; },
+    min: 0
+  },
+  descripcion: {
+    type: String,
+    default: ''
   },
   fechaInicio: {
     type: Date,

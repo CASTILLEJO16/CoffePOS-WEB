@@ -2,13 +2,19 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useForm } from 'react-hook-form';
 import Swal from 'sweetalert2';
-import { deletePromotion as deletePromotionApi, getPromotions as getPromotionsApi } from '../services/promotionService.js';
+import { deletePromotion as deletePromotionApi, getPromotions as getPromotionsApi, createPromotion as createPromotionApi, updatePromotion as updatePromotionApi } from '../services/promotionService.js';
 import { getProducts } from '../services/productService.js';
 import Button from '../components/common/Button.jsx';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2, Package, Tag } from 'lucide-react';
 import './AdminPromociones.css';
 
 const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const TIPOS_PROMOCION = [
+  { value: 'BUY_X_PAY_Y', label: '2x1 / X/Y (Comprar X, pagar Y)' },
+  { value: 'PERCENTAGE_DISCOUNT', label: 'Descuento porcentaje' },
+  { value: 'FIXED_DISCOUNT', label: 'Descuento fijo' },
+  { value: 'COMBO', label: 'Combo personalizado' }
+];
 
 export default function AdminPromociones() {
   const { user } = useAuth();
@@ -18,6 +24,10 @@ export default function AdminPromociones() {
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [diasSeleccionados, setDiasSeleccionados] = useState(DIAS_SEMANA);
+  const [productosSeleccionados, setProductosSeleccionados] = useState([]);
+  const [productosCombo, setProductosCombo] = useState([]);
+  const [activeTab, setActiveTab] = useState('promociones'); // 'promociones' o 'combos'
+  const [tipoSeleccionado, setTipoSeleccionado] = useState('BUY_X_PAY_Y');
 
   useEffect(() => {
     loadData();
@@ -26,7 +36,7 @@ export default function AdminPromociones() {
   async function loadData() {
     try {
       const promoResp = await getPromotionsApi();
-      setPromotions(promoResp.data || []);
+      setPromotions(promoResp || []);
     } catch (e) { console.error('Error promo:', e); }
     try {
       const prodResp = await getProducts();
@@ -40,10 +50,15 @@ export default function AdminPromociones() {
     try {
       const payload = {
         nombre: data.nombre,
-        tipo: data.tipo,
-        productosParticipantes: data.productosParticipantes || [],
+        tipo: tipoSeleccionado,
+        productosParticipantes: productosSeleccionados,
         cantidadComprar: parseInt(data.cantidadComprar) || 2,
         cantidadPagar: parseInt(data.cantidadPagar) || 1,
+        descuentoPorcentaje: parseFloat(data.descuentoPorcentaje) || 0,
+        descuentoFijo: parseFloat(data.descuentoFijo) || 0,
+        productosCombo: productosCombo,
+        precioCombo: parseFloat(data.precioCombo) || 0,
+        descripcion: data.descripcion || '',
         fechaInicio: data.fechaInicio,
         fechaFinalizacion: data.fechaFinalizacion,
         horaInicio: data.horaInicio || '00:00',
@@ -52,22 +67,18 @@ export default function AdminPromociones() {
         estado: data.estado || 'Activa'
       };
       if (editing) {
-        await fetch(`/api/promociones/${editing._id}`, {
-          method: 'PUT',
-          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+        await updatePromotionApi(editing._id, payload);
       } else {
-        await fetch('/api/promociones', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+        await createPromotionApi(payload);
       }
       Swal.fire('Guardado', 'Promoción guardada correctamente', 'success');
       setShowForm(false);
       setEditing(null);
       reset();
+      setProductosSeleccionados([]);
+      setProductosCombo([]);
+      setDiasSeleccionados(DIAS_SEMANA);
+      setTipoSeleccionado('BUY_X_PAY_Y');
       loadData();
     } catch (err) {
       console.error(err);
@@ -94,37 +105,91 @@ export default function AdminPromociones() {
     );
   }
 
+  function toggleProducto(productId) {
+    setProductosSeleccionados(prev =>
+      prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]
+    );
+  }
+
+  function addProductoCombo() {
+    setProductosCombo(prev => [...prev, { producto_id: '', cantidad: 1 }]);
+  }
+
+  function updateProductoCombo(index, field, value) {
+    setProductosCombo(prev => {
+      const newCombo = [...prev];
+      newCombo[index][field] = value;
+      return newCombo;
+    });
+  }
+
+  function removeProductoCombo(index) {
+    setProductosCombo(prev => prev.filter((_, i) => i !== index));
+  }
+
   function openNew() {
     setEditing(null);
     reset();
     setDiasSeleccionados(DIAS_SEMANA);
+    setProductosSeleccionados([]);
+    setProductosCombo([]);
+    setTipoSeleccionado(activeTab === 'combos' ? 'COMBO' : 'BUY_X_PAY_Y');
     setShowForm(true);
   }
 
   function openEdit(promo) {
     setEditing(promo);
     setDiasSeleccionados(promo.diasSemana?.length ? promo.diasSemana : DIAS_SEMANA);
+    setTipoSeleccionado(promo.tipo);
+    setProductosSeleccionados(promo.productosParticipantes?.map(p => p.producto_id.toString()) || []);
+    setProductosCombo(promo.productosCombo?.map(pc => ({
+      producto_id: pc.producto_id.toString(),
+      cantidad: pc.cantidad
+    })) || []);
     setShowForm(true);
   }
+
+  const filteredPromotions = promotions.filter(promo =>
+    activeTab === 'combos' ? promo.tipo === 'COMBO' : promo.tipo !== 'COMBO'
+  );
 
   return (
     <div className="admin-promociones-page">
       <div className="admin-promociones-header">
         <div className="admin-promociones-title-wrapper">
-          <h1 className="admin-promociones-title">Promociones</h1>
+          <h1 className="admin-promociones-title">Promociones y Combos</h1>
         </div>
-        <Button onClick={openNew} icon={Plus}>Nueva Promoción</Button>
+        <Button onClick={openNew} icon={Plus}>
+          {activeTab === 'combos' ? 'Nuevo Combo' : 'Nueva Promoción'}
+        </Button>
+      </div>
+
+      <div className="tabs-container">
+        <button
+          className={`tab-button ${activeTab === 'promociones' ? 'active' : ''}`}
+          onClick={() => setActiveTab('promociones')}
+        >
+          <Tag size={18} />
+          Promociones
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'combos' ? 'active' : ''}`}
+          onClick={() => setActiveTab('combos')}
+        >
+          <Package size={18} />
+          Combos
+        </button>
       </div>
 
       <div className="admin-promociones-content">
-        {promotions.length === 0 ? (
+        {filteredPromotions.length === 0 ? (
           <div className="empty-state">
-            <p>No hay promociones activas</p>
-            <p>Crea tu primera promoción para comenzar</p>
+            <p>No hay {activeTab === 'combos' ? 'combos' : 'promociones'} activas</p>
+            <p>Crea tu primera {activeTab === 'combos' ? 'combo' : 'promoción'} para comenzar</p>
           </div>
         ) : (
           <div className="promotions-grid">
-            {promotions.map(promo => (
+            {filteredPromotions.map(promo => (
               <div key={promo._id} className="promotion-card">
                 <div className="promotion-card-header">
                   <span className="promotion-type-badge">{promo.tipo}</span>
@@ -134,12 +199,38 @@ export default function AdminPromociones() {
                 </div>
                 <div className="promotion-card-body">
                   <h3 className="promotion-nombre">{promo.nombre}</h3>
-                  <p className="promotion-desc">
-                    {promo.productosParticipantes?.map(pp => pp.nombre).join(', ') || 'Sin productos'}
-                  </p>
-                  <p className="promotion-rules">
-                    Comprar: {promo.cantidadComprar} | Pagar: {promo.cantidadPagar}
-                  </p>
+                  {promo.descripcion && <p className="promotion-desc">{promo.descripcion}</p>}
+                  {promo.tipo === 'COMBO' ? (
+                    <>
+                      <p className="promotion-desc">
+                        {promo.productosCombo?.map(pc => `${pc.nombre} (x${pc.cantidad})`).join(', ') || 'Sin productos'}
+                      </p>
+                      <p className="promotion-rules">
+                        Precio combo: ${promo.precioCombo}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="promotion-desc">
+                        {promo.productosParticipantes?.map(pp => pp.nombre).join(', ') || 'Sin productos'}
+                      </p>
+                      {promo.tipo === 'BUY_X_PAY_Y' && (
+                        <p className="promotion-rules">
+                          Comprar: {promo.cantidadComprar} | Pagar: {promo.cantidadPagar}
+                        </p>
+                      )}
+                      {promo.tipo === 'PERCENTAGE_DISCOUNT' && (
+                        <p className="promotion-rules">
+                          Descuento: {promo.descuentoPorcentaje}%
+                        </p>
+                      )}
+                      {promo.tipo === 'FIXED_DISCOUNT' && (
+                        <p className="promotion-rules">
+                          Descuento: ${promo.descuentoFijo}
+                        </p>
+                      )}
+                    </>
+                  )}
                 </div>
                 <div className="promotion-card-footer">
                   <Button variant="secondary" size="small" onClick={() => openEdit(promo)}>Editar</Button>
@@ -163,34 +254,109 @@ export default function AdminPromociones() {
 
               <div className="form-group">
                 <label>Tipo *</label>
-                <select {...register('tipo')} defaultValue={editing?.tipo || 'BUY_X_PAY_Y'}>
-                  <option value="BUY_X_PAY_Y">2x1 / X/Y (Comprar X, pagar Y)</option>
-                  <option value="PERCENTAGE_DISCOUNT">Descuento %</option>
-                  <option value="FIXED_DISCOUNT">Descuento fijo</option>
-                  <option value="COMBO">Combo</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Productos participantes *</label>
-                <select {...register('productosParticipantes')} multiple style={{ minHeight: '120px' }}>
-                  {products.map(p => (
-                    <option key={p._id} value={p._id}>{p.nombre}</option>
+                <select value={tipoSeleccionado} onChange={(e) => setTipoSeleccionado(e.target.value)}>
+                  {TIPOS_PROMOCION.map(tipo => (
+                    <option key={tipo.value} value={tipo.value}>{tipo.label}</option>
                   ))}
                 </select>
-                <small className="form-hint">Mantén Ctrl/Cmd para seleccionar varios</small>
               </div>
 
-              <div className="form-row">
-                <div className="form-group half">
-                  <label>Cantidad a comprar *</label>
-                  <input {...register('cantidadComprar', { required: true })} type="number" min="1" defaultValue={editing?.cantidadComprar || 2} />
-                </div>
-                <div className="form-group half">
-                  <label>Cantidad a pagar *</label>
-                  <input {...register('cantidadPagar', { required: true })} type="number" min="1" defaultValue={editing?.cantidadPagar || 1} />
-                </div>
-              </div>
+              {tipoSeleccionado === 'COMBO' ? (
+                <>
+                  <div className="form-group">
+                    <label>Descripción</label>
+                    <input {...register('descripcion')} type="text" placeholder="Ej: Desayuno completo" defaultValue={editing?.descripcion || ''} />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Productos del combo *</label>
+                    <div className="combo-products-list">
+                      {productosCombo.map((pc, index) => (
+                        <div key={index} className="combo-product-row">
+                          <select
+                            value={pc.producto_id}
+                            onChange={(e) => updateProductoCombo(index, 'producto_id', e.target.value)}
+                            className="combo-product-select"
+                          >
+                            <option value="">Seleccionar producto</option>
+                            {products.map(p => (
+                              <option key={p._id} value={p._id}>{p.nombre}</option>
+                            ))}
+                          </select>
+                          <input
+                            type="number"
+                            min="1"
+                            value={pc.cantidad}
+                            onChange={(e) => updateProductoCombo(index, 'cantidad', parseInt(e.target.value))}
+                            className="combo-quantity-input"
+                            placeholder="Cant"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeProductoCombo(index)}
+                            className="combo-remove-btn"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button type="button" onClick={addProductoCombo} className="combo-add-btn">
+                        <Plus size={16} /> Agregar producto
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Precio del combo *</label>
+                    <input {...register('precioCombo', { required: true })} type="number" min="0" step="0.01" defaultValue={editing?.precioCombo || ''} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="form-group">
+                    <label>Productos participantes *</label>
+                    <div className="products-checkbox-list">
+                      {products.map(p => (
+                        <label key={p._id} className="product-checkbox-item">
+                          <input
+                            type="checkbox"
+                            checked={productosSeleccionados.includes(p._id)}
+                            onChange={() => toggleProducto(p._id)}
+                          />
+                          <span>{p.nombre}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {tipoSeleccionado === 'BUY_X_PAY_Y' && (
+                    <div className="form-row">
+                      <div className="form-group half">
+                        <label>Cantidad a comprar *</label>
+                        <input {...register('cantidadComprar', { required: true })} type="number" min="1" defaultValue={editing?.cantidadComprar || 2} />
+                      </div>
+                      <div className="form-group half">
+                        <label>Cantidad a pagar *</label>
+                        <input {...register('cantidadPagar', { required: true })} type="number" min="1" defaultValue={editing?.cantidadPagar || 1} />
+                      </div>
+                    </div>
+                  )}
+
+                  {tipoSeleccionado === 'PERCENTAGE_DISCOUNT' && (
+                    <div className="form-group">
+                      <label>Descuento porcentaje *</label>
+                      <input {...register('descuentoPorcentaje', { required: true })} type="number" min="0" max="100" step="0.1" defaultValue={editing?.descuentoPorcentaje || ''} />
+                    </div>
+                  )}
+
+                  {tipoSeleccionado === 'FIXED_DISCOUNT' && (
+                    <div className="form-group">
+                      <label>Descuento fijo *</label>
+                      <input {...register('descuentoFijo', { required: true })} type="number" min="0" step="0.01" defaultValue={editing?.descuentoFijo || ''} />
+                    </div>
+                  )}
+                </>
+              )}
 
               <div className="form-row">
                 <div className="form-group half">
@@ -243,6 +409,7 @@ export default function AdminPromociones() {
                 <Button type="submit">{editing ? 'Actualizar' : 'Crear'}</Button>
               </div>
             </form>
+
           </div>
         </div>
       )}
