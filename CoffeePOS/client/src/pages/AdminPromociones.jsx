@@ -82,6 +82,8 @@ export default function AdminPromociones() {
       } else {
         await createPromotionApi(payload);
       }
+      window.dispatchEvent(new Event('promotionsUpdated'));
+      try { localStorage.setItem('promotions_updated_at', Date.now().toString()); } catch {}
       Swal.fire('Guardado', 'Promoción guardada correctamente', 'success');
       setShowForm(false);
       setEditing(null);
@@ -105,6 +107,8 @@ export default function AdminPromociones() {
     if (!result.isConfirmed) return;
     try {
       await deletePromotionApi(id);
+      window.dispatchEvent(new Event('promotionsUpdated'));
+      try { localStorage.setItem('promotions_updated_at', Date.now().toString()); } catch {}
       Swal.fire('Eliminado', 'Promoción eliminada', 'success');
       loadData();
     } catch (e) { Swal.fire('Error', 'No se pudo eliminar', 'error'); }

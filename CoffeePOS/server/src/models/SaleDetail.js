@@ -20,7 +20,10 @@ const SaleDetailSchema = new mongoose.Schema({
   producto_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',
-    required: true
+    required: false
+  },
+  producto_nombre: {
+    type: String
   },
   cantidad: {
     type: Number,

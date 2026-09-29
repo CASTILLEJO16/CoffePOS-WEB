@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatBusinessTime } from '../utils/dateTime.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
@@ -94,9 +94,25 @@ export default function POS() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [showPaymentModal, items, processing]);
 
+  const baseCategoriesRef = useRef(DEFAULT_CATEGORIES);
+  const promotionsRef = useRef([]);
+
+  function mergeCategories(baseCats, activePromos) {
+    const list = [...(baseCats || DEFAULT_CATEGORIES)];
+    const hasPromotions = activePromos?.some(p => p.tipo !== 'COMBO');
+    const hasCombos = activePromos?.some(p => p.tipo === 'COMBO');
+
+    if (hasPromotions && !list.includes('Promociones')) {
+      list.push('Promociones');
+    }
+    if (hasCombos && !list.includes('Combos')) {
+      list.push('Combos');
+    }
+    return list;
+  }
+
   useEffect(() => {
     loadProducts();
-    loadPromotions();
   }, [searchTerm, selectedCategory]);
 
   useEffect(() => {
@@ -109,6 +125,22 @@ export default function POS() {
     loadBusinessInfo();
   }, []);
 
+  // Escuchar cambios de promociones en tiempo real
+  useEffect(() => {
+    function handlePromotionsUpdate() {
+      loadPromotions();
+    }
+    function handlePromotionsStorage(e) {
+      if (e.key === 'promotions_updated_at') loadPromotions();
+    }
+    window.addEventListener('promotionsUpdated', handlePromotionsUpdate);
+    window.addEventListener('storage', handlePromotionsStorage);
+    return () => {
+      window.removeEventListener('promotionsUpdated', handlePromotionsUpdate);
+      window.removeEventListener('storage', handlePromotionsStorage);
+    };
+  }, []);
+
   async function loadPromotions() {
     try {
       const response = await getPromotions();
@@ -116,27 +148,17 @@ export default function POS() {
       const promosData = Array.isArray(response) ? response : [];
       const activePromos = promosData.filter(p => p.estado === 'Activa');
       setPromotions(activePromos);
+      promotionsRef.current = activePromos;
 
       // Enviar promociones al OrderContext
       setContextPromotions(activePromos, new Map());
 
-      // Agregar categorías de promociones y combos si hay activas
-      const hasPromotions = activePromos.some(p => p.tipo !== 'COMBO');
-      const hasCombos = activePromos.some(p => p.tipo === 'COMBO');
-
-      setCategories(prev => {
-        const newCategories = [...prev];
-        if (hasPromotions && !newCategories.includes('Promociones')) {
-          newCategories.push('Promociones');
-        }
-        if (hasCombos && !newCategories.includes('Combos')) {
-          newCategories.push('Combos');
-        }
-        return newCategories;
-      });
+      // Mantener las categorías base unidas con las promociones y combos activos
+      setCategories(mergeCategories(baseCategoriesRef.current, activePromos));
     } catch (error) {
       console.error('Error al cargar promociones:', error);
       setPromotions([]);
+      promotionsRef.current = [];
     }
   }
 
@@ -264,10 +286,12 @@ export default function POS() {
     try {
       setLoadingCategories(true);
       const data = await getCategories();
-      setCategories(data);
+      baseCategoriesRef.current = data;
+      setCategories(mergeCategories(data, promotionsRef.current));
     } catch (error) {
       console.error('Error al cargar categorías:', error);
-      setCategories(DEFAULT_CATEGORIES);
+      baseCategoriesRef.current = DEFAULT_CATEGORIES;
+      setCategories(mergeCategories(DEFAULT_CATEGORIES, promotionsRef.current));
     } finally {
       setLoadingCategories(false);
     }

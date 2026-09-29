@@ -151,9 +151,38 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     });
     const productsMap = new Map(products.map(p => [p._id.toString(), p]));
 
-    // Optimización: Obtener todas las recetas en una sola query
+    // Buscar promociones tipo COMBO para los IDs que no sean productos directos
+    const missingProductIds = productIds.filter(id => !productsMap.has(id.toString()));
+    const combos = missingProductIds.length > 0
+      ? await Promotion.find({
+          _id: { $in: missingProductIds },
+          tipo: 'COMBO'
+        })
+      : [];
+    const combosMap = new Map(combos.map(c => [c._id.toString(), c]));
+
+    // Obtener los productos que componen los combos para cargar sus recetas y stock
+    const comboProductIds = [];
+    combos.forEach(c => {
+      if (c.productosCombo) {
+        c.productosCombo.forEach(pc => {
+          if (pc.producto_id) comboProductIds.push(pc.producto_id);
+        });
+      }
+    });
+
+    if (comboProductIds.length > 0) {
+      const additionalProducts = await Product.find({
+        _id: { $in: comboProductIds },
+        activo: true
+      });
+      additionalProducts.forEach(p => productsMap.set(p._id.toString(), p));
+    }
+
+    // Optimización: Obtener todas las recetas en una sola query (incluyendo productos de combos)
+    const allRelevantProductIds = [...productIds, ...comboProductIds];
     const recipes = await Recipe.find({ 
-      producto_id: { $in: productIds },
+      producto_id: { $in: allRelevantProductIds },
       clientId 
     });
     const recipesMap = new Map();
@@ -168,17 +197,33 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
         throw new Error('Cantidad inválida');
       }
       const product = productsMap.get(item.producto_id.toString());
+      const combo = combosMap.get(item.producto_id.toString());
 
-      if (!product) {
+      if (!product && !combo) {
         throw new Error(`Producto con ID ${item.producto_id} no encontrado o inactivo`);
       }
 
       const cantidad = item.cantidad;
-      let precio = product.precio;
-      if (item.precio_final !== undefined && item.precio_final !== null) {
-        const parsed = parseFloat(item.precio_final);
-        if (!Number.isNaN(parsed) && parsed > 0) {
-          precio = parsed;
+      let precio = 0;
+      let nombre = '';
+
+      if (combo) {
+        nombre = combo.nombre;
+        precio = combo.precioCombo;
+        if (item.precio_final !== undefined && item.precio_final !== null) {
+          const parsed = parseFloat(item.precio_final);
+          if (!Number.isNaN(parsed) && parsed >= 0) {
+            precio = parsed;
+          }
+        }
+      } else {
+        nombre = product.nombre;
+        precio = product.precio;
+        if (item.precio_final !== undefined && item.precio_final !== null) {
+          const parsed = parseFloat(item.precio_final);
+          if (!Number.isNaN(parsed) && parsed > 0) {
+            precio = parsed;
+          }
         }
       }
 
@@ -188,23 +233,37 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
       subtotal += importe;
 
       processedItems.push({
-        producto_id: product._id,
-        producto_nombre: product.nombre,
+        producto_id: combo ? combo._id : product._id,
+        producto_nombre: nombre,
         cantidad,
         precio,
         importe,
-        personalizaciones
+        personalizaciones,
+        isCombo: !!combo,
+        comboData: combo || null
       });
     }
 
     // Acumular necesidades de stock de productos sin receta (se descontará después de validar ingredientes)
     const productStockNeeds = {};
     for (const item of processedItems) {
-      const productRecipes = recipesMap.get(item.producto_id.toString()) || [];
-      if (productRecipes.length === 0) {
-        const key = item.producto_id.toString();
-        if (!productStockNeeds[key]) productStockNeeds[key] = { product: productsMap.get(key), cantidad: 0 };
-        productStockNeeds[key].cantidad += item.cantidad;
+      if (item.isCombo && item.comboData) {
+        for (const pc of (item.comboData.productosCombo || [])) {
+          const pId = pc.producto_id.toString();
+          const pRecipes = recipesMap.get(pId) || [];
+          if (pRecipes.length === 0) {
+            const pObj = productsMap.get(pId);
+            if (!productStockNeeds[pId]) productStockNeeds[pId] = { product: pObj, cantidad: 0 };
+            productStockNeeds[pId].cantidad += (pc.cantidad || 1) * item.cantidad;
+          }
+        }
+      } else {
+        const productRecipes = recipesMap.get(item.producto_id.toString()) || [];
+        if (productRecipes.length === 0) {
+          const key = item.producto_id.toString();
+          if (!productStockNeeds[key]) productStockNeeds[key] = { product: productsMap.get(key), cantidad: 0 };
+          productStockNeeds[key].cantidad += item.cantidad;
+        }
       }
     }
 
@@ -410,77 +469,93 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
       customRecipesMap.get(key).push(cr);
     });
 
-    for (const item of items) {
-      const qty = item.cantidad;
-      
-      // Obtener la receta base del producto (usando el mapa de recetas)
-      const productRecipes = recipesMap.get(item.producto_id.toString()) || [];
-      const baseRecipe = await Recipe.aggregate([
-        { $match: { _id: { $in: productRecipes.map(r => r._id) } }},
-        { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' }},
-        { $unwind: '$ingrediente' },
-        { $match: { 'ingrediente.activo': true, 'ingrediente.clientId': new mongoose.Types.ObjectId(clientId) }},
-        { $project: { 
-          ingrediente_id: 1, 
-          cantidad: 1, 
-          nombre: '$ingrediente.nombre', 
-          unidad_medida: '$ingrediente.unidad_medida', 
-          categoria_reemplazo: '$ingrediente.categoria_reemplazo' 
-        }}
-      ]);
-
-      // Identificar categorías de personalización seleccionadas
-      const categoriesToReplace = new Set();
-      const customRecipesToApply = [];
-
-      if (item.personalizaciones) {
-        let opcionesSeleccionadas = [];
-        if (Array.isArray(item.personalizaciones)) {
-          opcionesSeleccionadas = item.personalizaciones;
-        } else if (typeof item.personalizaciones === 'object') {
-          opcionesSeleccionadas = Object.values(item.personalizaciones).flat();
+    for (const item of processedItems) {
+      // Si es un combo, descomponer en cada producto participante y aplicar sus recetas
+      const itemsToApplyRecipes = [];
+      if (item.isCombo && item.comboData) {
+        for (const pc of (item.comboData.productosCombo || [])) {
+          itemsToApplyRecipes.push({
+            producto_id: pc.producto_id,
+            cantidad: (pc.cantidad || 1) * item.cantidad,
+            personalizaciones: null
+          });
         }
+      } else {
+        itemsToApplyRecipes.push(item);
+      }
 
-        for (const opcion of opcionesSeleccionadas) {
-          if (!opcion?.id) continue;
-          
-          // Obtener la personalización del mapa (bulk fetch)
-          const customDb = personalizationsMap.get(opcion.id.toString());
-          if (customDb && customDb.tipo) {
-            categoriesToReplace.add(customDb.tipo);
+      for (const subItem of itemsToApplyRecipes) {
+        const qty = subItem.cantidad;
+        
+        // Obtener la receta base del producto (usando el mapa de recetas)
+        const productRecipes = recipesMap.get(subItem.producto_id.toString()) || [];
+        const baseRecipe = await Recipe.aggregate([
+          { $match: { _id: { $in: productRecipes.map(r => r._id) } }},
+          { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' }},
+          { $unwind: '$ingrediente' },
+          { $match: { 'ingrediente.activo': true, 'ingrediente.clientId': new mongoose.Types.ObjectId(clientId) }},
+          { $project: { 
+            ingrediente_id: 1, 
+            cantidad: 1, 
+            nombre: '$ingrediente.nombre', 
+            unidad_medida: '$ingrediente.unidad_medida', 
+            categoria_reemplazo: '$ingrediente.categoria_reemplazo' 
+          }}
+        ]);
+
+        // Identificar categorías de personalización seleccionadas
+        const categoriesToReplace = new Set();
+        const customRecipesToApply = [];
+
+        if (subItem.personalizaciones) {
+          let opcionesSeleccionadas = [];
+          if (Array.isArray(subItem.personalizaciones)) {
+            opcionesSeleccionadas = subItem.personalizaciones;
+          } else if (typeof subItem.personalizaciones === 'object') {
+            opcionesSeleccionadas = Object.values(subItem.personalizaciones).flat();
           }
 
-          // Obtener la receta de la personalización del mapa (bulk fetch)
-          const custRecipes = customRecipesMap.get(opcion.id.toString()) || [];
-          customRecipesToApply.push(...custRecipes);
-        }
-      }
+          for (const opcion of opcionesSeleccionadas) {
+            if (!opcion?.id) continue;
+            
+            // Obtener la personalización del mapa (bulk fetch)
+            const customDb = personalizationsMap.get(opcion.id.toString());
+            if (customDb && customDb.tipo) {
+              categoriesToReplace.add(customDb.tipo);
+            }
 
-      // Filtrar receta base: omitir ingredientes que tienen categoría de reemplazo
-      // si el cliente seleccionó una personalización de esa categoría
-      const finalBaseRecipe = baseRecipe.filter(br => {
-        if (br.categoria_reemplazo && categoriesToReplace.has(br.categoria_reemplazo)) {
-          return false; // Omitir este ingrediente de la receta base
+            // Obtener la receta de la personalización del mapa (bulk fetch)
+            const custRecipes = customRecipesMap.get(opcion.id.toString()) || [];
+            customRecipesToApply.push(...custRecipes);
+          }
         }
-        return true; // Mantener este ingrediente
-      });
 
-      // Sumar ingredientes de la receta base filtrada
-      for (const row of finalBaseRecipe) {
-        const key = row.ingrediente_id;
-        if (!ingredientNeeds[key]) {
-          ingredientNeeds[key] = { nombre: row.nombre, unidad_medida: row.unidad_medida, cantidad: 0 };
-        }
-        ingredientNeeds[key].cantidad += row.cantidad * qty;
-      }
+        // Filtrar receta base: omitir ingredientes que tienen categoría de reemplazo
+        // si el cliente seleccionó una personalización de esa categoría
+        const finalBaseRecipe = baseRecipe.filter(br => {
+          if (br.categoria_reemplazo && categoriesToReplace.has(br.categoria_reemplazo)) {
+            return false; // Omitir este ingrediente de la receta base
+          }
+          return true; // Mantener este ingrediente
+        });
 
-      // Sumar ingredientes de las personalizaciones seleccionadas
-      for (const row of customRecipesToApply) {
-        const key = row.ingrediente_id;
-        if (!ingredientNeeds[key]) {
-          ingredientNeeds[key] = { nombre: row.nombre, unidad_medida: row.unidad_medida, cantidad: 0 };
+        // Sumar ingredientes de la receta base filtrada
+        for (const row of finalBaseRecipe) {
+          const key = row.ingrediente_id;
+          if (!ingredientNeeds[key]) {
+            ingredientNeeds[key] = { nombre: row.nombre, unidad_medida: row.unidad_medida, cantidad: 0 };
+          }
+          ingredientNeeds[key].cantidad += row.cantidad * qty;
         }
-        ingredientNeeds[key].cantidad += row.cantidad * qty;
+
+        // Sumar ingredientes de las personalizaciones seleccionadas
+        for (const row of customRecipesToApply) {
+          const key = row.ingrediente_id;
+          if (!ingredientNeeds[key]) {
+            ingredientNeeds[key] = { nombre: row.nombre, unidad_medida: row.unidad_medida, cantidad: 0 };
+          }
+          ingredientNeeds[key].cantidad += row.cantidad * qty;
+        }
       }
     }
     
@@ -583,16 +658,24 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
       const product = productsMap.get(item.producto_id.toString());
       const descuento = product ? (product.descuento || 0) : 0;
 
-      // Buscar si este item tiene promoción aplicada
+      // Buscar si este item tiene promoción aplicada o es combo
       let itemPromotion = null;
-      for (const pd of promotionDetails) {
-        if (pd.freeItems && pd.freeItems.some(fi => fi.producto_id.toString() === item.producto_id.toString())) {
-          itemPromotion = {
-            promocion_id: pd.promocion_id,
-            promocion_nombre: pd.nombre,
-            promocion_tipo: pd.tipo
-          };
-          break;
+      if (item.isCombo && item.comboData) {
+        itemPromotion = {
+          promocion_id: item.comboData._id,
+          promocion_nombre: item.comboData.nombre,
+          promocion_tipo: 'COMBO'
+        };
+      } else {
+        for (const pd of promotionDetails) {
+          if (pd.freeItems && pd.freeItems.some(fi => fi.producto_id.toString() === item.producto_id.toString())) {
+            itemPromotion = {
+              promocion_id: pd.promocion_id,
+              promocion_nombre: pd.nombre,
+              promocion_tipo: pd.tipo
+            };
+            break;
+          }
         }
       }
 
@@ -600,6 +683,7 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
         clientId,
         venta_id: ventaId,
         producto_id: item.producto_id,
+        producto_nombre: item.producto_nombre,
         cantidad: item.cantidad,
         precio: item.precio,
         importe: item.importe,
@@ -913,7 +997,7 @@ async function attachSaleDetails(sales) {
     const obj = detail.toObject();
     bySale[detail.venta_id].push({
       ...obj,
-      producto_nombre: obj.producto_id?.nombre || 'Producto',
+      producto_nombre: obj.producto_nombre || obj.promocion_nombre || obj.producto_id?.nombre || 'Producto',
       personalizaciones: detail.personalizaciones
         ? JSON.parse(detail.personalizaciones)
         : null
@@ -1234,7 +1318,7 @@ export async function refundSale(saleId, userId, motivo = '', clientIdParam = nu
     for (const detail of saleDetails) {
       const qty = detail.cantidad;
       
-      const productBaseRecipes = baseRecipesMap.get(detail.producto_id.toString()) || [];
+      const productBaseRecipes = detail.producto_id ? (baseRecipesMap.get(detail.producto_id.toString()) || []) : [];
       
       // Identificar categorías de personalización seleccionadas
       const categoriesToReplace = new Set();
