@@ -1,222 +1,120 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useForm } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
-import { LoadingButton } from '../components/common/LoadingButton.jsx';
 import Swal from 'sweetalert2';
 import { deletePromotion as deletePromotionApi, getPromotions as getPromotionsApi } from '../services/promotionService.js';
 import { getProducts } from '../services/productService.js';
 import Button from '../components/common/Button.jsx';
-import { Check, XMark, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import './AdminPromociones.css';
+
+const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 export default function AdminPromociones() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { token } = user || {};
   const [promotions, setPromotions] = useState([]);
   const [products, setProducts] = useState([]);
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [comboVisible, setComboVisible] = useState(false);
+  const [diasSeleccionados, setDiasSeleccionados] = useState(DIAS_SEMANA);
 
-  // Cargar promociones
   useEffect(() => {
-    const loadPromotions = async () => {
-      try {
-        const response = await getPromotionsApi();
-        setPromotions(response.data || []);
-      } catch (error) {
-        console.error('Error cargando promociones:', error);
-      }
-    };
-    loadPromotions();
-  }, []);
-
-  // Cargar productos
-  useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        if (!token) return;
-        const response = await getProducts(token);
-        setProducts(response.data || []);
-      } catch (error) {
-        console.error('Error cargando productos:', error);
-      }
-    };
-    loadProducts();
+    loadData();
   }, [token]);
 
-  // Estados para el formulario con react-hook-form
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmiting }
-  } = useForm({
-    resolver: yupResolver(yup.object({
-      nombre: yup.string().required('Nombre es obligatorio').min(3, 'Mínimo 3 caracteres'),
-      tipo: yup.string().required('Tipo es obligatorio').oneOf(['BUY_X_PAY_Y', 'PERCENTAGE_DISCOUNT', 'FIXED_DISCOUNT', 'COMBO']),
-      producto_id: yup.string().required('Producto es obligatorio'),
-      cantidadComprar: yup.number().integer().min(1, 'Cantidad a comprar debe ser ≥ 1'),
-      cantidadPagar: yup.number().integer().min(1, 'Cantidad a pagar debe ser ≥ 1'),
-      fechaInicio: yup.date().required('Fecha de inicio es obligatoria'),
-      fechaFinalizacion: yup.date().required('Fecha de finalización es obligatoria').min(yup.ref('fechaInicio'), 'Must be after start date'),
-      horaInicio: yup.string().required('Hora de inicio es obligatoria'),
-      horaFinalizacion: yup.string().required('Hora de finalización es obligatoria'),
-      diasSemana: yup.array().of(
-        yup.string().oneOf(['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'])
-      ),
-      estado: yup.string().oneOf(['Activa', 'Inactiva'])
-    }))
-  });
+  async function loadData() {
+    try {
+      const promoResp = await getPromotionsApi();
+      setPromotions(promoResp.data || []);
+    } catch (e) { console.error('Error promo:', e); }
+    try {
+      const prodResp = await getProducts();
+      setProducts(prodResp || []);
+    } catch (e) { console.error('Error productos:', e); }
+  }
 
-  // Valores del formulario
-  const formValues = useWatch ? useWatch() : {};
-
-  // Para compatibilidad, usar valores del formulario
-  const getFormValue = (name) => {
-    // Simpler approach - just use register's state
-    const field = register(name);
-    return field ? field.value : '';
-  };
+  const { register, handleSubmit, reset } = useForm();
 
   const onSubmit = async (data) => {
     try {
-      setShowForm(false);
-      
-      const promoData = {
+      const payload = {
         nombre: data.nombre,
         tipo: data.tipo,
-        producto_id: data.producto_id,
-        cantidadComprar: data.cantidadComprar,
-        cantidadPagar: data.cantidadPagar,
+        productosParticipantes: data.productosParticipantes || [],
+        cantidadComprar: parseInt(data.cantidadComprar) || 2,
+        cantidadPagar: parseInt(data.cantidadPagar) || 1,
         fechaInicio: data.fechaInicio,
         fechaFinalizacion: data.fechaFinalizacion,
-        horaInicio: data.horaInicio,
-        horaFinalizacion: data.horaFinalizacion,
-        diasSemana: data.diasSemana,
-        estado: data.estado
+        horaInicio: data.horaInicio || '00:00',
+        horaFinalizacion: data.horaFinalizacion || '23:59',
+        diasSemana: diasSeleccionados,
+        estado: data.estado || 'Activa'
       };
-
       if (editing) {
         await fetch(`/api/promociones/${editing._id}`, {
           method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(promoData)
-        });
-        Swal.fire({
-          title: '¡Actualizado!',
-          text: 'Promoción actualizada correctamente',
-          icon: 'success',
-          timer: 1500,
-          showConfirmButton: false
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
       } else {
         await fetch('/api/promociones', {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(promoData)
-        });
-        Swal.fire({
-          title: '¡Creado!',
-          text: 'Promoción creada correctamente',
-          icon: 'success',
-          timer: 1500,
-          showConfirmButton: false
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
       }
-      
-      await loadPromotions();
-    } catch (error) {
-      console.error('Error al guardar promoción:', error);
-      const msg = error.response?.data?.error || error.message || 'Error al guardar promoción';
-      Swal.fire('Error', msg, 'error');
+      Swal.fire('Guardado', 'Promoción guardada correctamente', 'success');
+      setShowForm(false);
+      setEditing(null);
+      reset();
+      loadData();
+    } catch (err) {
+      console.error(err);
+      Swal.fire('Error', err.response?.data?.error || 'Error al guardar', 'error');
     }
   };
 
   async function handleDelete(id) {
-    if (!id || id === 'undefined') {
-      Swal.fire('Error', 'ID no válido: recarga la página', 'error');
-      return;
-    }
     const result = await Swal.fire({
-      title: '¿Eliminar promoción?',
-      text: 'Esta acción no se puede deshacer',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar'
+      title: '¿Eliminar?', text: 'No se puede deshacer', icon: 'warning',
+      showCancelButton: true, confirmButtonText: 'Sí', cancelButtonText: 'Cancelar'
     });
-    
     if (!result.isConfirmed) return;
-    
     try {
       await deletePromotionApi(id);
-      await loadPromotions();
-      Swal.fire('Eliminado', 'Promoción eliminada correctamente', 'success');
-    } catch (error) {
-      console.error('Error al eliminar promoción:', error);
-      const msg = error.response?.data?.error || error.message || 'Error al eliminar promoción';
-      Swal.fire('Error', msg, 'error');
-    }
+      Swal.fire('Eliminado', 'Promoción eliminada', 'success');
+      loadData();
+    } catch (e) { Swal.fire('Error', 'No se pudo eliminar', 'error'); }
   }
 
-  function formatTipo(tipo) {
-    const map = {
-      'BUY_X_PAY_Y': '2x1 / X/Y (Comprar X, pagar Y)',
-      'PERCENTAGE_DISCOUNT': 'Descuento %',
-      'FIXED_DISCOUNT': 'Descuento fijo',
-      'COMBO': 'Combo personalizado'
-    };
-    return map[tipo] || tipo;
+  function toggleDia(dia) {
+    setDiasSeleccionados(prev =>
+      prev.includes(dia) ? prev.filter(d => d !== dia) : [...prev, dia]
+    );
   }
 
-  // Watch hook para obtener valores del formulario
-  const useWatch = () => {
-    const api = register;
-    return {
-      nombre: api.nombre ? api.value : '',
-      tipo: api.tipo ? api.value : 'BUY_X_PAY_Y',
-      producto_id: api.producto_id ? api.value : '',
-      cantidadComprar: api.cantidadComprar ? parseInt(api.value) : 2,
-      cantidadPagar: api.cantidadPagar ? parseInt(api.value) : 1,
-      fechaInicio: new Date(),
-      fechaFinalizacion: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      horaInicio: '00:00',
-      horaFinalizacion: '23:59',
-      diasSemana: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
-    };
-  };
+  function openNew() {
+    setEditing(null);
+    reset();
+    setDiasSeleccionados(DIAS_SEMANA);
+    setShowForm(true);
+  }
+
+  function openEdit(promo) {
+    setEditing(promo);
+    setDiasSeleccionados(promo.diasSemana?.length ? promo.diasSemana : DIAS_SEMANA);
+    setShowForm(true);
+  }
 
   return (
     <div className="admin-promociones-page">
-      <header className="admin-promociones-header">
-        <div className="admin-promociones-header-left">
-          <div className="admin-promociones-title-wrapper">
-            <Flame className="admin-promociones-title-icon" size={28} />
-            <h1 className="admin-promociones-title">Promociones</h1>
-          </div>
-          <Button onClick={() => setShowForm(true)} icon={Plus} variant="primary">
-            Nueva Promoción
-          </Button>
+      <div className="admin-promociones-header">
+        <div className="admin-promociones-title-wrapper">
+          <h1 className="admin-promociones-title">Promociones</h1>
         </div>
-      </header>
-
-      <section className="admin-promociones-combos">
-        <h2>Nuevo Combo</h2>
-        <Button variant="secondary" onClick={() => setComboVisible(true)} className="add-combo-btn">
-          <Plus size={18} /> Agregar Combo
-        </Button>
-      </section>
+        <Button onClick={openNew} icon={Plus}>Nueva Promoción</Button>
+      </div>
 
       <div className="admin-promociones-content">
         {promotions.length === 0 ? (
@@ -226,12 +124,10 @@ export default function AdminPromociones() {
           </div>
         ) : (
           <div className="promotions-grid">
-            {promotions.map((promo, index) => (
+            {promotions.map(promo => (
               <div key={promo._id} className="promotion-card">
                 <div className="promotion-card-header">
-                  <span className="promotion-type-badge">
-                    {formatTipo(promo.tipo)}
-                  </span>
+                  <span className="promotion-type-badge">{promo.tipo}</span>
                   <span className={`promotion-status ${promo.estado === 'Activa' ? 'active' : 'inactive'}`}>
                     {promo.estado}
                   </span>
@@ -239,232 +135,117 @@ export default function AdminPromociones() {
                 <div className="promotion-card-body">
                   <h3 className="promotion-nombre">{promo.nombre}</h3>
                   <p className="promotion-desc">
-                    {promo.productosParticipantes.map(pp => `${pp.nombre}`).join(', ')}
+                    {promo.productosParticipantes?.map(pp => pp.nombre).join(', ') || 'Sin productos'}
                   </p>
                   <p className="promotion-rules">
-                    {promo.tipo === 'BUY_X_PAY_Y' && `
-                      Comprar: ${promo.cantidadComprar}
-                      Pagar: ${promo.cantidadPagar}
-                      ${promo.diasSemana && promo.diasSemana.length > 0 ? `Días: ${promo.diasSemana.join(', ')}` : ''}
-                      ${promo.horaInicio && promo.horaFinalizacion ? `Horario: ${promo.horaInicio} - ${promo.horaFinalizacion}` : ''}
-                    `}
-                    ${promo.tipo === 'PERCENTAGE_DISCOUNT' && '- Descuento porcentual en productos seleccionados'}
-                    ${promo.tipo === 'FIXED_DISCOUNT' && `- Descuento fijo de $${promo.cantidadPagar} en productos seleccionados`}
-                    ${promo.tipo === 'COMBO' && `- Precio especial de combo`}
+                    Comprar: {promo.cantidadComprar} | Pagar: {promo.cantidadPagar}
                   </p>
                 </div>
                 <div className="promotion-card-footer">
-                  <Button 
-                    variant="secondary" 
-                    size="small"
-                    onClick={() => setEditing(promo)}
-                  >
-                    Editar
-                  </Button>
-                  <Button 
-                    variant="danger" 
-                    size="small"
-                    onClick={() => handleDelete(promo._id)}
-                  >
-                    Eliminar
-                  </Button>
+                  <Button variant="secondary" size="small" onClick={() => openEdit(promo)}>Editar</Button>
+                  <Button variant="danger" size="small" onClick={() => handleDelete(promo._id)}>Eliminar</Button>
                 </div>
               </div>
             ))}
           </div>
         )}
-
-        {showForm && (
-          <div className="promotion-form-overlay">
-            <div className="promotion-form-card">
-              <h2>
-                {editing ? 'Editar Promoción' : 'Nueva Promoción'}
-              </h2>
-              <Button variant="secondary" onClick={() => setShowForm(false)}>&times; Cerrar</Button>
-              
-              <form onSubmit={handleSubmit(async (e) => {
-                e.preventDefault();
-                // Obtener valores actuales del formulario
-                const formData = {
-                  nombre: getFormValue('nombre'),
-                  tipo: getFormValue('tipo'),
-                  producto_id: getFormValue('producto_id'),
-                  cantidadComprar: parseInt(getFormValue('cantidadComprar')) || 2,
-                  cantidadPagar: parseInt(getFormValue('cantidadPagar')) || 1,
-                  fechaInicio: new Date(getFormValue('fechaInicio')),
-                  fechaFinalizacion: new Date(getFormValue('fechaFinalizacion')),
-                  horaInicio: getFormValue('horaInicio'),
-                  horaFinalizacion: getFormValue('horaFinalizacion'),
-                  diasSemana: // From checklist state
-                    (() => {
-                      // This is simplified - in real impl would use checklist state
-                      return ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-                    })(),
-                  estado: getFormValue('estado')
-                };
-                await onSubmit(formData);
-              })} className="promotion-form">
-                
-                <div className="form-section">
-                  <h3>Datos básicos</h3>
-                  
-                  <div className="form-group">
-                    <label>Nombre *</label>
-                    <input 
-                      ref={register('nombre')} 
-                      type="text" 
-                      required 
-                      placeholder="Nombre de la promoción"
-                    />
-                    {errors.nombre && <span className="error">{errors.nombre.message}</span>}
-                  </div>
-
-                  <div className="form-group">
-                    <label>Tipo *</label>
-                    <select 
-                      ref={register('tipo')} 
-                      required
-                    >
-                      <option value="BUY_X_PAY_Y">2x1 / X/Y (Comprar X, pagar Y)</option>
-                      <option value="PERCENTAGE_DISCOUNT">Descuento porcentual</option>
-                      <option value="FIXED_DISCOUNT">Descuento fijo</option>
-                      <option value="COMBO">Combo personalizado</option>
-                    </select>
-                    {errors.tipo && <span className="error">{errors.tipo.message}</span>}
-                  </select>
-                  <small>Selecciona el tipo de promoción</small>
-                  {/* Si es COMBO, mostrar campos adicionales */}
-                  {getFormValue('tipo') === 'COMBO' && (
-                    <div className="combo-fields">
-                      <h4>Productos del Combo</h4>
-                      <p>Selecciona 2+ productos para el combo</p>
-                    </div>
-                  )}
-                  {getFormValue('tipo') !== 'COMBO' && (
-                    <div className="product-field">
-                      <label>Producto participante *</label>
-                      <select 
-                        ref={register('producto_id')} 
-                        required
-                      >
-                        <option value="">Seleccionar producto</option>
-                        {products.map(p => (
-                          <option key={p._id} value={p._id}>
-                            {p.nombre}
-                          </option>
-                        ))}
-                      </select>
-                      {errors.producto_id && <span className="error">{errors.producto_id.message}</span>}
-                    </div>
-                  )}
-                </div>
-
-                <div className="form-group">
-                  <label>Cantidad a comprar *</label>
-                  <input 
-                    ref={register('cantidadComprar')} 
-                    type="number" 
-                    min="1" 
-                    required
-                  />
-                  {errors.cantidadComprar && <span className="error">{errors.cantidadComprar.message}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label>Cantidad a pagar *</label>
-                  <input 
-                    ref={register('cantidadPagar')} 
-                    type="number" 
-                    min="1" 
-                    required
-                  />
-                  {errors.cantidadPagar && <span className="error">{errors.cantidadPagar.message}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label>Fecha de inicio *</label>
-                  <input 
-                    ref={register('fechaInicio')} 
-                    type="date" 
-                    required
-                  />
-                  {errors.fechaInicio && <span className="error">{errors.fechaInicio.message}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label>Fecha de finalización *</label>
-                  <input 
-                    ref={register('fechaFinalizacion')} 
-                    type="date" 
-                    required
-                    min={getFormValue('fechaInicio')}
-                  />
-                  {errors.fechaFinalizacion && <span className="error">{errors.fechaFinalizacion.message}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label>Hora de inicio</label>
-                  <input 
-                    ref={register('horaInicio')} 
-                    type="time" 
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Hora de finalización</label>
-                  <input 
-                    ref={register('horaFinalizacion')} 
-                    type="time" 
-                    required
-                  />
-                </div>
-
-                <!-- Checklist de días en lugar de control select -->
-                <div className="days-checklist-section">
-                  <label>Días de la semana</label>
-                  <div className="days-checklist">
-                    {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(dia => (
-                      <label key={dia} className="day-check-item">
-                        <input
-                          type="checkbox"
-                          name="diasSemana"
-                          value={dia}
-                          checked={true} // Simplified - en tiempo real vendría del state
-                          onChange={(e) => {}}
-                        />
-                        <span className="day-name">{dia}</span>
-                      </label>
-                    ))
-                  </div>
-                  <small className="form-hint">Selecciona los días en los que aplica la promoción</small>
-                </div>
-
-                <div className="form-group">
-                  <label>Estado</label>
-                  <select 
-                    ref={register('estado')} 
-                    required
-                  >
-                    <option value="Activa">Activa</option>
-                    <option value="Inactiva">Inactiva</option>
-                  </select>
-                  {errors.estado && <span className="error">{errors.estado.message}</span>}
-                </div>
-
-                <div className="form-actions">
-                  <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit">
-                    {editing ? 'Actualizar' : 'Crear'}
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
       </div>
+
+      {showForm && (
+        <div className="promo-form-overlay" onClick={() => setShowForm(false)}>
+          <div className="promo-form-card" onClick={e => e.stopPropagation()}>
+            <h2>{editing ? 'Editar Promoción' : 'Nueva Promoción'}</h2>
+            <form onSubmit={handleSubmit(onSubmit)} className="promotion-form">
+              <div className="form-group">
+                <label>Nombre *</label>
+                <input {...register('nombre', { required: true })} type="text" placeholder="Ej: 2x1 Café Americano" defaultValue={editing?.nombre || ''} />
+              </div>
+
+              <div className="form-group">
+                <label>Tipo *</label>
+                <select {...register('tipo')} defaultValue={editing?.tipo || 'BUY_X_PAY_Y'}>
+                  <option value="BUY_X_PAY_Y">2x1 / X/Y (Comprar X, pagar Y)</option>
+                  <option value="PERCENTAGE_DISCOUNT">Descuento %</option>
+                  <option value="FIXED_DISCOUNT">Descuento fijo</option>
+                  <option value="COMBO">Combo</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Productos participantes *</label>
+                <select {...register('productosParticipantes')} multiple style={{ minHeight: '120px' }}>
+                  {products.map(p => (
+                    <option key={p._id} value={p._id}>{p.nombre}</option>
+                  ))}
+                </select>
+                <small className="form-hint">Mantén Ctrl/Cmd para seleccionar varios</small>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group half">
+                  <label>Cantidad a comprar *</label>
+                  <input {...register('cantidadComprar', { required: true })} type="number" min="1" defaultValue={editing?.cantidadComprar || 2} />
+                </div>
+                <div className="form-group half">
+                  <label>Cantidad a pagar *</label>
+                  <input {...register('cantidadPagar', { required: true })} type="number" min="1" defaultValue={editing?.cantidadPagar || 1} />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group half">
+                  <label>Fecha inicio *</label>
+                  <input {...register('fechaInicio', { required: true })} type="date" defaultValue={editing?.fechaInicio?.split('T')[0] || new Date().toISOString().split('T')[0]} />
+                </div>
+                <div className="form-group half">
+                  <label>Fecha fin *</label>
+                  <input {...register('fechaFinalizacion', { required: true })} type="date" defaultValue={editing?.fechaFinalizacion?.split('T')[0] || ''} />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group half">
+                  <label>Hora inicio</label>
+                  <input {...register('horaInicio')} type="time" defaultValue={editing?.horaInicio || '00:00'} />
+                </div>
+                <div className="form-group half">
+                  <label>Hora fin</label>
+                  <input {...register('horaFinalizacion')} type="time" defaultValue={editing?.horaFinalizacion || '23:59'} />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Días de la semana</label>
+                <div className="days-checklist">
+                  {DIAS_SEMANA.map(dia => (
+                    <label key={dia} className="day-check-item">
+                      <input
+                        type="checkbox"
+                        checked={diasSeleccionados.includes(dia)}
+                        onChange={() => toggleDia(dia)}
+                      />
+                      <span>{dia}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Estado</label>
+                <select {...register('estado')} defaultValue={editing?.estado || 'Activa'}>
+                  <option value="Activa">Activa</option>
+                  <option value="Inactiva">Inactiva</option>
+                </select>
+              </div>
+
+              <div className="form-actions">
+                <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>Cancelar</Button>
+                <Button type="submit">{editing ? 'Actualizar' : 'Crear'}</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

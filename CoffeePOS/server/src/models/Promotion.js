@@ -13,7 +13,7 @@ const PromotionSchema = new mongoose.Schema({
   },
   tipo: {
     type: String,
-    enum: ['BUY_X_PAY_Y', 'PERCENTAGE_DISCOUNT', 'FIXED_DISCOUNT'],
+    enum: ['BUY_X_PAY_Y', 'PERCENTAGE_DISCOUNT', 'FIXED_DISCOUNT', 'COMBO'],
     required: true
   },
   productosParticipantes: [{

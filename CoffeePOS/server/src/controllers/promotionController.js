@@ -41,7 +41,6 @@ export async function createPromotion(req, res) {
     const clientId = req.user.clientId;
     const usuarioAdmin = req.user._id;
     
-    // Validar que las fechas sean válidas
     const startDate = new Date(fechaInicio);
     const endDate = new Date(fechaFinalizacion);
     
@@ -52,19 +51,19 @@ export async function createPromotion(req, res) {
       });
     }
     
-    // Validar que los productos existen y pertenecen al mismo cliente
+    // Normalizar productosParticipantes: aceptar strings (IDs) o objetos
+    let normalizedProducts = [];
     if (productosParticipantes && productosParticipantes.length > 0) {
       for (const pp of productosParticipantes) {
-        const product = await Product.findOne({
-          _id: pp.producto_id,
-          clientId
-        });
+        const productId = typeof pp === 'string' ? pp : pp.producto_id;
+        const product = await Product.findOne({ _id: productId, clientId });
         if (!product) {
           return res.status(400).json({
             success: false,
-            error: `Producto ${pp.nombre} no encontrado o no pertenece a este cliente`
+            error: `Producto no encontrado o no pertenece a este cliente`
           });
         }
+        normalizedProducts.push({ producto_id: product._id, nombre: product.nombre });
       }
     }
     
@@ -72,7 +71,7 @@ export async function createPromotion(req, res) {
       clientId,
       nombre,
       tipo,
-      productosParticipantes,
+      productosParticipantes: normalizedProducts,
       cantidadComprar,
       cantidadPagar,
       fechaInicio: startDate,
@@ -84,16 +83,10 @@ export async function createPromotion(req, res) {
       usuarioAdmin
     });
     
-    res.status(201).json({
-      success: true,
-      data: promotion
-    });
+    res.status(201).json({ success: true, data: promotion });
   } catch (error) {
     console.error('Error al crear promoción:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 }
 
@@ -105,39 +98,30 @@ export async function updatePromotion(req, res) {
     
     const clientId = req.user.clientId;
     
-    // Validar fechas si se proporcionan
     if (fechaInicio && fechaFinalizacion) {
       const startDate = new Date(fechaInicio);
       const endDate = new Date(fechaFinalizacion);
-      
       if (startDate >= endDate) {
-        return res.status(400).json({
-          success: false,
-          error: 'La fecha de inicio debe ser anterior a la fecha de finalización'
-        });
+        return res.status(400).json({ success: false, error: 'La fecha de inicio debe ser anterior a la fecha de finalización' });
       }
     }
     
-    // Si se actualizan productos, validar que existen
+    let normalizedProducts = [];
     if (productosParticipantes && productosParticipantes.length > 0) {
       for (const pp of productosParticipantes) {
-        const product = await Product.findOne({
-          _id: pp.producto_id,
-          clientId
-        });
+        const productId = typeof pp === 'string' ? pp : pp.producto_id;
+        const product = await Product.findOne({ _id: productId, clientId });
         if (!product) {
-          return res.status(400).json({
-            success: false,
-            error: `Producto ${pp.nombre} no encontrado o no pertenece a este cliente`
-          });
+          return res.status(400).json({ success: false, error: 'Producto no encontrado o no pertenece a este cliente' });
         }
+        normalizedProducts.push({ producto_id: product._id, nombre: product.nombre });
       }
     }
     
     const updateData = {
       nombre,
       tipo,
-      productosParticipantes,
+      productosParticipantes: normalizedProducts,
       cantidadComprar,
       cantidadPagar,
       ...(fechaInicio && fechaFinalizacion ? {
@@ -157,22 +141,13 @@ export async function updatePromotion(req, res) {
     );
     
     if (!promotion) {
-      return res.status(404).json({
-        success: false,
-        error: 'Promoción no encontrada'
-      });
+      return res.status(404).json({ success: false, error: 'Promoción no encontrada' });
     }
     
-    res.json({
-      success: true,
-      data: promotion
-    });
+    res.json({ success: true, data: promotion });
   } catch (error) {
     console.error('Error al actualizar promoción:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 }
 
