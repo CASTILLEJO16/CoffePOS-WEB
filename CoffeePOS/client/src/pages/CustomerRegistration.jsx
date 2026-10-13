@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { QrCode, User, Phone, Mail, CheckCircle } from 'lucide-react';
 import { publicRegisterCustomer } from '../services/customerService.js';
 import Swal from 'sweetalert2';
-import './CustomerRegistration.css';
 
 export default function CustomerRegistration() {
   const [formData, setFormData] = useState({
@@ -67,52 +66,244 @@ export default function CustomerRegistration() {
     });
   };
 
+  const styles = {
+    page: {
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px'
+    },
+    container: {
+      background: 'white',
+      padding: '40px',
+      borderRadius: '20px',
+      maxWidth: '500px',
+      width: '100%',
+      boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+    },
+    header: {
+      textAlign: 'center',
+      marginBottom: '30px'
+    },
+    headerIcon: {
+      color: '#667eea',
+      marginBottom: '15px'
+    },
+    title: {
+      fontSize: '1.8rem',
+      color: '#1a1a1a',
+      marginBottom: '10px'
+    },
+    subtitle: {
+      color: '#666',
+      fontSize: '1rem'
+    },
+    form: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '20px'
+    },
+    formGroup: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px'
+    },
+    label: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontWeight: '600',
+      color: '#1a1a1a',
+      fontSize: '14px'
+    },
+    input: {
+      padding: '12px 16px',
+      border: '2px solid #e0e0e0',
+      borderRadius: '8px',
+      fontSize: '16px'
+    },
+    button: {
+      padding: '18px 36px',
+      border: 'none',
+      borderRadius: '8px',
+      fontSize: '18px',
+      fontWeight: '600',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '10px',
+      background: '#667eea',
+      color: 'white'
+    },
+    info: {
+      marginTop: '30px',
+      paddingTop: '30px',
+      borderTop: '2px solid #f0f0f0'
+    },
+    infoTitle: {
+      fontSize: '1.1rem',
+      color: '#1a1a1a',
+      marginBottom: '15px'
+    },
+    infoList: {
+      listStyle: 'none',
+      padding: 0
+    },
+    infoItem: {
+      padding: '8px 0',
+      color: '#666',
+      fontSize: '14px'
+    },
+    successContainer: {
+      background: 'white',
+      padding: '40px',
+      borderRadius: '20px',
+      maxWidth: '500px',
+      width: '100%',
+      boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+      textAlign: 'center'
+    },
+    successIcon: {
+      color: '#10b981',
+      marginBottom: '20px'
+    },
+    customerName: {
+      fontSize: '1.3rem',
+      color: '#667eea',
+      fontWeight: '600',
+      marginBottom: '30px'
+    },
+    cardVisual: {
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      borderRadius: '20px',
+      padding: '30px',
+      color: 'white',
+      boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+    },
+    cardHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: '20px'
+    },
+    cardTitle: {
+      fontSize: '1.5rem',
+      margin: 0
+    },
+    status: {
+      padding: '6px 12px',
+      borderRadius: '20px',
+      fontSize: '12px',
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      background: 'rgba(16, 185, 129, 0.2)',
+      color: '#10b981'
+    },
+    customerInfo: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '10px',
+      marginBottom: '25px',
+      fontSize: '1.1rem'
+    },
+    stampsContainer: {
+      marginBottom: '25px'
+    },
+    stampsGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(5, 1fr)',
+      gap: '10px',
+      marginBottom: '15px'
+    },
+    stampSlot: {
+      width: '50px',
+      height: '50px',
+      border: '2px dashed rgba(255,255,255,0.5)',
+      borderRadius: '50%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    progressText: {
+      textAlign: 'center',
+      fontSize: '1.2rem',
+      fontWeight: '600'
+    },
+    qrDisplay: {
+      display: 'flex',
+      justifyContent: 'center',
+      marginTop: '20px'
+    },
+    qrImage: {
+      width: '150px',
+      height: '150px',
+      background: 'white',
+      padding: '15px',
+      borderRadius: '12px'
+    },
+    successActions: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '20px'
+    },
+    instructions: {
+      textAlign: 'left',
+      color: '#666',
+      fontSize: '14px',
+      lineHeight: '1.8',
+      padding: '20px',
+      background: '#f9fafb',
+      borderRadius: '8px'
+    }
+  };
+
   if (registeredCard) {
     return (
-      <div className="customer-registration-page">
-        <div className="registration-success">
-          <div className="success-icon">
+      <div style={styles.page}>
+        <div style={styles.successContainer}>
+          <div style={styles.successIcon}>
             <CheckCircle size={64} />
           </div>
           <h1>¡Tarjeta de Lealtad Creada!</h1>
-          <p className="customer-name">{registeredCard.customer?.nombre}</p>
+          <p style={styles.customerName}>{registeredCard.customer?.nombre}</p>
           
-          <div className="loyalty-card-display">
-            <div className="card-visual">
-              <div className="card-header">
-                <h2>Programa de Lealtad</h2>
-                <span className="status activa">Activa</span>
-              </div>
-              
-              <div className="customer-info">
-                <User size={20} />
-                <span>{registeredCard.customer?.nombre}</span>
-              </div>
+          <div style={styles.cardVisual}>
+            <div style={styles.cardHeader}>
+              <h2 style={styles.cardTitle}>Programa de Lealtad</h2>
+              <span style={styles.status}>Activa</span>
+            </div>
+            
+            <div style={styles.customerInfo}>
+              <User size={20} />
+              <span>{registeredCard.customer?.nombre}</span>
+            </div>
 
-              <div className="stamps-container">
-                <div className="stamps-grid">
-                  {[...Array(10)].map((_, i) => (
-                    <div key={i} className="stamp-slot">
-                      {i < registeredCard.sellos_actuales && <CheckCircle size={24} />}
-                    </div>
-                  ))}
-                </div>
-                <div className="progress-text">
-                  {registeredCard.sellos_actuales} de 10 sellos
-                </div>
+            <div style={styles.stampsContainer}>
+              <div style={styles.stampsGrid}>
+                {[...Array(10)].map((_, i) => (
+                  <div key={i} style={styles.stampSlot}>
+                    {i < registeredCard.sellos_actuales && <CheckCircle size={24} />}
+                  </div>
+                ))}
               </div>
+              <div style={styles.progressText}>
+                {registeredCard.sellos_actuales} de 10 sellos
+              </div>
+            </div>
 
-              <div className="qr-display">
-                {registeredCard.qr_code && <img src={registeredCard.qr_code} alt="QR Code" />}
-              </div>
+            <div style={styles.qrDisplay}>
+              {registeredCard.qr_code && <img src={registeredCard.qr_code} alt="QR Code" style={styles.qrImage} />}
             </div>
           </div>
 
-          <div className="success-actions">
-            <button onClick={downloadQR} className="btn btn-primary btn-large">
+          <div style={styles.successActions}>
+            <button onClick={downloadQR} style={styles.button}>
               <QrCode size={24} /> Guardar QR en Fotos
             </button>
-            <p className="instructions">
+            <p style={styles.instructions}>
               <strong>Instrucciones:</strong>
               <br />
               1. Guarda esta imagen en tu galería
@@ -130,17 +321,17 @@ export default function CustomerRegistration() {
   }
 
   return (
-    <div className="customer-registration-page">
-      <div className="registration-container">
-        <div className="registration-header">
-          <QrCode size={48} />
-          <h1>Regístrate en el Programa de Lealtad</h1>
-          <p>Completa tus datos para obtener tu tarjeta digital</p>
+    <div style={styles.page}>
+      <div style={styles.container}>
+        <div style={styles.header}>
+          <QrCode size={48} style={styles.headerIcon} />
+          <h1 style={styles.title}>Regístrate en el Programa de Lealtad</h1>
+          <p style={styles.subtitle}>Completa tus datos para obtener tu tarjeta digital</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="registration-form">
-          <div className="form-group">
-            <label>
+        <form onSubmit={handleSubmit} style={styles.form}>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
               <User size={18} />
               Nombre Completo *
             </label>
@@ -151,11 +342,12 @@ export default function CustomerRegistration() {
               onChange={handleChange}
               placeholder="Tu nombre completo"
               required
+              style={styles.input}
             />
           </div>
 
-          <div className="form-group">
-            <label>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
               <Phone size={18} />
               Teléfono *
             </label>
@@ -166,11 +358,12 @@ export default function CustomerRegistration() {
               onChange={handleChange}
               placeholder="Tu número de teléfono"
               required
+              style={styles.input}
             />
           </div>
 
-          <div className="form-group">
-            <label>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
               <Mail size={18} />
               Email (opcional)
             </label>
@@ -180,21 +373,22 @@ export default function CustomerRegistration() {
               value={formData.email}
               onChange={handleChange}
               placeholder="tu@email.com"
+              style={styles.input}
             />
           </div>
 
-          <button type="submit" className="btn btn-primary btn-large" disabled={loading}>
+          <button type="submit" style={styles.button} disabled={loading}>
             {loading ? 'Registrando...' : 'Crear Tarjeta de Lealtad'}
           </button>
         </form>
 
-        <div className="registration-info">
-          <h3>¿Cómo funciona?</h3>
-          <ul>
-            <li>📱 Escanea tu QR en cada visita</li>
-            <li>⭐ Acumula 1 sello por compra</li>
-            <li>🎁 Con 10 sellos obtienes una recompensa gratis</li>
-            <li>🔄 Tu tarjeta se reinicia automáticamente</li>
+        <div style={styles.info}>
+          <h3 style={styles.infoTitle}>¿Cómo funciona?</h3>
+          <ul style={styles.infoList}>
+            <li style={styles.infoItem}>📱 Escanea tu QR en cada visita</li>
+            <li style={styles.infoItem}>⭐ Acumula 1 sello por compra</li>
+            <li style={styles.infoItem}>🎁 Con 10 sellos obtienes una recompensa gratis</li>
+            <li style={styles.infoItem}>🔄 Tu tarjeta se reinicia automáticamente</li>
           </ul>
         </div>
       </div>
