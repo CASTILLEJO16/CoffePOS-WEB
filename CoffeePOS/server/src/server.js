@@ -22,6 +22,9 @@ import categoryRoutes from './routes/categoryRoutes.js';
 import clientRoutes from './routes/clientRoutes.js';
 import licenseRoutes from './routes/licenseRoutes.js';
 import promotionRoutes from './routes/promotionRoutes.js';
+import customerRoutes from './routes/customerRoutes.js';
+import loyaltyRoutes from './routes/loyaltyRoutes.js';
+import openTicketRoutes from './routes/openTicketRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -99,6 +102,9 @@ app.use('/api/categorias', categoryRoutes);
 app.use('/api/clientes', clientRoutes);
 app.use('/api/licencias', licenseRoutes);
 app.use('/api/promociones', promotionRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/loyalty', loyaltyRoutes);
+app.use('/api/opentickets', openTicketRoutes);
 
 // Ruta de health check
 app.get('/api/health', (req, res) => {
@@ -132,6 +138,12 @@ async function migrateLegacyData() {
     const Recipe = (await import('./models/Recipe.js')).default;
     const RecipePersonalization = (await import('./models/RecipePersonalization.js')).default;
     const CashRegisterName = (await import('./models/CashRegisterName.js')).default;
+    const Customer = (await import('./models/Customer.js')).default;
+    const LoyaltyCard = (await import('./models/LoyaltyCard.js')).default;
+    const StampHistory = (await import('./models/StampHistory.js')).default;
+    const Reward = (await import('./models/Reward.js')).default;
+    const OpenTicket = (await import('./models/OpenTicket.js')).default;
+    const OpenTicketItem = (await import('./models/OpenTicketItem.js')).default;
 
     let defaultClient = await Client.findOne().sort({ createdAt: 1 });
     if (!defaultClient) {
@@ -152,7 +164,7 @@ async function migrateLegacyData() {
       console.log(`[migración] Usuarios migrados: ${r.modifiedCount}`);
     }
 
-    for (const [model, name] of [[Product, 'Productos'], [Sale, 'Ventas'], [SaleDetail, 'Detalles'], [Category, 'Categorías'], [CashRegister, 'Cajas'], [Ingredient, 'Ingredientes'], [Personalization, 'Personalizaciones'], [Recipe, 'Recetas'], [RecipePersonalization, 'RecetasPers'], [CashRegisterName, 'NombresCaja']]) {
+    for (const [model, name] of [[Product, 'Productos'], [Sale, 'Ventas'], [SaleDetail, 'Detalles'], [Category, 'Categorías'], [CashRegister, 'Cajas'], [Ingredient, 'Ingredientes'], [Personalization, 'Personalizaciones'], [Recipe, 'Recetas'], [RecipePersonalization, 'RecetasPers'], [CashRegisterName, 'NombresCaja'], [Customer, 'Customers'], [LoyaltyCard, 'LoyaltyCards'], [StampHistory, 'StampHistory'], [Reward, 'Rewards'], [OpenTicket, 'OpenTickets'], [OpenTicketItem, 'OpenTicketItems']]) {
       try {
         const count = await model.countDocuments({ $or: [{ clientId: { $exists: false } }, { clientId: null }] });
         if (count > 0) {
@@ -203,6 +215,22 @@ async function migrateLegacyData() {
         console.log('[migración] Datos por defecto inicializados para', clientId);
       }
     } catch (e) { console.warn('[migración] init default data skip:', e.message); }
+
+    // Inicializar configuración de lealtad por defecto
+    try {
+      const loyaltyConfig = await Config.findOne({ clave: 'loyalty_enabled', clientId });
+      if (!loyaltyConfig) {
+        await Config.create([
+          { clientId, clave: 'loyalty_enabled', valor: 'true' },
+          { clientId, clave: 'loyalty_program_name', valor: 'Programa de Lealtad' },
+          { clientId, clave: 'loyalty_stamps_required', valor: '10' },
+          { clientId, clave: 'loyalty_min_purchase', valor: '0' },
+          { clientId, clave: 'loyalty_reward_product', valor: 'Café americano gratis' },
+          { clientId, clave: 'loyalty_reward_product_id', valor: '' }
+        ]);
+        console.log('[migración] Configuración de lealtad inicializada para', clientId);
+      }
+    } catch (e) { console.warn('[migración] init loyalty config skip:', e.message); }
   } catch (e) {
     console.error('[migración] Error:', e.message);
   }

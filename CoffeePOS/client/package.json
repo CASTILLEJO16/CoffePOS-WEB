@@ -15,6 +15,7 @@
     "es-toolkit": "^1.52.0",
     "html2pdf.js": "^0.14.0",
     "lucide-react": "^1.25.0",
+    "qrcode.react": "^4.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.89.0",

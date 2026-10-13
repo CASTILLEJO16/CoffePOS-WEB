@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { getOpenCashRegister } from '../services/cashRegisterService.js';
 import { useState, useEffect, useCallback } from 'react';
-import { Coffee, ShoppingCart, BarChart3, Sun, Moon, LogOut, Package } from 'lucide-react';
+import { Coffee, ShoppingCart, BarChart3, Sun, Moon, LogOut, Package, QrCode, Table } from 'lucide-react';
 import Swal from 'sweetalert2';
 import MobileBottomNav from '../components/common/MobileBottomNav.jsx';
 import StockAlertBell from '../components/common/StockAlertBell.jsx';
@@ -72,6 +72,8 @@ export default function MainLayout({ children }) {
   const menuItems = [
     { path: '/', icon: ShoppingCart, label: 'Punto de Venta' },
     { path: '/ventas', icon: BarChart3, label: 'Mis Ventas' },
+    { path: '/lealtad', icon: QrCode, label: 'Tarjeta Lealtad' },
+    { path: '/tickets-abiertos', icon: Table, label: 'Tickets Abiertos' },
     { path: '/almacen', icon: Package, label: 'Almacén' },
   ];
 

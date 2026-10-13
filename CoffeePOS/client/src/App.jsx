@@ -22,6 +22,11 @@ import VendedorAlmacen from './pages/VendedorAlmacen.jsx';
 import AperturaCaja from './pages/AperturaCaja.jsx';
 import CierreCaja from './pages/CierreCaja.jsx';
 import CortesCaja from './pages/CortesCaja.jsx';
+import LoyaltyCard from './pages/LoyaltyCard.jsx';
+import OpenTickets from './pages/OpenTickets.jsx';
+import CustomerRegistration from './pages/CustomerRegistration.jsx';
+import CustomerCardLookup from './pages/CustomerCardLookup.jsx';
+import PublicQR from './pages/PublicQR.jsx';
 import CashRegisterCheck from './components/CashRegisterCheck.jsx';
 import MainLayout from './layouts/MainLayout.jsx';
 import AdminLayout from './layouts/AdminLayout.jsx';
@@ -109,6 +114,8 @@ function App() {
               <Route path="ventas" element={<VentasVendedor />} />
               <Route path="almacen" element={<VendedorAlmacen />} />
               <Route path="cierre-caja/:id" element={<CierreCaja />} />
+              <Route path="lealtad" element={<LoyaltyCard />} />
+              <Route path="tickets-abiertos" element={<OpenTickets />} />
             </Route>
 
             {/* Rutas para admin - Con sidebar completa y carrito AISLADO del vendedor */}
@@ -145,7 +152,14 @@ function App() {
               <Route path="almacen" element={<AdminAlmacen />} />
               <Route path="cortes-caja" element={<CortesCaja />} />
               <Route path="configuracion" element={<Configuracion />} />
+              <Route path="lealtad" element={<LoyaltyCard />} />
+              <Route path="tickets-abiertos" element={<OpenTickets />} />
             </Route>
+
+            {/* Rutas públicas (sin autenticación) - para clientes */}
+            <Route path="/registro-cliente" element={<CustomerRegistration />} />
+            <Route path="/mi-tarjeta" element={<CustomerCardLookup />} />
+            <Route path="/qr-publico" element={<PublicQR />} />
             </Routes>
           </BrowserRouter>
         </ErrorBoundary>
