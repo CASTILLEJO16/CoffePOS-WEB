@@ -1,9 +1,6 @@
 import { QrCode, Smartphone, ArrowRight } from 'lucide-react';
-import QRCode from 'qrcode.react';
 
 export default function PublicQR() {
-  const registrationUrl = window.location.origin + '/registro-cliente';
-
   const styles = {
     page: {
       minHeight: '100vh',
@@ -38,13 +35,19 @@ export default function PublicQR() {
       color: '#666',
       fontSize: '1.1rem'
     },
-    qrDisplay: {
+    qrPlaceholder: {
       display: 'flex',
       justifyContent: 'center',
       marginBottom: '40px',
       padding: '30px',
       background: '#f9fafb',
-      borderRadius: '16px'
+      borderRadius: '16px',
+      border: '2px dashed #667eea'
+    },
+    qrPlaceholderText: {
+      color: '#667eea',
+      fontSize: '1.2rem',
+      fontWeight: '600'
     },
     instructions: {
       display: 'flex',
@@ -102,13 +105,11 @@ export default function PublicQR() {
           <p style={styles.subtitle}>Obtén tu tarjeta de lealtad digital</p>
         </div>
 
-        <div style={styles.qrDisplay}>
-          <QRCode 
-            value={registrationUrl}
-            size={256}
-            level="H"
-            includeMargin={true}
-          />
+        <div style={styles.qrPlaceholder}>
+          <div style={styles.qrPlaceholderText}>
+            <QrCode size={128} />
+            <p style={{ marginTop: '20px' }}>QR Code</p>
+          </div>
         </div>
 
         <div style={styles.instructions}>
@@ -137,7 +138,7 @@ export default function PublicQR() {
 
         <div style={styles.manualLink}>
           <p style={styles.manualText}>O visita directamente:</p>
-          <a href={registrationUrl} style={styles.link}>{registrationUrl}</a>
+          <a href="/registro-cliente" style={styles.link}>/registro-cliente</a>
         </div>
       </div>
     </div>
