@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import QRCode from 'qrcode.react';
+import QRCode from 'qrcode';
 
 const LoyaltyCardGenerator = ({ customer, qrToken, businessName, stamps, required, onImageGenerated }) => {
   const canvasRef = useRef(null);

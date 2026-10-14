@@ -4,7 +4,7 @@ import { getCardByQRToken, addStamp, redeemReward, getLoyaltyConfig, getAllLoyal
 import { getCustomerByPhone } from '../services/customerService.js';
 import LoyaltyCardGenerator from '../components/LoyaltyCardGenerator.jsx';
 import Swal from 'sweetalert2';
-import QRCode from 'qrcode.react';
+import QRCode from 'qrcode';
 import './LoyaltyCard.css';
 
 export default function LoyaltyCard() {

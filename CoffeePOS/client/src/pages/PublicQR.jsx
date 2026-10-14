@@ -1,5 +1,5 @@
 import { QrCode, Smartphone, ArrowRight } from 'lucide-react';
-import QRCode from 'qrcode.react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { useState, useEffect } from 'react';
 
 export default function PublicQR() {
@@ -111,12 +111,12 @@ export default function PublicQR() {
 
         <div style={styles.qrDisplay}>
           {qrUrl && (
-            <QRCode 
-              value={qrUrl} 
-              size={200}
-              level="H"
-              includeMargin={true}
-            />
+<QRCodeCanvas 
+  value={qrUrl} 
+  size={200} 
+  level="H"
+  includeMargin={true}
+/>
           )}
         </div>
 
