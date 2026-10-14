@@ -10,9 +10,9 @@ export const createCustomer = async (data) => {
   return response.data;
 };
 
-// Registro público (sin autenticación)
+// Registro público (usando api con headers de autenticación)
 export const publicRegisterCustomer = async (data) => {
-  const response = await axios.post(`${import.meta.env.VITE_API_URL}/customers/public-register`, data);
+  const response = await api.post('/customers/public-register', data);
   return response.data;
 };
 
