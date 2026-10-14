@@ -505,3 +505,42 @@ export const updateLoyaltyConfig = async (req, res) => {
     });
   }
 };
+
+// Obtener todas las tarjetas de lealtad con clientes
+export const getAllLoyaltyCards = async (req, res) => {
+  try {
+    const clientId = req.user?.clientId;
+    const { search = '' } = req.query;
+
+    let query = { clientId };
+    
+    if (search) {
+      const customers = await Customer.find({
+        clientId,
+        $or: [
+          { nombre: { $regex: search, $options: 'i' } },
+          { telefono: { $regex: search, $options: 'i' } }
+        ]
+      }).select('_id');
+      
+      const customerIds = customers.map(c => c._id);
+      query.customerId = { $in: customerIds };
+    }
+
+    const cards = await LoyaltyCard.find(query)
+      .populate('customerId')
+      .sort({ updatedAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: cards
+    });
+  } catch (error) {
+    console.error('Error al obtener todas las tarjetas:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener tarjetas',
+      error: error.message
+    });
+  }
+};

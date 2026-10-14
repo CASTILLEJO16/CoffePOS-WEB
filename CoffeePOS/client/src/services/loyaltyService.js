@@ -48,3 +48,9 @@ export const updateLoyaltyConfig = async (data) => {
   const response = await api.put('/loyalty/config', data);
   return response.data;
 };
+
+export const getAllLoyaltyCards = async (search = '') => {
+  const params = search ? { search } : {};
+  const response = await api.get('/loyalty/all', { params });
+  return response.data;
+};

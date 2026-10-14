@@ -36,4 +36,7 @@ router.post('/revert', loyaltyController.revertStamp);
 router.get('/config', loyaltyController.getLoyaltyConfig);
 router.put('/config', loyaltyController.updateLoyaltyConfig);
 
+// Obtener todas las tarjetas
+router.get('/all', loyaltyController.getAllLoyaltyCards);
+
 export default router;
