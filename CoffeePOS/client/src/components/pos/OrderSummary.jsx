@@ -2,7 +2,7 @@ import './OrderSummary.css';
 import { formatCurrency } from '../../utils/formatCurrency.js';
 import Button from '../common/Button.jsx';
 
-export default function OrderSummary({ subtotal, impuestos, total, onCheckout, onCancel, onClear, disabled }) {
+export default function OrderSummary({ subtotal, impuestos, total, onCheckout, onCancel, onClear, disabled, loyaltyDiscount = 0, loyaltyFreeProduct = null }) {
   // 🔥 Calcular IVA en tiempo real (evita valores viejos en el state)
   const ivaRate = (() => {
     const val = localStorage.getItem('iva_rate');
@@ -11,8 +11,12 @@ export default function OrderSummary({ subtotal, impuestos, total, onCheckout, o
   })();
   const ivaPercent = Math.round(ivaRate * 100);
 
-  const impuestosCalc = subtotal * ivaRate;
-  const totalCalc = subtotal + impuestosCalc;
+  // Calcular descuento de lealtad
+  const discountAmount = loyaltyDiscount > 0 ? subtotal * (loyaltyDiscount / 100) : 0;
+  const subtotalAfterDiscount = subtotal - discountAmount;
+  const impuestosCalc = subtotalAfterDiscount * ivaRate;
+  const totalCalc = subtotalAfterDiscount + impuestosCalc;
+
   return (
     <div className="order-summary">
       <div className="order-summary-totals">
@@ -20,10 +24,22 @@ export default function OrderSummary({ subtotal, impuestos, total, onCheckout, o
           <span className="summary-label">Subtotal</span>
           <span className="summary-value">{formatCurrency(subtotal)}</span>
         </div>
+        {loyaltyDiscount > 0 && (
+          <div className="summary-row" style={{ color: '#10b981' }}>
+            <span className="summary-label">Descuento Lealtad ({loyaltyDiscount}%)</span>
+            <span className="summary-value">-{formatCurrency(discountAmount)}</span>
+          </div>
+        )}
         <div className="summary-row">
           <span className="summary-label">IVA ({ivaPercent}%)</span>
           <span className="summary-value">{formatCurrency(impuestosCalc)}</span>
         </div>
+        {loyaltyFreeProduct && (
+          <div className="summary-row" style={{ color: '#10b981', fontWeight: 'bold' }}>
+            <span className="summary-label">Producto Gratis</span>
+            <span className="summary-value">{loyaltyFreeProduct.description}</span>
+          </div>
+        )}
         <div className="summary-row summary-row-total">
           <span className="summary-label summary-label-total">Total</span>
           <span className="summary-value summary-value-total">{formatCurrency(totalCalc)}</span>

@@ -36,6 +36,10 @@ const customerSchema = new mongoose.Schema({
   notas: {
     type: String,
     trim: true
+  },
+  loyaltyCardId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'LoyaltyCard'
   }
 }, {
   timestamps: true

@@ -2,12 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatBusinessTime } from '../utils/dateTime.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
-import { Search, Coffee, ShoppingCart, DollarSign, CreditCard, Smartphone, Sun, Moon, LogOut, Wallet, ShoppingBag, X } from 'lucide-react';
+import { Search, Coffee, ShoppingCart, DollarSign, CreditCard, Smartphone, Sun, Moon, LogOut, Wallet, ShoppingBag, X, Phone } from 'lucide-react';
 import { useOrder } from '../context/OrderContext.jsx';
 import { useAdminOrder } from '../context/AdminOrderContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { getProducts } from '../services/productService.js';
 import { getPromotions } from '../services/promotionService.js';
+import { getLoyaltyConfig } from '../services/loyaltyService.js';
 import api from '../services/api.js';
 import { createSale } from '../services/saleService.js';
 import { printTicket } from '../services/ticketService.js';
@@ -30,7 +31,7 @@ import Swal from 'sweetalert2';
 import './AdminPOS.css';
 
 export default function AdminPOS() {
-  const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem, setPromotions: setContextPromotions } = useAdminOrder();
+  const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem, setPromotions: setContextPromotions, customerPhone, setCustomerPhone, loyaltyCard, setLoyaltyCard, loyaltyDiscount, setLoyaltyDiscount, loyaltyFreeProduct, setLoyaltyFreeProduct, loadCustomerLoyalty, calculateLoyaltyDiscount } = useAdminOrder();
   console.log('[AdminPOS] Estado de la orden - Items:', items.length, 'Subtotal:', subtotal, 'Impuestos:', impuestos, 'Total:', total);
   const { theme, toggleTheme } = useTheme();
   const [products, setProducts] = useState([]);
@@ -40,6 +41,9 @@ export default function AdminPOS() {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todas');
+  const [loyaltyConfig, setLoyaltyConfig] = useState(null);
+  const [customerPhoneInput, setCustomerPhoneInput] = useState('');
+  const [loadingLoyalty, setLoadingLoyalty] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCashModal, setShowCashModal] = useState(false);
   const [showDollarModal, setShowDollarModal] = useState(false);
@@ -86,18 +90,58 @@ export default function AdminPOS() {
 
   useEffect(() => {
     loadProducts();
-  }, [searchTerm, selectedCategory]);
-
-  useEffect(() => {
     loadCategories();
     loadPromotions();
     loadCashRegister();
-    loadTipoCambio();
+    loadBusinessInfo();
     loadIVA();
-    loadLabelConfig();
+    loadTipoCambio();
+    loadLoyaltyConfig();
   }, []);
 
-  // Escuchar cambios de promociones en tiempo real
+  const loadLoyaltyConfig = async () => {
+    try {
+      const response = await getLoyaltyConfig();
+      if (response.success) {
+        setLoyaltyConfig(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading loyalty config:', error);
+    }
+  };
+
+  const handleCustomerPhoneChange = async (phone) => {
+    setCustomerPhoneInput(phone);
+    if (phone.length >= 10) {
+      setLoadingLoyalty(true);
+      const card = await loadCustomerLoyalty(phone);
+      setLoadingLoyalty(false);
+      
+      if (card && loyaltyConfig) {
+        const { discount, freeProduct } = calculateLoyaltyDiscount(card, loyaltyConfig);
+        setLoyaltyDiscount(discount);
+        setLoyaltyFreeProduct(freeProduct);
+        
+        if (discount > 0) {
+          showToast(`¡Descuento de ${discount}% aplicado por lealtad!`, 'success');
+        }
+        if (freeProduct) {
+          showToast(`¡Producto gratis disponible por lealtad!`, 'success');
+        }
+      } else {
+        setLoyaltyDiscount(0);
+        setLoyaltyFreeProduct(null);
+      }
+    } else {
+      setLoyaltyDiscount(0);
+      setLoyaltyFreeProduct(null);
+    }
+  };
+
+  useEffect(() => {
+    loadProducts();
+  }, [searchTerm, selectedCategory]);
+
   useEffect(() => {
     function handlePromotionsUpdate() {
       loadPromotions();

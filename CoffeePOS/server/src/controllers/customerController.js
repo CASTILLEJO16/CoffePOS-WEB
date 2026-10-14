@@ -81,6 +81,10 @@ export const createCustomer = async (req, res) => {
       estado: 'activa'
     });
 
+    // Guardar el ID de la tarjeta de lealtad en el cliente
+    customer.loyaltyCardId = loyaltyCard._id;
+    await customer.save();
+
     // Generar código QR como data URL
     const qrCodeDataURL = await QRCode.toDataURL(qrToken);
 
@@ -178,12 +182,18 @@ export const getCustomerById = async (req, res) => {
 export const getCustomerByPhone = async (req, res) => {
   try {
     const clientId = req.user?.clientId;
-    const { telefono } = req.params;
+    if (!clientId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Usuario sin cafetería asignada'
+      });
+    }
 
+    const { telefono } = req.params;
     const customer = await Customer.findOne({ 
       telefono: telefono.trim(), 
       clientId 
-    }).populate('loyaltyCard');
+    }).populate('loyaltyCardId');
 
     if (!customer) {
       return res.status(404).json({
@@ -197,10 +207,10 @@ export const getCustomerByPhone = async (req, res) => {
       data: customer
     });
   } catch (error) {
-    console.error('Error al buscar cliente por teléfono:', error);
+    console.error('Error al obtener cliente por teléfono:', error);
     res.status(500).json({
       success: false,
-      message: 'Error al buscar cliente',
+      message: 'Error al obtener cliente',
       error: error.message
     });
   }

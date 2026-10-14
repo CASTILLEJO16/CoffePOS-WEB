@@ -1,5 +1,7 @@
 import { createContext, useContext, useReducer, useEffect } from 'react';
 import { getPromotions } from '../services/promotionService.js';
+import { getCustomerByPhone } from '../services/customerService.js';
+import { getCardByQRToken } from '../services/loyaltyService.js';
 
 const OrderContext = createContext();
 
@@ -9,6 +11,10 @@ const initialState = {
   impuestos: 0,
   total: 0,
   customerName: '',
+  customerPhone: '',
+  loyaltyCard: null,
+  loyaltyDiscount: 0,
+  loyaltyFreeProduct: null,
   promotions: [],
   productsMap: new Map()
 };
@@ -269,6 +275,34 @@ function orderReducer(state, action) {
       };
     }
 
+    case 'SET_CUSTOMER_PHONE': {
+      return {
+        ...state,
+        customerPhone: action.payload
+      };
+    }
+
+    case 'SET_LOYALTY_CARD': {
+      return {
+        ...state,
+        loyaltyCard: action.payload
+      };
+    }
+
+    case 'SET_LOYALTY_DISCOUNT': {
+      return {
+        ...state,
+        loyaltyDiscount: action.payload
+      };
+    }
+
+    case 'SET_LOYALTY_FREE_PRODUCT': {
+      return {
+        ...state,
+        loyaltyFreeProduct: action.payload
+      };
+    }
+
     default:
       return state;
   }
@@ -327,6 +361,67 @@ export function OrderProvider({ children, promotions = [], productsMap = new Map
     dispatch({ type: 'SET_PROMOTIONS', payload: { promotions, productsMap } });
   };
 
+  const setCustomerPhone = (phone) => {
+    dispatch({ type: 'SET_CUSTOMER_PHONE', payload: phone });
+  };
+
+  const setLoyaltyCard = (card) => {
+    dispatch({ type: 'SET_LOYALTY_CARD', payload: card });
+  };
+
+  const setLoyaltyDiscount = (discount) => {
+    dispatch({ type: 'SET_LOYALTY_DISCOUNT', payload: discount });
+  };
+
+  const setLoyaltyFreeProduct = (product) => {
+    dispatch({ type: 'SET_LOYALTY_FREE_PRODUCT', payload: product });
+  };
+
+  // Función para buscar cliente por teléfono y cargar su tarjeta de lealtad
+  const loadCustomerLoyalty = async (phone) => {
+    if (!phone || phone.length < 10) return null;
+
+    try {
+      const customerResponse = await getCustomerByPhone(phone);
+      if (customerResponse.success && customerResponse.data) {
+        const customer = customerResponse.data;
+        dispatch({ type: 'SET_CUSTOMER_NAME', payload: customer.nombre });
+        dispatch({ type: 'SET_CUSTOMER_PHONE', payload: phone });
+
+        // La tarjeta de lealtad ya viene populated en el customer
+        if (customer.loyaltyCardId) {
+          dispatch({ type: 'SET_LOYALTY_CARD', payload: customer.loyaltyCardId });
+          return customer.loyaltyCardId;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading customer loyalty:', error);
+    }
+    return null;
+  };
+
+  // Función para calcular descuento de lealtad basado en sellos
+  const calculateLoyaltyDiscount = (card, config) => {
+    if (!card || !config || !config.rewards) return { discount: 0, freeProduct: null };
+
+    const currentStamps = card.sellos_actuales;
+    
+    // Buscar recompensa aplicable
+    const applicableReward = config.rewards
+      .filter(r => r.stamps <= currentStamps)
+      .sort((a, b) => b.stamps - a.stamps)[0];
+
+    if (applicableReward) {
+      if (applicableReward.type === 'discount') {
+        return { discount: applicableReward.value, freeProduct: null };
+      } else if (applicableReward.type === 'free') {
+        return { discount: 0, freeProduct: applicableReward };
+      }
+    }
+
+    return { discount: 0, freeProduct: null };
+  };
+
   const value = {
     ...state,
     addItem,
@@ -336,6 +431,12 @@ export function OrderProvider({ children, promotions = [], productsMap = new Map
     recalcTotals,
     setPromotions,
     setCustomerName,
+    setCustomerPhone,
+    setLoyaltyCard,
+    setLoyaltyDiscount,
+    setLoyaltyFreeProduct,
+    loadCustomerLoyalty,
+    calculateLoyaltyDiscount,
     updateItem,
     dispatch
   };

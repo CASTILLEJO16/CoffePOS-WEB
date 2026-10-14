@@ -2,12 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatBusinessTime } from '../utils/dateTime.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
-import { Coffee, Search, DollarSign, CreditCard, Smartphone, X, Sun, Moon, LogOut, ShoppingBag } from 'lucide-react';
+import { Coffee, Search, DollarSign, CreditCard, Smartphone, X, Sun, Moon, LogOut, ShoppingBag, Phone } from 'lucide-react';
 import { useOrder } from '../context/OrderContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import Loader from '../components/common/Loader.jsx';
 import { getProducts } from '../services/productService.js';
 import {	getPromotions } from '../services/promotionService.js';
+import { getLoyaltyConfig } from '../services/loyaltyService.js';
 import api from '../services/api.js';
 import { createSale } from '../services/saleService.js';
 import { printTicket } from '../services/ticketService.js';
@@ -30,7 +31,7 @@ import Swal from 'sweetalert2';
 import './POS.css';
 
 export default function POS() {
-  const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem, setPromotions: setContextPromotions } = useOrder();
+  const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem, setPromotions: setContextPromotions, customerPhone, setCustomerPhone, loyaltyCard, setLoyaltyCard, loyaltyDiscount, setLoyaltyDiscount, loyaltyFreeProduct, setLoyaltyFreeProduct, loadCustomerLoyalty, calculateLoyaltyDiscount } = useOrder();
   console.log('[POS] Estado de la orden - Items:', items.length, 'Subtotal:', subtotal, 'Impuestos:', impuestos, 'Total:', total);
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -41,6 +42,9 @@ export default function POS() {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todas');
+  const [loyaltyConfig, setLoyaltyConfig] = useState(null);
+  const [customerPhoneInput, setCustomerPhoneInput] = useState('');
+  const [loadingLoyalty, setLoadingLoyalty] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCashModal, setShowCashModal] = useState(false);
   const [showDollarModal, setShowDollarModal] = useState(false);
@@ -119,11 +123,50 @@ export default function POS() {
     loadCategories();
     loadPromotions();
     loadCashRegister();
-    loadTipoCambio();
-    loadIVA();
-    loadLabelConfig();
     loadBusinessInfo();
+    loadIVA();
+    loadTipoCambio();
+    loadLoyaltyConfig();
   }, []);
+
+  const loadLoyaltyConfig = async () => {
+    try {
+      const response = await getLoyaltyConfig();
+      if (response.success) {
+        setLoyaltyConfig(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading loyalty config:', error);
+    }
+  };
+
+  const handleCustomerPhoneChange = async (phone) => {
+    setCustomerPhoneInput(phone);
+    if (phone.length >= 10) {
+      setLoadingLoyalty(true);
+      const card = await loadCustomerLoyalty(phone);
+      setLoadingLoyalty(false);
+      
+      if (card && loyaltyConfig) {
+        const { discount, freeProduct } = calculateLoyaltyDiscount(card, loyaltyConfig);
+        setLoyaltyDiscount(discount);
+        setLoyaltyFreeProduct(freeProduct);
+        
+        if (discount > 0) {
+          showToast(`¡Descuento de ${discount}% aplicado por lealtad!`, 'success');
+        }
+        if (freeProduct) {
+          showToast(`¡Producto gratis disponible por lealtad!`, 'success');
+        }
+      } else {
+        setLoyaltyDiscount(0);
+        setLoyaltyFreeProduct(null);
+      }
+    } else {
+      setLoyaltyDiscount(0);
+      setLoyaltyFreeProduct(null);
+    }
+  };
 
   // Escuchar cambios de promociones en tiempo real
   useEffect(() => {
@@ -960,6 +1003,35 @@ export default function POS() {
               style={{ width: '100%', padding: '10px', fontSize: '14px' }}
             />
           </div>
+          <div className="customer-phone-input" style={{ marginBottom: '15px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Phone size={18} />
+              <input
+                type="tel"
+                placeholder="Teléfono del cliente (para descuento de lealtad)"
+                className="form-input"
+                value={customerPhoneInput}
+                onChange={(e) => handleCustomerPhoneChange(e.target.value)}
+                style={{ flex: 1, padding: '10px', fontSize: '14px' }}
+              />
+              {loadingLoyalty && <span style={{ fontSize: '12px' }}>Buscando...</span>}
+            </div>
+            {loyaltyCard && (
+              <div style={{ marginTop: '8px', fontSize: '12px', color: '#10b981' }}>
+                ✓ Cliente con {loyaltyCard.sellos_actuales} sellos
+              </div>
+            )}
+            {loyaltyDiscount > 0 && (
+              <div style={{ marginTop: '8px', fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>
+                ✓ Descuento de {loyaltyDiscount}% aplicado
+              </div>
+            )}
+            {loyaltyFreeProduct && (
+              <div style={{ marginTop: '8px', fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>
+                ✓ Producto gratis disponible: {loyaltyFreeProduct.description}
+              </div>
+            )}
+          </div>
           
           {items.length === 0 ? (
             <div className="order-empty">
@@ -987,6 +1059,8 @@ export default function POS() {
                 onCancel={handleCancelSale}
                 onClear={handleClearOrder}
                 disabled={processing}
+                loyaltyDiscount={loyaltyDiscount}
+                loyaltyFreeProduct={loyaltyFreeProduct}
               />
               {/* Atajos de teclado accesibles */}
               <div style={{ fontSize: 11, opacity: 0.7, marginTop: 8 }}>
@@ -1031,7 +1105,7 @@ export default function POS() {
                       <OrderItem key={item.uniqueId} item={item} onRemove={(id)=>{handleRemoveItem(id); if(items.length<=1) setShowMobileCart(false);}} onUpdateQuantity={(id,qty)=>updateQuantity(id,qty)} onEdit={handleEditItem} />
                     ))}
                   </div>
-                  <OrderSummary subtotal={subtotal} impuestos={impuestos} total={total} onCheckout={()=>{setShowMobileCart(false); handleCheckout();}} onCancel={()=>{handleCancelSale(); setShowMobileCart(false);}} onClear={()=>{handleClearOrder(); setShowMobileCart(false);}} disabled={processing} />
+                  <OrderSummary subtotal={subtotal} impuestos={impuestos} total={total} onCheckout={()=>{setShowMobileCart(false); handleCheckout();}} onCancel={()=>{handleCancelSale(); setShowMobileCart(false);}} onClear={()=>{handleClearOrder(); setShowMobileCart(false);}} disabled={processing} loyaltyDiscount={loyaltyDiscount} loyaltyFreeProduct={loyaltyFreeProduct} />
                 </>
               )}
             </div>
