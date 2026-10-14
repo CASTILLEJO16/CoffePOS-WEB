@@ -1,53 +1,57 @@
 import { QrCode, Smartphone, ArrowRight } from 'lucide-react';
+import QRCode from 'qrcode.react';
+import { useState, useEffect } from 'react';
 
 export default function PublicQR() {
+  const [qrUrl, setQrUrl] = useState('');
+
+  useEffect(() => {
+    // Obtener la URL base actual
+    const baseUrl = window.location.origin;
+    setQrUrl(`${baseUrl}/registro-cliente`);
+  }, []);
+
   const styles = {
     page: {
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: 'var(--color-background)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       padding: '20px'
     },
     container: {
-      background: 'white',
+      background: 'var(--color-surface)',
       padding: '50px',
-      borderRadius: '24px',
+      borderRadius: 'var(--border-radius-2xl)',
       maxWidth: '600px',
       width: '100%',
-      boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+      boxShadow: 'var(--shadow-xl)',
       textAlign: 'center'
     },
     header: {
       marginBottom: '40px'
     },
     headerIcon: {
-      color: '#667eea',
+      color: 'var(--color-primary)',
       marginBottom: '20px'
     },
     title: {
       fontSize: '2rem',
-      color: '#1a1a1a',
+      color: 'var(--color-text)',
       marginBottom: '10px'
     },
     subtitle: {
-      color: '#666',
+      color: 'var(--color-text-secondary)',
       fontSize: '1.1rem'
     },
-    qrPlaceholder: {
+    qrDisplay: {
       display: 'flex',
       justifyContent: 'center',
       marginBottom: '40px',
       padding: '30px',
-      background: '#f9fafb',
-      borderRadius: '16px',
-      border: '2px dashed #667eea'
-    },
-    qrPlaceholderText: {
-      color: '#667eea',
-      fontSize: '1.2rem',
-      fontWeight: '600'
+      background: 'var(--color-surface-muted)',
+      borderRadius: 'var(--border-radius-xl)'
     },
     instructions: {
       display: 'flex',
@@ -61,34 +65,34 @@ export default function PublicQR() {
       alignItems: 'center',
       gap: '20px',
       padding: '20px',
-      background: '#f9fafb',
-      borderRadius: '12px'
+      background: 'var(--color-surface-muted)',
+      borderRadius: 'var(--border-radius-lg)'
     },
     instructionIcon: {
-      color: '#667eea',
+      color: 'var(--color-primary)',
       flexShrink: 0
     },
     instructionTitle: {
       fontSize: '1.1rem',
-      color: '#1a1a1a',
+      color: 'var(--color-text)',
       marginBottom: '5px'
     },
     instructionText: {
-      color: '#666',
+      color: 'var(--color-text-secondary)',
       fontSize: '0.95rem',
       margin: 0
     },
     manualLink: {
       paddingTop: '30px',
-      borderTop: '2px solid #f0f0f0'
+      borderTop: '2px solid var(--color-border)'
     },
     manualText: {
-      color: '#666',
+      color: 'var(--color-text-secondary)',
       fontSize: '14px',
       marginBottom: '10px'
     },
     link: {
-      color: '#667eea',
+      color: 'var(--color-primary)',
       textDecoration: 'none',
       fontWeight: '600',
       fontSize: '16px',
@@ -105,11 +109,15 @@ export default function PublicQR() {
           <p style={styles.subtitle}>Obtén tu tarjeta de lealtad digital</p>
         </div>
 
-        <div style={styles.qrPlaceholder}>
-          <div style={styles.qrPlaceholderText}>
-            <QrCode size={128} />
-            <p style={{ marginTop: '20px' }}>QR Code</p>
-          </div>
+        <div style={styles.qrDisplay}>
+          {qrUrl && (
+            <QRCode 
+              value={qrUrl} 
+              size={200}
+              level="H"
+              includeMargin={true}
+            />
+          )}
         </div>
 
         <div style={styles.instructions}>
@@ -138,7 +146,7 @@ export default function PublicQR() {
 
         <div style={styles.manualLink}>
           <p style={styles.manualText}>O visita directamente:</p>
-          <a href="/registro-cliente" style={styles.link}>/registro-cliente</a>
+          <a href="/registro-cliente" style={styles.link}>{qrUrl || '/registro-cliente'}</a>
         </div>
       </div>
     </div>

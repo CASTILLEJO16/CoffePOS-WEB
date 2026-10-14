@@ -7,6 +7,11 @@
   padding: 20px;
 }
 
+.qr-container canvas,
+.qr-container img {
+  border-radius: var(--border-radius-lg);
+}
+
 .qr-container {
   background: var(--color-surface);
   padding: 50px;
