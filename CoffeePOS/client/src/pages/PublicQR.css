@@ -1,6 +1,6 @@
 .public-qr-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-background);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -8,12 +8,12 @@
 }
 
 .qr-container {
-  background: white;
+  background: var(--color-surface);
   padding: 50px;
-  border-radius: 24px;
+  border-radius: var(--border-radius-2xl);
   max-width: 600px;
   width: 100%;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-xl);
   text-align: center;
 }
 
@@ -22,18 +22,18 @@
 }
 
 .qr-header svg {
-  color: #667eea;
+  color: var(--color-primary);
   margin-bottom: 20px;
 }
 
 .qr-header h1 {
   font-size: 2rem;
-  color: #1a1a1a;
+  color: var(--color-text);
   margin-bottom: 10px;
 }
 
 .qr-header p {
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 1.1rem;
 }
 
@@ -42,13 +42,13 @@
   justify-content: center;
   margin-bottom: 40px;
   padding: 30px;
-  background: #f9fafb;
-  border-radius: 16px;
+  background: var(--color-surface-muted);
+  border-radius: var(--border-radius-xl);
 }
 
 .qr-display canvas,
 .qr-display img {
-  border-radius: 12px;
+  border-radius: var(--border-radius-lg);
 }
 
 .instructions {
@@ -64,40 +64,40 @@
   align-items: center;
   gap: 20px;
   padding: 20px;
-  background: #f9fafb;
-  border-radius: 12px;
+  background: var(--color-surface-muted);
+  border-radius: var(--border-radius-lg);
 }
 
 .instruction-step svg {
-  color: #667eea;
+  color: var(--color-primary);
   flex-shrink: 0;
 }
 
 .instruction-step h3 {
   font-size: 1.1rem;
-  color: #1a1a1a;
+  color: var(--color-text);
   margin-bottom: 5px;
 }
 
 .instruction-step p {
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 0.95rem;
   margin: 0;
 }
 
 .manual-link {
   padding-top: 30px;
-  border-top: 2px solid #f0f0f0;
+  border-top: 2px solid var(--color-border);
 }
 
 .manual-link p {
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 14px;
   margin-bottom: 10px;
 }
 
 .link {
-  color: #667eea;
+  color: var(--color-primary);
   text-decoration: none;
   font-weight: 600;
   font-size: 16px;
