@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { QrCode, Search, Plus, User, Award, Clock, X, Download, CheckCircle, Filter } from 'lucide-react';
-import { getCardByQRToken, addStamp, redeemReward, getLoyaltyConfig, getAllLoyaltyCards } from '../services/loyaltyService.js';
+import { QrCode, Search, Plus, User, Award, Clock, X, Download, CheckCircle, Filter, Settings, Trash2, Plus as Add } from 'lucide-react';
+import { getCardByQRToken, addStamp, redeemReward, getLoyaltyConfig, getAllLoyaltyCards, updateLoyaltyConfig } from '../services/loyaltyService.js';
 import { getCustomerByPhone } from '../services/customerService.js';
+import LoyaltyCardGenerator from '../components/LoyaltyCardGenerator.jsx';
 import Swal from 'sweetalert2';
 import QRCode from 'qrcode.react';
 import './LoyaltyCard.css';
@@ -17,6 +18,17 @@ export default function LoyaltyCard() {
   const [allCards, setAllCards] = useState([]);
   const [showAllCards, setShowAllCards] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [rewards, setRewards] = useState([]);
+  const [configForm, setConfigForm] = useState({
+    enabled: true,
+    programName: 'Programa de Lealtad',
+    stampsRequired: 10,
+    minPurchase: 0,
+    rewardProduct: 'Café gratis'
+  });
+  const [generatedCardImage, setGeneratedCardImage] = useState(null);
+  const [businessName, setBusinessName] = useState('Mi Cafetería');
 
   useEffect(() => {
     loadConfig();
@@ -27,6 +39,14 @@ export default function LoyaltyCard() {
     try {
       const response = await getLoyaltyConfig();
       setConfig(response.data);
+      setConfigForm({
+        enabled: response.data.enabled,
+        programName: response.data.programName,
+        stampsRequired: response.data.stampsRequired,
+        minPurchase: response.data.minPurchase,
+        rewardProduct: response.data.rewardProduct
+      });
+      setRewards(response.data.rewards || []);
     } catch (error) {
       console.error('Error loading config:', error);
     }
@@ -208,26 +228,50 @@ export default function LoyaltyCard() {
   };
 
   const handleDownloadQR = async () => {
-    if (!card || !card.qr_code) return;
+    if (!card || !card.qr_token) return;
     
-    try {
-      const link = document.createElement('a');
-      link.href = card.qr_code;
-      link.download = `tarjeta-${card.customer?.nombre?.replace(/\s+/g, '-') || 'cliente'}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      Swal.fire({
-        title: '¡Descargado!',
-        text: 'El QR se ha descargado correctamente',
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false
-      });
-    } catch (error) {
-      console.error('Error downloading QR:', error);
-      Swal.fire('Error', 'Error al descargar el QR', 'error');
+    // Usar la imagen generada si existe, si no generarla
+    if (generatedCardImage) {
+      try {
+        const link = document.createElement('a');
+        link.href = generatedCardImage;
+        link.download = `tarjeta-${card.customer?.nombre?.replace(/\s+/g, '-') || 'cliente'}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        Swal.fire({
+          title: '¡Descargado!',
+          text: 'La tarjeta se ha descargado correctamente',
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      } catch (error) {
+        console.error('Error downloading QR:', error);
+        Swal.fire('Error', 'Error al descargar la tarjeta', 'error');
+      }
+    } else {
+      // Fallback al QR simple
+      try {
+        const link = document.createElement('a');
+        link.href = card.qr_code;
+        link.download = `tarjeta-${card.customer?.nombre?.replace(/\s+/g, '-') || 'cliente'}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        Swal.fire({
+          title: '¡Descargado!',
+          text: 'El QR se ha descargado correctamente',
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      } catch (error) {
+        console.error('Error downloading QR:', error);
+        Swal.fire('Error', 'Error al descargar el QR', 'error');
+      }
     }
   };
 
@@ -285,6 +329,78 @@ export default function LoyaltyCard() {
     );
   };
 
+  const handleSaveConfig = async () => {
+    try {
+      setLoading(true);
+      const response = await updateLoyaltyConfig({
+        ...configForm,
+        rewards: rewards
+      });
+
+      if (response.success) {
+        Swal.fire({
+          title: '¡Configuración Guardada!',
+          text: 'La configuración del programa de lealtad ha sido actualizada',
+          icon: 'success'
+        });
+        await loadConfig();
+        setShowConfigModal(false);
+      } else {
+        Swal.fire('Error', response.message, 'error');
+      }
+    } catch (error) {
+      console.error('Error saving config:', error);
+      Swal.fire('Error', 'Error al guardar configuración', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addReward = () => {
+    setRewards([...rewards, { stamps: 5, type: 'discount', value: 10, description: 'Descuento' }]);
+  };
+
+  const removeReward = (index) => {
+    setRewards(rewards.filter((_, i) => i !== index));
+  };
+
+  const updateReward = (index, field, value) => {
+    const updatedRewards = [...rewards];
+    updatedRewards[index][field] = value;
+    setRewards(updatedRewards);
+  };
+
+  const downloadPublicQR = () => {
+    const baseUrl = window.location.origin;
+    const qrUrl = `${baseUrl}/qr-publico`;
+    
+    // Crear un canvas temporal para generar el QR
+    const canvas = document.createElement('canvas');
+    QRCode.toCanvas(canvas, qrUrl, { width: 400, margin: 2 }, (error) => {
+      if (error) {
+        console.error(error);
+        Swal.fire('Error', 'Error al generar QR', 'error');
+        return;
+      }
+      
+      // Descargar el QR como imagen
+      const link = document.createElement('a');
+      link.download = 'qr-registro-clientes.png';
+      link.href = canvas.toDataURL('image/png');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      Swal.fire({
+        title: '¡QR Descargado!',
+        text: 'Este QR es para que los clientes se registren. Imprímelo y colócalo visible.',
+        icon: 'success',
+        timer: 3000,
+        showConfirmButton: false
+      });
+    });
+  };
+
   return (
     <div className="loyalty-card-page">
       <div className="loyalty-header">
@@ -305,9 +421,139 @@ export default function LoyaltyCard() {
             <button onClick={() => setShowAllCards(true)} className="btn btn-secondary">
               <Filter size={20} /> Ver Todos
             </button>
+            <button onClick={() => setShowConfigModal(true)} className="btn btn-secondary">
+              <Settings size={20} /> Configurar
+            </button>
+            <button onClick={downloadPublicQR} className="btn btn-primary">
+              <Download size={20} /> QR Registro
+            </button>
           </div>
         </div>
       </div>
+
+      {showConfigModal && (
+        <div className="config-modal">
+          <div className="config-content">
+            <div className="config-header">
+              <h2>Configurar Programa de Lealtad</h2>
+              <button onClick={() => setShowConfigModal(false)} className="close-btn">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="config-form">
+              <div className="form-group">
+                <label>Nombre del Programa</label>
+                <input
+                  type="text"
+                  value={configForm.programName}
+                  onChange={(e) => setConfigForm({...configForm, programName: e.target.value})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Estado</label>
+                <select
+                  value={configForm.enabled}
+                  onChange={(e) => setConfigForm({...configForm, enabled: e.target.value === 'true'})}
+                >
+                  <option value="true">Activado</option>
+                  <option value="false">Desactivado</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Sellos Requeridos para Recompensa Principal</label>
+                <input
+                  type="number"
+                  value={configForm.stampsRequired}
+                  onChange={(e) => setConfigForm({...configForm, stampsRequired: parseInt(e.target.value)})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Compra Mínima para Sello ($)</label>
+                <input
+                  type="number"
+                  value={configForm.minPurchase}
+                  onChange={(e) => setConfigForm({...configForm, minPurchase: parseFloat(e.target.value)})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Producto de Recompensa Principal</label>
+                <input
+                  type="text"
+                  value={configForm.rewardProduct}
+                  onChange={(e) => setConfigForm({...configForm, rewardProduct: e.target.value})}
+                />
+              </div>
+
+              <div className="rewards-section">
+                <div className="rewards-header">
+                  <h3>Recompensas Adicionales</h3>
+                  <button onClick={addReward} className="btn btn-sm btn-primary">
+                    <Add size={16} /> Agregar
+                  </button>
+                </div>
+
+                {rewards.map((reward, index) => (
+                  <div key={index} className="reward-item">
+                    <div className="reward-fields">
+                      <div className="reward-field">
+                        <label>Sellos</label>
+                        <input
+                          type="number"
+                          value={reward.stamps}
+                          onChange={(e) => updateReward(index, 'stamps', parseInt(e.target.value))}
+                        />
+                      </div>
+                      <div className="reward-field">
+                        <label>Tipo</label>
+                        <select
+                          value={reward.type}
+                          onChange={(e) => updateReward(index, 'type', e.target.value)}
+                        >
+                          <option value="discount">Descuento %</option>
+                          <option value="free">Producto Gratis</option>
+                        </select>
+                      </div>
+                      <div className="reward-field">
+                        <label>Valor</label>
+                        <input
+                          type="number"
+                          value={reward.value}
+                          onChange={(e) => updateReward(index, 'value', parseFloat(e.target.value))}
+                        />
+                      </div>
+                      <div className="reward-field">
+                        <label>Descripción</label>
+                        <input
+                          type="text"
+                          value={reward.description}
+                          onChange={(e) => updateReward(index, 'description', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <button onClick={() => removeReward(index)} className="btn btn-sm btn-danger">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="config-actions">
+                <button onClick={() => setShowConfigModal(false)} className="btn btn-secondary">
+                  Cancelar
+                </button>
+                <button onClick={handleSaveConfig} className="btn btn-primary" disabled={loading}>
+                  {loading ? 'Guardando...' : 'Guardar Configuración'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAllCards ? (
         <div className="cards-list-container">
@@ -379,6 +625,16 @@ export default function LoyaltyCard() {
 
           {card && (
             <div className="card-display">
+              {/* Generador de tarjeta con diseño (oculto) */}
+              <LoyaltyCardGenerator
+                customer={card.customer}
+                qrToken={card.qr_token}
+                businessName={businessName}
+                stamps={card.sellos_actuales}
+                required={card.sellos_requeridos}
+                onImageGenerated={setGeneratedCardImage}
+              />
+
               <div className="card-visual">
                 <div className="card-header">
                   <h2>{config?.programName || 'Programa de Lealtad'}</h2>
@@ -419,7 +675,7 @@ export default function LoyaltyCard() {
 
                 <div className="download-section">
                   <button onClick={handleDownloadQR} className="btn btn-primary">
-                    <Download size={20} /> Descargar QR
+                    <Download size={20} /> Descargar Tarjeta
                   </button>
                 </div>
               </div>

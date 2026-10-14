@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { QrCode, User, Phone, Mail, CheckCircle } from 'lucide-react';
 import { publicRegisterCustomer } from '../services/customerService.js';
+import LoyaltyCardGenerator from '../components/LoyaltyCardGenerator.jsx';
 import Swal from 'sweetalert2';
 
 export default function CustomerRegistration() {
@@ -11,6 +12,8 @@ export default function CustomerRegistration() {
   });
   const [loading, setLoading] = useState(false);
   const [registeredCard, setRegisteredCard] = useState(null);
+  const [generatedCardImage, setGeneratedCardImage] = useState(null);
+  const [businessName, setBusinessName] = useState('Mi Cafetería');
 
   const handleChange = (e) => {
     setFormData({
@@ -50,17 +53,17 @@ export default function CustomerRegistration() {
   };
 
   const downloadQR = () => {
-    if (!registeredCard?.qr_code) return;
+    if (!generatedCardImage) return;
     
     const link = document.createElement('a');
-    link.href = registeredCard.qr_code;
+    link.href = generatedCardImage;
     link.download = `mi-tarjeta-lealtad-${registeredCard.customer?.nombre || 'cliente'}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     
     Swal.fire({
-      title: '¡QR Guardado!',
+      title: '¡Tarjeta Guardada!',
       text: 'Guarda esta imagen en tu galería. Muéstrala en la cafetería para acumular sellos.',
       icon: 'success'
     });
@@ -244,6 +247,17 @@ export default function CustomerRegistration() {
       padding: '15px',
       borderRadius: '12px'
     },
+    cardPreview: {
+      display: 'flex',
+      justifyContent: 'center',
+      marginBottom: '30px'
+    },
+    cardImage: {
+      maxWidth: '100%',
+      height: 'auto',
+      borderRadius: '16px',
+      boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+    },
     successActions: {
       display: 'flex',
       flexDirection: 'column',
@@ -270,38 +284,25 @@ export default function CustomerRegistration() {
           <h1>¡Tarjeta de Lealtad Creada!</h1>
           <p style={styles.customerName}>{registeredCard.customer?.nombre}</p>
           
-          <div style={styles.cardVisual}>
-            <div style={styles.cardHeader}>
-              <h2 style={styles.cardTitle}>Programa de Lealtad</h2>
-              <span style={styles.status}>Activa</span>
-            </div>
-            
-            <div style={styles.customerInfo}>
-              <User size={20} />
-              <span>{registeredCard.customer?.nombre}</span>
-            </div>
+          {/* Generador de tarjeta con diseño */}
+          <LoyaltyCardGenerator
+            customer={registeredCard.customer}
+            qrToken={registeredCard.qr_token}
+            businessName={businessName}
+            stamps={registeredCard.sellos_actuales}
+            required={registeredCard.sellos_requeridos}
+            onImageGenerated={setGeneratedCardImage}
+          />
 
-            <div style={styles.stampsContainer}>
-              <div style={styles.stampsGrid}>
-                {[...Array(10)].map((_, i) => (
-                  <div key={i} style={styles.stampSlot}>
-                    {i < registeredCard.sellos_actuales && <CheckCircle size={24} />}
-                  </div>
-                ))}
-              </div>
-              <div style={styles.progressText}>
-                {registeredCard.sellos_actuales} de 10 sellos
-              </div>
+          {generatedCardImage && (
+            <div style={styles.cardPreview}>
+              <img src={generatedCardImage} alt="Tarjeta de Lealtad" style={styles.cardImage} />
             </div>
-
-            <div style={styles.qrDisplay}>
-              {registeredCard.qr_code && <img src={registeredCard.qr_code} alt="QR Code" style={styles.qrImage} />}
-            </div>
-          </div>
+          )}
 
           <div style={styles.successActions}>
-            <button onClick={downloadQR} style={styles.button}>
-              <QrCode size={24} /> Guardar QR en Fotos
+            <button onClick={downloadQR} style={styles.button} disabled={!generatedCardImage}>
+              <QrCode size={24} /> Guardar Tarjeta en Fotos
             </button>
             <p style={styles.instructions}>
               <strong>Instrucciones:</strong>
@@ -310,7 +311,7 @@ export default function CustomerRegistration() {
               <br />
               2. Muéstrala en la cafetería para acumular sellos
               <br />
-              3. Cada 10 sellos obtienes una recompensa gratis
+              3. Cada {registeredCard.sellos_requeridos} sellos obtienes una recompensa gratis
               <br />
               4. Para ver tu progreso, regresa e ingresa tu teléfono
             </p>

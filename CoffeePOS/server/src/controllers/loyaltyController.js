@@ -9,6 +9,7 @@ import StampHistory from '../models/StampHistory.js';
 import Reward from '../models/Reward.js';
 import Sale from '../models/Sale.js';
 import Config from '../models/Config.js';
+import Client from '../models/Client.js';
 import QRCode from 'qrcode';
 
 // Obtener tarjeta por token QR
@@ -441,6 +442,15 @@ export const getLoyaltyConfig = async (req, res) => {
       configMap[c.clave] = c.valor;
     });
 
+    // Parsear recompensas múltiples
+    let rewards = [];
+    try {
+      const rewardsStr = configMap.loyalty_rewards || '[]';
+      rewards = JSON.parse(rewardsStr);
+    } catch (e) {
+      rewards = [];
+    }
+
     res.status(200).json({
       success: true,
       data: {
@@ -449,7 +459,8 @@ export const getLoyaltyConfig = async (req, res) => {
         stampsRequired: parseInt(configMap.loyalty_stamps_required) || 10,
         minPurchase: parseFloat(configMap.loyalty_min_purchase) || 0,
         rewardProduct: configMap.loyalty_reward_product || 'Café gratis',
-        rewardProductId: configMap.loyalty_reward_product_id || null
+        rewardProductId: configMap.loyalty_reward_product_id || null,
+        rewards: rewards // Array de recompensas configuradas
       }
     });
   } catch (error) {
@@ -472,7 +483,8 @@ export const updateLoyaltyConfig = async (req, res) => {
       stampsRequired, 
       minPurchase, 
       rewardProduct,
-      rewardProductId 
+      rewardProductId,
+      rewards 
     } = req.body;
 
     const configs = [
@@ -481,7 +493,8 @@ export const updateLoyaltyConfig = async (req, res) => {
       { clave: 'loyalty_stamps_required', valor: String(stampsRequired) },
       { clave: 'loyalty_min_purchase', valor: String(minPurchase) },
       { clave: 'loyalty_reward_product', valor: rewardProduct },
-      { clave: 'loyalty_reward_product_id', valor: rewardProductId || '' }
+      { clave: 'loyalty_reward_product_id', valor: rewardProductId || '' },
+      { clave: 'loyalty_rewards', valor: JSON.stringify(rewards || []) }
     ];
 
     for (const config of configs) {

@@ -130,6 +130,153 @@
   text-align: center;
 }
 
+.config-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.config-content {
+  background: var(--color-surface);
+  padding: 30px;
+  border-radius: var(--border-radius-xl);
+  max-width: 700px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.config-header h2 {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.config-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.config-form .form-group label {
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.config-form .form-group input,
+.config-form .form-group select {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  font-size: 14px;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+}
+
+.rewards-section {
+  margin-top: 20px;
+  padding: 20px;
+  background: var(--color-surface-muted);
+  border-radius: var(--border-radius-lg);
+}
+
+.rewards-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.rewards-header h3 {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.reward-item {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 15px;
+  background: var(--color-surface);
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.reward-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 10px;
+  flex: 1;
+}
+
+.reward-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.reward-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.reward-field input,
+.reward-field select {
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-sm);
+  font-size: 13px;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.btn-sm {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.btn-danger {
+  background: var(--color-danger);
+  color: var(--color-text-inverse);
+}
+
+.btn-danger:hover {
+  background: var(--color-danger-hover);
+}
+
+.config-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: flex-end;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
+
 .loyalty-controls {
   background: var(--color-surface);
   padding: 20px;
