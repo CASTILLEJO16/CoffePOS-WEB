@@ -414,26 +414,26 @@
 /* Empty State */
 .empty-payments {
   text-align: center;
-  padding: 48px 24px;
+  padding: 64px 32px;
   border: 2px dashed var(--color-border);
   border-radius: var(--border-radius-lg);
   color: var(--color-text-muted);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-lg);
 }
 
 /* Exchange Rate Badge */
 .exchange-rate-badge {
-  padding: 12px 16px;
+  padding: 16px 20px;
   background: var(--color-info-light);
   border-radius: var(--border-radius-md);
   border: 1px solid var(--color-info);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .exchange-rate-label {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-info-text);
   text-transform: uppercase;
@@ -441,8 +441,8 @@
 }
 
 .exchange-rate-value {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
   color: var(--color-info);
 }
 

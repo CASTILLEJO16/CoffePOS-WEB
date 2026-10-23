@@ -197,7 +197,7 @@ export default function MixedPaymentModal({ isOpen, onClose, total, tipoCambio, 
 
           {/* QUICK COMPLETE BUTTON */}
           {remaining > 0 && (
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 12 }}>
               <button
                 onClick={() => {
                   const lastPayment = payments[payments.length - 1];
@@ -238,7 +238,7 @@ export default function MixedPaymentModal({ isOpen, onClose, total, tipoCambio, 
                 Agrega métodos de pago arriba
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {payments.map(payment => (
                   <div
                     key={payment.id}
@@ -258,8 +258,8 @@ export default function MixedPaymentModal({ isOpen, onClose, total, tipoCambio, 
                     </div>
 
                     {payment.method === 'tarjeta' && (
-                      <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>Tipo de tarjeta</div>
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 8, fontWeight: 500 }}>Tipo de tarjeta</div>
                         <div className="card-type-selector">
                           <button
                             onClick={() => updateCardType(payment.id, 'credito')}
@@ -278,12 +278,12 @@ export default function MixedPaymentModal({ isOpen, onClose, total, tipoCambio, 
                     )}
 
                     <div>
-                      <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>
+                      <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 8, fontWeight: 500 }}>
                         {payment.method === 'dolar' ? 'Monto en USD' : 'Monto'}
                       </div>
 
                       {/* Montos predefinidos */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
                         {(() => {
                           const amounts = payment.method === 'dolar' ? USD_AMOUNTS :
                                         payment.method === 'tarjeta' ? CARD_AMOUNTS :
@@ -293,7 +293,7 @@ export default function MixedPaymentModal({ isOpen, onClose, total, tipoCambio, 
                               key={amount}
                               onClick={() => updatePaymentAmount(payment.id, (payment.amount || 0) + amount)}
                               className="quick-action-btn"
-                              style={{ padding: '8px 12px', fontSize: '13px' }}
+                              style={{ padding: '12px 16px', fontSize: '14px' }}
                             >
                               +${amount}
                             </button>
@@ -312,7 +312,7 @@ export default function MixedPaymentModal({ isOpen, onClose, total, tipoCambio, 
                       />
 
                       {payment.method === 'dolar' && payment.amount > 0 && (
-                        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4, fontWeight: 600, color: 'var(--color-info)' }}>
+                        <div style={{ fontSize: 14, opacity: 0.7, marginTop: 8, fontWeight: 600, color: 'var(--color-info)' }}>
                           ≈ {formatCurrency(payment.amount * tipoCambio)} MXN
                         </div>
                       )}

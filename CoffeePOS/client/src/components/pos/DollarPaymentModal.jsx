@@ -123,7 +123,7 @@ export default function DollarPaymentModal({ isOpen, onClose, total, tipoCambio,
               <>
                 <span className="amount-label">Cambio (Dólares)</span>
                 <span className="amount-value success">${cambioDolar.toFixed(2)} USD</span>
-                <span style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
+                <span style={{ fontSize: 14, opacity: 0.7, marginTop: 6, fontWeight: 500 }}>
                   = {formatCurrency(cambioPesos)} MXN
                 </span>
               </>
@@ -131,7 +131,7 @@ export default function DollarPaymentModal({ isOpen, onClose, total, tipoCambio,
               <>
                 <span className="amount-label">Faltan (Dólares)</span>
                 <span className="amount-value danger">${Math.abs(cambioDolar).toFixed(2)} USD</span>
-                <span style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
+                <span style={{ fontSize: 14, opacity: 0.7, marginTop: 6, fontWeight: 500 }}>
                   = {formatCurrency(Math.abs(cambioDolar) * tipoCambio)} MXN
                 </span>
               </>
@@ -164,7 +164,7 @@ export default function DollarPaymentModal({ isOpen, onClose, total, tipoCambio,
 
           {/* DOLLAR AMOUNTS */}
           <div>
-            <div style={{ marginBottom: 8, fontSize: 13, opacity: 0.7 }}>Montos Comunes en Dólares</div>
+            <div style={{ marginBottom: 12, fontSize: 15, opacity: 0.7, fontWeight: 500 }}>Montos Comunes en Dólares</div>
             <div className="denominations-grid">
               {dollarAmounts.map(v => (
                 <button
@@ -180,7 +180,7 @@ export default function DollarPaymentModal({ isOpen, onClose, total, tipoCambio,
 
           {/* MANUAL INPUT */}
           <div>
-            <div style={{ marginBottom: 6, fontSize: 13, opacity: 0.7 }}>Ingresa monto en dólares</div>
+            <div style={{ marginBottom: 10, fontSize: 15, opacity: 0.7, fontWeight: 500 }}>Ingresa monto en dólares</div>
             <Input
               placeholder="Ej: 20"
               value={dolarRecibido}
