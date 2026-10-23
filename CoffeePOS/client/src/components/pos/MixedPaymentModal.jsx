@@ -135,9 +135,9 @@ export default function MixedPaymentModal({ isOpen, onClose, total, tipoCambio, 
         </div>
       }
     >
-      <div style={{ display: 'flex', gap: 32, minHeight: '100%' }}>
+      <div style={{ display: 'flex', gap: 32, minHeight: '100%', width: '100%' }}>
         {/* LEFT PANEL - Totals */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20, minWidth: '300px' }}>
           <div className="amount-section">
             <span className="amount-label">Total a Pagar</span>
             <span className="amount-value">{formatCurrency(total)}</span>
@@ -169,7 +169,7 @@ export default function MixedPaymentModal({ isOpen, onClose, total, tipoCambio, 
         </div>
 
         {/* RIGHT PANEL - Payment Methods */}
-        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 20, minWidth: '500px' }}>
           {/* ADD PAYMENT BUTTONS */}
           <div className="payment-methods-grid">
             <button
