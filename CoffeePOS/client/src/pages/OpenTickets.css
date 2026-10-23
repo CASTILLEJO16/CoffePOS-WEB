@@ -345,7 +345,7 @@
   justify-content: center;
 }
 
-.modal {
+.ticket-modal {
   position: fixed;
   top: 0;
   left: 0;
@@ -358,7 +358,7 @@
   z-index: 1000;
 }
 
-.modal-content {
+.ticket-modal-content {
   background: var(--color-surface);
   padding: 30px;
   border-radius: var(--border-radius-xl);
@@ -377,7 +377,7 @@
   padding: 5px;
 }
 
-.modal-content h2 {
+.ticket-modal-content h2 {
   margin-bottom: 20px;
   color: var(--color-text);
 }

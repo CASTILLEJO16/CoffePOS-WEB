@@ -385,8 +385,8 @@ export default function OpenTickets() {
       </div>
 
       {showCreateModal && (
-        <div className="modal">
-          <div className="modal-content">
+        <div className="ticket-modal">
+          <div className="ticket-modal-content">
             <button onClick={() => setShowCreateModal(false)} className="close-btn">
               <X size={24} />
             </button>
@@ -422,8 +422,8 @@ export default function OpenTickets() {
       )}
 
       {showAddItemModal && (
-        <div className="modal">
-          <div className="modal-content">
+        <div className="ticket-modal">
+          <div className="ticket-modal-content">
             <button onClick={() => setShowAddItemModal(false)} className="close-btn">
               <X size={24} />
             </button>
