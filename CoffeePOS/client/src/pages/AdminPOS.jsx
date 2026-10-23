@@ -1057,7 +1057,7 @@ export default function AdminPOS() {
         </>
       )}
 
-      <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} title="Seleccionar Método de Pago">
+      <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} title="Seleccionar Método de Pago" size="large">
         <div className="payment-selection-modal">
           <button
             className="payment-option-btn cash"
@@ -1117,6 +1117,7 @@ export default function AdminPOS() {
         isOpen={showCardTypeModal}
         onClose={() => setShowCardTypeModal(false)}
         title="Seleccionar Tipo de Tarjeta"
+        size="medium"
       >
         <div className="payment-methods">
           <button className="payment-method" onClick={() => handleCardPayment('credito')} disabled={processing}>

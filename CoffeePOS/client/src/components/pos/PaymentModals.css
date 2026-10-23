@@ -4,15 +4,15 @@
 .amount-section {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 24px;
+  gap: 12px;
+  padding: 18px 22px;
   background: var(--color-surface-muted);
   border-radius: var(--border-radius-lg);
   border: 1px solid var(--color-border);
 }
 
 .amount-label {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-muted);
   text-transform: uppercase;
@@ -20,10 +20,10 @@
 }
 
 .amount-value {
-  font-size: var(--font-size-4xl);
+  font-size: var(--font-size-3xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
-  line-height: 1;
+  line-height: 1.1;
   letter-spacing: -0.02em;
 }
 
@@ -46,15 +46,15 @@
 /* Quick Action Buttons */
 .quick-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  padding: 20px;
+  padding: 14px 18px;
   background: var(--color-surface-muted);
   border-radius: var(--border-radius-lg);
 }
 
 .quick-action-btn {
-  padding: 16px 28px;
+  padding: 12px 22px;
   border: 2px solid var(--color-border);
   border-radius: var(--border-radius-md);
   background: var(--color-surface);
@@ -90,12 +90,13 @@
 .denominations-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  padding: 20px;
+  gap: 12px;
+  padding: 10px 0;
 }
 
 .denomination-btn {
-  padding: 32px;
+  padding: 20px 16px;
+  min-height: 64px;
   border: 2px solid var(--color-border);
   border-radius: var(--border-radius-lg);
   background: var(--color-surface);
@@ -123,14 +124,14 @@
 /* Coin Buttons */
 .coins-container {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
-  padding: 20px;
+  padding: 10px 0;
 }
 
 .coin-btn {
-  width: 90px;
-  height: 90px;
+  width: 74px;
+  height: 74px;
   border: 2px solid var(--color-border);
   border-radius: var(--border-radius-full);
   background: var(--color-surface);
@@ -344,8 +345,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 20px;
-  padding: 24px;
+  gap: 16px;
+  padding: 16px 24px;
   border-top: 1px solid var(--color-border);
   background: var(--color-surface-muted);
   border-radius: 0 0 var(--border-radius-xl) var(--border-radius-xl);
@@ -353,9 +354,9 @@
 }
 
 .modal-action-btn {
-  padding: 18px 36px;
+  padding: 14px 28px;
   border-radius: var(--border-radius-md);
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
   transition: all var(--transition-base) cubic-bezier(0.4, 0, 0.2, 1);
