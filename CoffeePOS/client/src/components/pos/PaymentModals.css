@@ -6,9 +6,9 @@
   border-radius: var(--border-radius-xl);
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-xl);
-  max-width: 1100px;
+  max-width: 1400px;
   width: 100%;
-  max-height: 85vh;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
 }
@@ -24,15 +24,15 @@
 .amount-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px;
+  gap: 20px;
+  padding: 24px;
   background: var(--color-surface-muted);
   border-radius: var(--border-radius-lg);
   border: 1px solid var(--color-border);
 }
 
 .amount-label {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-muted);
   text-transform: uppercase;
@@ -40,7 +40,7 @@
 }
 
 .amount-value {
-  font-size: var(--font-size-3xl);
+  font-size: var(--font-size-4xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
   line-height: 1;
@@ -66,19 +66,19 @@
 /* Quick Action Buttons */
 .quick-actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
-  padding: 16px;
+  padding: 20px;
   background: var(--color-surface-muted);
   border-radius: var(--border-radius-lg);
 }
 
 .quick-action-btn {
-  padding: 12px 20px;
+  padding: 16px 28px;
   border: 2px solid var(--color-border);
   border-radius: var(--border-radius-md);
   background: var(--color-surface);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text);
   cursor: pointer;
@@ -110,16 +110,16 @@
 .denominations-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  padding: 16px;
+  gap: 16px;
+  padding: 20px;
 }
 
 .denomination-btn {
-  padding: 24px;
+  padding: 32px;
   border: 2px solid var(--color-border);
   border-radius: var(--border-radius-lg);
   background: var(--color-surface);
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
   cursor: pointer;
@@ -143,18 +143,18 @@
 /* Coin Buttons */
 .coins-container {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   flex-wrap: wrap;
-  padding: 16px;
+  padding: 20px;
 }
 
 .coin-btn {
-  width: 72px;
-  height: 72px;
+  width: 90px;
+  height: 90px;
   border: 2px solid var(--color-border);
   border-radius: var(--border-radius-full);
   background: var(--color-surface);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
   cursor: pointer;
@@ -178,12 +178,12 @@
 /* Payment Method Selection */
 .payment-methods-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
 }
 
 .payment-method-card {
-  padding: 20px;
+  padding: 28px;
   border: 2px solid var(--color-border);
   border-radius: var(--border-radius-lg);
   background: var(--color-surface);
@@ -192,7 +192,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   text-align: center;
 }
 
@@ -241,6 +241,8 @@
 
 .payment-method-icon {
   color: var(--color-text-secondary);
+  width: 48px;
+  height: 48px;
 }
 
 .payment-method-card:hover .payment-method-icon {
@@ -248,14 +250,14 @@
 }
 
 .payment-method-label {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text);
 }
 
 /* Mixed Payment Specific */
 .payment-item-card {
-  padding: 16px;
+  padding: 20px;
   background: var(--color-surface-muted);
   border-radius: var(--border-radius-md);
   border: 1px solid var(--color-border);
@@ -271,20 +273,20 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .payment-item-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: var(--font-size-sm);
+  gap: 10px;
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text);
 }
 
 .remove-payment-btn {
-  padding: 6px;
+  padding: 10px;
   border-radius: var(--border-radius-sm);
   border: none;
   background: var(--color-danger-light);
@@ -303,16 +305,16 @@
 
 .card-type-selector {
   display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .card-type-btn {
-  padding: 10px 16px;
+  padding: 14px 20px;
   border: 2px solid var(--color-border);
   border-radius: var(--border-radius-md);
   background: var(--color-surface);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-medium);
   color: var(--color-text);
   cursor: pointer;
@@ -333,10 +335,10 @@
 /* Input Fields in Modals */
 .payment-input {
   width: 100%;
-  padding: 12px 16px;
+  padding: 16px 20px;
   border: 2px solid var(--color-border);
   border-radius: var(--border-radius-md);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-lg);
   font-family: var(--font-family-base);
   background: var(--color-surface);
   color: var(--color-text);
@@ -362,8 +364,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 20px;
+  gap: 20px;
+  padding: 24px;
   border-top: 1px solid var(--color-border);
   background: var(--color-surface-muted);
   border-radius: 0 0 var(--border-radius-xl) var(--border-radius-xl);
@@ -371,9 +373,9 @@
 }
 
 .modal-action-btn {
-  padding: 14px 28px;
+  padding: 18px 36px;
   border-radius: var(--border-radius-md);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
   transition: all var(--transition-base) cubic-bezier(0.4, 0, 0.2, 1);
