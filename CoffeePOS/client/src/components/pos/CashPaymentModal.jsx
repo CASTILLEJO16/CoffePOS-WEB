@@ -93,9 +93,9 @@ export default function CashPaymentModal({ isOpen, onClose, total, onConfirm }) 
         </div>
       }
     >
-      <div style={{ display: 'flex', gap: 24 }}>
+      <div style={{ display: 'flex', gap: 32, minHeight: '100%' }}>
         {/* LEFT PANEL */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div className="amount-section">
             <span className="amount-label">Total de la venta</span>
             <span className="amount-value">{formatCurrency(total)}</span>
@@ -122,7 +122,7 @@ export default function CashPaymentModal({ isOpen, onClose, total, onConfirm }) 
         </div>
 
         {/* RIGHT PANEL */}
-        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* QUICK ACTIONS */}
           <div className="quick-actions">
             <button

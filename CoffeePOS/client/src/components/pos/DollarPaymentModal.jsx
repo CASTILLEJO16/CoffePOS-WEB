@@ -95,9 +95,9 @@ export default function DollarPaymentModal({ isOpen, onClose, total, tipoCambio,
         </div>
       }
     >
-      <div style={{ display: 'flex', gap: 24 }}>
+      <div style={{ display: 'flex', gap: 32, minHeight: '100%' }}>
         {/* LEFT PANEL */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div className="exchange-rate-badge">
             <span className="exchange-rate-label">Tipo de Cambio</span>
             <span className="exchange-rate-value">1 USD = {formatCurrency(tipoCambio)} MXN</span>
@@ -140,7 +140,7 @@ export default function DollarPaymentModal({ isOpen, onClose, total, tipoCambio,
         </div>
 
         {/* RIGHT PANEL */}
-        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* QUICK ACTIONS */}
           <div className="quick-actions">
             <button
