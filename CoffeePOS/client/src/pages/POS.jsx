@@ -424,6 +424,7 @@ export default function POS() {
   function calcPrecioConPromo(precio, promotion) {
     if (promotion.tipo === 'BUY_X_PAY_Y') {
       // Comprar X, pagar Y → precio efectivo por unidad = precio × (Y/X)
+      // Ejemplo 2x1: precio × (1/2) = precio/2 por unidad
       const factor = promotion.cantidadPagar / promotion.cantidadComprar;
       return parseFloat((precio * factor).toFixed(2));
     }
@@ -535,6 +536,12 @@ export default function POS() {
   }
 
   function handleEditItem(item) {
+    // No permitir editar combos - no tienen personalizaciones editables
+    if (item.isCombo || item.personalizaciones?.isCombo) {
+      showToast('Los combos no se pueden editar. Elimínalo y agrégalo nuevamente.', 'info');
+      return;
+    }
+
     setEditingItem(item);
     setSelectedProduct({
       id: item.producto_id,

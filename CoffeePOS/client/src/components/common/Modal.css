@@ -34,19 +34,19 @@
 }
 
 .modal-small {
-  max-width: 500px;
-}
-
-.modal-medium {
   max-width: 600px;
 }
 
-.modal-large {
+.modal-medium {
   max-width: 800px;
 }
 
-.modal-extra-large {
+.modal-large {
   max-width: 1000px;
+}
+
+.modal-extra-large {
+  max-width: 1200px;
 }
 
 .modal-header {

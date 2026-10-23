@@ -3,7 +3,7 @@
  */
 
 import express from 'express';
-import { authenticate } from '../middlewares/authMiddleware.js';
+import { authenticateToken as authenticate } from '../middlewares/authMiddleware.js';
 import * as loyaltyController from '../controllers/loyaltyController.js';
 
 const router = express.Router();

@@ -77,9 +77,9 @@ export default function OrderItem({ item, onUpdateQuantity, onRemove, onEdit }) 
         <div className="order-item-details">
           <span
             className="order-item-name"
-            style={{ cursor: 'pointer', textDecoration: 'underline' }}
-            onClick={() => onEdit && onEdit(item)}
-            title="Click para editar personalizaciones"
+            style={{ cursor: isCombo ? 'default' : 'pointer', textDecoration: isCombo ? 'none' : 'underline' }}
+            onClick={() => !isCombo && onEdit && onEdit(item)}
+            title={isCombo ? 'Los combos no se pueden editar' : 'Click para editar personalizaciones'}
           >
             {item.producto_nombre}
           </span>

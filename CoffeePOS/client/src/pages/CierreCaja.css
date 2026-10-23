@@ -10,11 +10,10 @@
 
 .cierre-caja-container {
   background: var(--color-surface);
-  color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-xl);
   box-shadow: var(--shadow-xl);
-  max-width: 800px;
+  max-width: 1000px;
   width: 100%;
   padding: 3rem;
   max-height: 90vh;

@@ -351,19 +351,20 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
           participatingItems.sort((a, b) => a.precio - b.precio);
           
           // Para cada item participante, determinar cuántos son gratuitos
+          // Comprar X, pagar Y → (X - Y) productos gratis por cada grupo de X
           for (const item of participatingItems) {
             const totalQtyInCart = cartProducts.get(item.producto_id.toString()) || 0;
             const qtyToApply = Math.min(item.cantidad, totalQtyInCart);
             const groups = Math.floor(qtyToApply / cantidadComprar);
-            const freeInThisGroup = groups * cantidadPagar;
+            const freeItemsCount = groups * (cantidadComprar - cantidadPagar);
             
-            if (freeInThisGroup > 0) {
-              const freePrice = item.precio * freeInThisGroup;
+            if (freeItemsCount > 0) {
+              const freePrice = item.precio * freeItemsCount;
               discountAmount += freePrice;
               freeItems.push({
                 producto_id: item.producto_id,
                 producto_nombre: item.producto_nombre,
-                cantidad: freeInThisGroup,
+                cantidad: freeItemsCount,
                 precio_unitario: item.precio,
                 descuento: freePrice
               });

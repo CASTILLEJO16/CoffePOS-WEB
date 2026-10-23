@@ -3,7 +3,7 @@
  */
 
 import express from 'express';
-import { authenticate } from '../middlewares/authMiddleware.js';
+import { authenticateToken as authenticate } from '../middlewares/authMiddleware.js';
 import * as openTicketController from '../controllers/openTicketController.js';
 
 const router = express.Router();
