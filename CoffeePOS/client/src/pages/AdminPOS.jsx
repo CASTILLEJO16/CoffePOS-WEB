@@ -444,22 +444,37 @@ export default function AdminPOS() {
         return;
       }
 
-      // Agregar cada producto con el precio descontado según el tipo de promo
+      // Para promociones BUY_X_PAY_Y, agregar productos con precio normal
+      // El descuento se aplicará en el backend al momento de la venta
+      // Para otros tipos de promociones, aplicar descuento inmediatamente
       for (const product of participantProducts) {
-        const precioConPromo = calcPrecioConPromo(product.precio, promotion);
+        let precioFinal = product.precio;
+        let precioOriginal = product.precio;
+        let promoAplicada = null;
+
+        if (promotion.tipo === 'BUY_X_PAY_Y') {
+          // No aplicar descuento en frontend para 2x1
+          // El backend calculará el descuento al procesar la venta
+          promoAplicada = promotion.nombre;
+        } else {
+          // Aplicar descuento inmediato para porcentaje y descuento fijo
+          precioFinal = calcPrecioConPromo(product.precio, promotion);
+          promoAplicada = promotion.nombre;
+        }
+
         addItem({
           ...product,
-          precio: precioConPromo,          // precio ya con descuento → el contexto lo usará
-          precioOriginal: product.precio,  // precio original → para mostrar tachado en carrito
-          promoAplicada: promotion.nombre  // nombre de la promo → para el badge visual
+          precio: precioFinal,
+          precioOriginal: precioOriginal,
+          promoAplicada
         }, {});
       }
 
       Swal.fire({
         title: '¡Promoción aplicada!',
-        text: `Se agregaron ${participantProducts.length} producto(s) al carrito`,
+        text: `Se agregaron ${participantProducts.length} producto(s) al carrito${promotion.tipo === 'BUY_X_PAY_Y' ? '. El descuento 2x1 se aplicará al cobrar.' : ''}`,
         icon: 'success',
-        timer: 1500,
+        timer: 2000,
         showConfirmButton: false
       });
     } catch (error) {

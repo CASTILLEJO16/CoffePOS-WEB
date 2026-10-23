@@ -5,6 +5,7 @@ import { formatCurrency } from '../../utils/formatCurrency.js';
 export default function OrderItem({ item, onUpdateQuantity, onRemove, onEdit }) {
   const hasCustomizations = item.personalizaciones && Object.keys(item.personalizaciones).length > 0;
   const hasPromotion = item.promoDescuento && item.promoDescuento > 0;
+  const hasBuyXPayYPromo = item.promoAplicada && (item.promoAplicada.includes('2x1') || item.promoAplicada.includes('X/Y'));
   const isCombo = item.personalizaciones?.isCombo || item.isCombo;
   const comboProducts = item.personalizaciones?.comboProducts || item.comboProducts;
 
@@ -98,6 +99,11 @@ export default function OrderItem({ item, onUpdateQuantity, onRemove, onEdit }) 
               {getComboBreakdown()}
             </div>
           )}
+          {hasBuyXPayYPromo && (
+            <span className="order-item-promotion">
+              🎉 {item.promoAplicada} · Descuento aplicado al cobrar
+            </span>
+          )}
           {hasPromotion && (
             <span className="order-item-promotion">
               🎉 {item.promoAplicada || 'Promoción'} · ahorro: {formatCurrency(item.promoDescuento)}
@@ -108,7 +114,7 @@ export default function OrderItem({ item, onUpdateQuantity, onRemove, onEdit }) 
       <div className="order-item-actions">
         <div className="order-item-price-container">
           <span className="order-item-price">{formatCurrency(item.importe)}</span>
-          {hasPromotion && (
+          {hasPromotion && !hasBuyXPayYPromo && (
             <span className="order-item-original-price">
               {formatCurrency((item.precio_base) * item.cantidad)}
             </span>

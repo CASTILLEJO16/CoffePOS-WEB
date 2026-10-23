@@ -111,7 +111,8 @@ function orderReducer(state, action) {
       // Precio original para mostrar tachado si hay promo
       const precioOriginal = product.precioOriginal ?? product.precio;
       // promoDescuento = ahorro por unidad (para badge visual en OrderItem)
-      const promoDescuento = product.promoAplicada
+      // Para BUY_X_PAY_Y, no mostrar descuento en el carrito porque se aplica en backend
+      const promoDescuento = (product.promoAplicada && !product.promoAplicada.includes('2x1') && !product.promoAplicada.includes('X/Y'))
         ? Math.max(0, precioOriginal - discountedPrice)
         : 0;
 
