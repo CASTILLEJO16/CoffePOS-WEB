@@ -1,5 +1,7 @@
 import { formatBusinessDateTime } from '../utils/dateTime.js';
 
+/* @jsxImportSource react */
+
 /**
  * Servicio de Tickets para Cliente
  * Genera e imprime tickets de venta
