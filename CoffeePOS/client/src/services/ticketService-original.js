@@ -336,14 +336,14 @@ export function generateTicketHTML(sale, customerName = null, businessInfo = nul
             <span>Efectivo MXN:</span>
             <span>${formatCurrency(sale.efectivo_mxn)}</span>
           </div>` : ''}
-${sale.efectivo_usd > 0 ? `
+          ${sale.efectivo_usd > 0 ? `
           <div class="ticket-info-row">
             <span>Efectivo USD:</span>
             <span>${formatCurrency(sale.efectivo_usd)}</span>
-          </div>` : ''}
+          </div>
           <div class="ticket-info-row">
             <span>  (= MXN):</span>
-            <span>${formatCurrency(sale.efectivo_usd * (sale.tipo_cambio || 20), sale)}</span>
+            <span>${formatCurrency(sale.efectivo_usd * (sale.tipo_cambio || 20))}</span>
           </div>` : ''}
           ${sale.tarjeta_credito > 0 ? `
           <div class="ticket-info-row">
@@ -358,7 +358,7 @@ ${sale.efectivo_usd > 0 ? `
           ${sale.tipo_cambio ? `
           <div class="ticket-info-row" style="margin-top: 3px; border-top: 1px solid #000; padding-top: 3px;">
             <span>Tipo de Cambio:</span>
-            <span>1 USD = $${sale.tipo_cambio.toFixed(2)}</span>
+            <span>1 USD = $${Number(sale.tipo_cambio).toFixed(2)}</span>
           </div>` : ''}
         </div>` : ''}
 
@@ -381,10 +381,10 @@ ${sale.efectivo_usd > 0 ? `
           ${sale.tipo_cambio ? `
           <div class="ticket-info-row" style="margin-top: 3px; border-top: 1px solid #000; padding-top: 3px;">
             <span>Tipo de Cambio:</span>
-            <span>1 USD = $${sale.tipo_cambio.toFixed(2)}</span>
+            <span>1 USD = $${Number(sale.tipo_cambio).toFixed(2)}</span>
           </div>` : ''}
         </div>` : ''}
-        
+
         <div class="ticket-items">
           <table>
             <thead>
@@ -453,7 +453,7 @@ function getCustomizationText(personalizaciones) {
   const formatOpt = (opt) => {
     if (!opt) return null;
     const price = opt.price || 0;
-    return price > 0 ? `${opt.name} (+$${price.toFixed(2)})` : opt.name;
+    return price > 0 ? opt.name + ' (+$' + price.toFixed(2) + ')' : opt.name;
   };
   
   if (p.milkType && p.milkType.id !== 'entera') {
