@@ -19,6 +19,17 @@ export default function AdminConfiguracion() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (config.idioma) {
+      localStorage.setItem('idioma', config.idioma);
+      window.dispatchEvent(new Event('idiomaUpdated'));
+    }
+    if (config.moneda_predeterminada) {
+      localStorage.setItem('moneda_predeterminada', config.moneda_predeterminada);
+      window.dispatchEvent(new Event('configUpdated'));
+    }
+  }, [config]);
+
   async function loadData() {
     try {
       setLoading(true);
@@ -138,32 +149,28 @@ export default function AdminConfiguracion() {
           </div>
           <div className="config-card-body">
             <div className="form-group">
-              <label>IVA (%)</label>
-              <input
-                type="number"
-                step="0.01"
+              <label>Idioma</label>
+              <select
                 className="form-input"
-                value={config.iva_rate ? (parseFloat(config.iva_rate) * 100) : ''}
-                onChange={(e) => {
-                  const percent = e.target.value;
-                  const decimal = percent ? (parseFloat(percent) / 100).toString() : '';
-                  setConfig(prev => ({ ...prev, iva_rate: decimal }));
-                }}
-                placeholder="Ej: 16"
-              />
-              <p className="help-text">Escribe 16 para 16%</p>
+                value={config.idioma !== undefined && config.idioma !== '' ? config.idioma : 'es'}
+                onChange={(e) => setConfig(prev => ({ ...prev, idioma: e.target.value }))}
+              >
+                <option value="es">Español</option>
+                <option value="en">English</option>
+              </select>
+              <p className="help-text">Selecciona el idioma del sistema</p>
             </div>
             <div className="form-group">
-              <label>Tipo de Cambio Dólar (MXN)</label>
-              <input
-                type="number"
-                step="0.01"
+              <label>Moneda Predeterminada</label>
+              <select
                 className="form-input"
-                value={config.tipo_cambio_dolar !== undefined && config.tipo_cambio_dolar !== '' ? config.tipo_cambio_dolar : ''}
-                onChange={(e) => setConfig(prev => ({ ...prev, tipo_cambio_dolar: e.target.value }))}
-                placeholder="Ej: 20.00"
-              />
-              <p className="help-text">Tipo de cambio para pagos en dólares (1 USD = X MXN)</p>
+                value={config.moneda_predeterminada !== undefined && config.moneda_predeterminada !== '' ? config.moneda_predeterminada : 'MXN'}
+                onChange={(e) => setConfig(prev => ({ ...prev, moneda_predeterminada: e.target.value }))}
+              >
+                <option value="MXN">MXN (Peso Mexicano)</option>
+                <option value="USD">USD (Dólar)</option>
+              </select>
+              <p className="help-text">Moneda por defecto para todos los montos</p>
             </div>
             <div className="form-group checkbox-group">
               <label className="checkbox-label">

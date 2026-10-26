@@ -194,6 +194,16 @@
   transform: translateY(0);
 }
 
+@media (max-width: 1024px) {
+  .customization-modal {
+    max-width: 95%;
+  }
+
+  .options-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}
+
 @media (max-width: 640px) {
   .customization-modal {
     max-height: 100vh;

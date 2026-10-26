@@ -18,6 +18,15 @@ const ConfigSchema = new mongoose.Schema({
   valor: {
     type: String,
     required: true
+  },
+  // Configuración de idioma y moneda
+  idioma: {
+    type: String,
+    default: 'es'
+  },
+  moneda_predeterminada: {
+    type: String,
+    default: 'MXN'
   }
 }, {
   timestamps: true

@@ -428,6 +428,21 @@
 }
 
 /* Responsive */
+@media (max-width: 1024px) {
+  .payment-methods-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .payment-modal-layout {
+    flex-direction: column;
+  }
+
+  .payment-modal-left,
+  .payment-modal-right {
+    min-width: 100% !important;
+  }
+}
+
 @media (max-width: 768px) {
   .payment-modal-content {
     max-height: 95vh;
@@ -448,5 +463,28 @@
 
   .modal-action-btn {
     width: 100%;
+  }
+
+  .amount-section {
+    padding: 16px;
+  }
+
+  .quick-actions {
+    flex-wrap: wrap;
+  }
+
+  .quick-action-btn {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .payment-modal-layout {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .payment-modal-left,
+  .payment-modal-right {
+    min-width: 100% !important;
   }
 }

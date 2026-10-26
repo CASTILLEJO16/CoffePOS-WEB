@@ -112,6 +112,12 @@
   flex-shrink: 0;
 }
 
+@media (max-width: 1024px) {
+  .modal-extra-large {
+    max-width: 95%;
+  }
+}
+
 @media (max-width: 768px) {
   .modal-overlay {
     padding: 12px;

@@ -36,18 +36,18 @@ export function generateTicket(sale, businessInfo = null) {
     lines.push(''.padEnd(width, '-'));
 
     if (sale.efectivo_mxn > 0) {
-      lines.push(`Efectivo MXN: ${formatCurrency(sale.efectivo_mxn).padStart(width - 15)}`);
+      lines.push(`Efectivo MXN: ${formatCurrency(sale.efectivo_mxn, sale).padStart(width - 15)}`);
     }
     if (sale.efectivo_usd > 0) {
       const usdToMxn = sale.efectivo_usd * (sale.tipo_cambio || 20);
-      lines.push(`Efectivo USD: ${formatCurrency(sale.efectivo_usd).padStart(width - 15)}`);
-      lines.push(`  (= MXN):   ${formatCurrency(usdToMxn).padStart(width - 15)}`);
+      lines.push(`Efectivo USD: ${formatCurrency(sale.efectivo_usd, sale).padStart(width - 15)}`);
+      lines.push(`  (= MXN):   ${formatCurrency(usdToMxn, sale).padStart(width - 15)}`);
     }
     if (sale.tarjeta_credito > 0) {
-      lines.push(`Tarjeta Crédito: ${formatCurrency(sale.tarjeta_credito).padStart(width - 18)}`);
+      lines.push(`Tarjeta Crédito: ${formatCurrency(sale.tarjeta_credito, sale).padStart(width - 18)}`);
     }
     if (sale.tarjeta_debito > 0) {
-      lines.push(`Tarjeta Débito: ${formatCurrency(sale.tarjeta_debito).padStart(width - 18)}`);
+      lines.push(`Tarjeta Débito: ${formatCurrency(sale.tarjeta_debito, sale).padStart(width - 18)}`);
     }
 
     if (sale.tipo_cambio) {
@@ -58,13 +58,13 @@ export function generateTicket(sale, businessInfo = null) {
     lines.push('MÉTODO DE PAGO: USD');
     lines.push(''.padEnd(width, '-'));
     if (sale.monto_dolar) {
-      lines.push(`Monto USD: ${formatCurrency(sale.monto_dolar).padStart(width - 13)}`);
+      lines.push(`Monto USD: ${formatCurrency(sale.monto_dolar, sale).padStart(width - 13)}`);
     }
     if (sale.dolar_recibido) {
-      lines.push(`Recibido USD: ${formatCurrency(sale.dolar_recibido).padStart(width - 15)}`);
+      lines.push(`Recibido USD: ${formatCurrency(sale.dolar_recibido, sale).padStart(width - 15)}`);
     }
     if (sale.cambio_pesos !== null && sale.cambio_pesos !== undefined) {
-      lines.push(`Cambio MXN: ${formatCurrency(sale.cambio_pesos).padStart(width - 14)}`);
+      lines.push(`Cambio MXN: ${formatCurrency(sale.cambio_pesos, sale).padStart(width - 14)}`);
     }
     if (sale.tipo_cambio) {
       lines.push(''.padEnd(width, '-'));
@@ -90,14 +90,14 @@ export function generateTicket(sale, businessInfo = null) {
     const cantidad = detail.cantidad.toString().padEnd(4);
     const nombreProducto = detail.producto_nombre || detail.producto_id?.nombre || 'Producto';
     const nombre = nombreProducto.substring(0, 20).padEnd(20);
-    const precio = formatCurrency(detail.precio).padStart(8);
-    const importe = formatCurrency(detail.importe).padStart(8);
+    const precio = formatCurrency(detail.precio, sale).padStart(8);
+    const importe = formatCurrency(detail.importe, sale).padStart(8);
     lines.push(`${cantidad}${nombre}${precio}${importe}`);
 
     // Agregar descuento si existe
     if (detail.descuento && detail.descuento > 0) {
       const discountAmount = detail.precio * (detail.descuento / 100) * detail.cantidad;
-      lines.push(`     Descuento: -${detail.descuento}% -${formatCurrency(discountAmount).padStart(8)}`);
+      lines.push(`     Descuento: -${detail.descuento}% -${formatCurrency(discountAmount, sale).padStart(8)}`);
     }
 
     // Agregar personalizaciones si existen
@@ -112,11 +112,11 @@ export function generateTicket(sale, businessInfo = null) {
   lines.push(''.padEnd(width, '-'));
 
   // Totales
-  lines.push(`Subtotal: ${formatCurrency(sale.subtotal).padStart(width - 11)}`);
+  lines.push(`Subtotal: ${formatCurrency(sale.subtotal, sale).padStart(width - 11)}`);
   const ivaRate = sale.iva_rate || 0.16;
-  lines.push(`IVA (${(ivaRate * 100).toFixed(0)}%): ${formatCurrency(sale.impuestos).padStart(width - 11)}`);
+  lines.push(`IVA (${(ivaRate * 100).toFixed(0)}%): ${formatCurrency(sale.impuestos, sale).padStart(width - 11)}`);
   lines.push(''.padEnd(width, '='));
-  lines.push(`TOTAL: ${formatCurrency(sale.total).padStart(width - 8)}`);
+  lines.push(`TOTAL: ${formatCurrency(sale.total, sale).padStart(width - 8)}`);
   lines.push(''.padEnd(width, '='));
 
   // Pie de página
@@ -197,10 +197,29 @@ function formatDate(dateString) {
 /**
  * Formatea un valor monetario
  * @param {number} value - Valor a formatear
+ * @param {Object} sale - Objeto de venta con info de moneda
  * @returns {string} Valor formateado como moneda
  */
-function formatCurrency(value) {
-  return `$${value.toFixed(2)}`;
+function formatCurrency(value, sale) {
+  const num = Number(value);
+  const safe = Number.isFinite(num) ? num : 0;
+
+  // Determinar moneda basada en la configuración de la venta
+  let currency = 'MXN';
+  if (sale.moneda_predeterminada) {
+    currency = sale.moneda_predeterminada;
+  } else if (sale.metodo_pago === 'dolar' || sale.metodo_pago === 'mixto') {
+    currency = 'USD';
+  }
+
+  if (currency === 'USD') {
+    return `$${safe.toFixed(2)}`;
+  }
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 2
+  }).format(safe);
 }
 
 /**

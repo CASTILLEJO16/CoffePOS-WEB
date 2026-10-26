@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
+import { useTranslation } from '../utils/i18n/useTranslation.js';
 import { 
   BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, 
   Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell 
@@ -20,8 +21,18 @@ const CustomTooltip = ({ active, payload, label, currency = true, unit = '' }) =
       <div className="kpi-custom-tooltip">
         <p className="tooltip-label">{label}</p>
         {payload.map((entry, index) => {
-          const formattedVal = currency 
-            ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(entry.value)
+const formattedVal = currency 
+            ? (() => {
+                const currencyCode = localStorage.getItem('moneda_predeterminada') || 'MXN';
+                if (currencyCode === 'USD') {
+                  return `$${entry.value.toFixed(2)}`;
+                }
+                return new Intl.NumberFormat('es-MX', {
+                  style: 'currency',
+                  currency: 'MXN',
+                  minimumFractionDigits: 2
+                }).format(entry.value);
+              })()
             : `${new Intl.NumberFormat('es-MX').format(entry.value)} ${unit}`;
           return (
             <p key={`item-${index}`} className="tooltip-item" style={{ color: entry.color || '#38bdf8' }}>
@@ -207,15 +218,28 @@ export default function AdminKPIs() {
     }
   }
 
-  function formatCurrency(value) {
+function formatCurrency(value) {
+    const currencyCode = localStorage.getItem('moneda_predeterminada') || 'MXN';
+    if (currencyCode === 'USD') {
+      return `$${Number(value).toFixed(2)}`;
+    }
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN'
+      currency: 'MXN',
+      minimumFractionDigits: 2
     }).format(value);
   }
-
+  
   function formatNumber(value) {
-    return new Intl.NumberFormat('es-MX').format(value);
+    const currencyCode = localStorage.getItem('moneda_predeterminada') || 'MXN';
+    if (currencyCode === 'USD') {
+      return `$${Number(value).toFixed(2)}`;
+    }
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 2
+    }).format(value);
   }
 
   // Preparar datos para gráficos y tablas
@@ -376,7 +400,7 @@ export default function AdminKPIs() {
               <DollarSign size={24} />
             </div>
             <div className="kpi-card-content">
-              <p className="kpi-card-label">Total Ventas</p>
+              <p className="kpi-card-label">{useTranslation('Ventas Totales')}</p>
               <p className="kpi-card-value">{formatCurrency(kpis?.general?.total || 0)}</p>
             </div>
           </div>
@@ -386,7 +410,7 @@ export default function AdminKPIs() {
               <ShoppingCart size={24} />
             </div>
             <div className="kpi-card-content">
-              <p className="kpi-card-label">Número de Ventas</p>
+              <p className="kpi-card-label">{useTranslation('Número de Ventas')}</p>
               <p className="kpi-card-value">{formatNumber(kpis?.general?.total_ventas || 0)}</p>
             </div>
           </div>
@@ -396,7 +420,7 @@ export default function AdminKPIs() {
               <TrendingUp size={24} />
             </div>
             <div className="kpi-card-content">
-              <p className="kpi-card-label">Ticket Promedio</p>
+              <p className="kpi-card-label">{useTranslation('Ticket Promedio')}</p>
               <p className="kpi-card-value">{formatCurrency(kpis?.general?.ticket_promedio || 0)}</p>
             </div>
           </div>
@@ -461,7 +485,7 @@ export default function AdminKPIs() {
           <div className="kpi-chart-card">
             <div className="chart-header-row">
               <Clock size={20} className="chart-icon text-indigo" />
-              <h3 className="kpi-chart-title">Ventas por Hora (Picos de Venta)</h3>
+              <h3 className="kpi-chart-title">{useTranslation('Ventas por Hora (Picos de Venta)')}</h3>
             </div>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={hourlyData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
@@ -479,7 +503,7 @@ export default function AdminKPIs() {
           <div className="kpi-chart-card">
             <div className="chart-header-row">
               <TrendingUp size={20} className="chart-icon text-emerald" />
-              <h3 className="kpi-chart-title">Tendencia de Ventas por Día</h3>
+              <h3 className="kpi-chart-title">{useTranslation('Tendencia de Ventas por Día')}</h3>
             </div>
             <ResponsiveContainer width="100%" height={280}>
               <AreaChart data={dailyData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
@@ -505,7 +529,7 @@ export default function AdminKPIs() {
           <div className="kpi-chart-card">
             <div className="chart-header-row">
               <PieIcon size={20} className="chart-icon text-purple" />
-              <h3 className="kpi-chart-title">Ventas por Método de Pago</h3>
+              <h3 className="kpi-chart-title">{useTranslation('Ventas por Método de Pago')}</h3>
             </div>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
@@ -602,7 +626,7 @@ export default function AdminKPIs() {
         <div className="pdf-header">
           <div className="pdf-header-title">
             <h2 className="pdf-company-name">COFFEE POS</h2>
-            <p className="pdf-report-title">REPORTE EJECUTIVO DE DATOS Y VENTAS</p>
+            <p className="pdf-report-title">{useTranslation('REPORTE EJECUTIVO DE DATOS Y VENTAS')}</p>
           </div>
           <div className="pdf-header-meta">
             <p><strong>Filtro:</strong> {selectedYear ? `Año ${selectedYear}` : period.toUpperCase()}</p>
@@ -612,7 +636,7 @@ export default function AdminKPIs() {
 
         {/* 1. Resumen de Métricas Clave */}
         <div className="pdf-section">
-          <h3 className="pdf-section-title">1. Resumen General de Métricas</h3>
+          <h3 className="pdf-section-title">{useTranslation('1. Resumen General de Métricas')}</h3>
           <table className="pdf-table">
             <thead>
               <tr>
@@ -647,7 +671,7 @@ export default function AdminKPIs() {
 
         {/* 2. Desglose por Método de Pago */}
         <div className="pdf-section">
-          <h3 className="pdf-section-title">2. Desglose de Ventas por Método de Pago</h3>
+          <h3 className="pdf-section-title">{useTranslation('2. Desglose de Ventas por Método de Pago')}</h3>
           <table className="pdf-table">
             <thead>
               <tr>
@@ -677,7 +701,7 @@ export default function AdminKPIs() {
         {/* 3. Desglose de Ventas por Mes (Enero - Diciembre) */}
         {monthlyData.length > 0 && (
           <div className="pdf-section">
-            <h3 className="pdf-section-title">3. Rendimiento Mensual de Ventas</h3>
+            <h3 className="pdf-section-title">{useTranslation('3. Rendimiento Mensual de Ventas')}</h3>
             <table className="pdf-table">
               <thead>
                 <tr>
@@ -701,7 +725,7 @@ export default function AdminKPIs() {
 
         {/* 4. Top 10 Productos Más Vendidos */}
         <div className="pdf-section">
-          <h3 className="pdf-section-title">4. Top 10 Productos Más Vendidos</h3>
+          <h3 className="pdf-section-title">{useTranslation('4. Top 10 Productos Más Vendidos')}</h3>
           <table className="pdf-table">
             <thead>
               <tr>
@@ -726,7 +750,7 @@ export default function AdminKPIs() {
 
         {/* Pie de Página PDF */}
         <div className="pdf-footer">
-          <p>Coffee POS System — Documento Oficial de Reporte de Datos de Ventas</p>
+          <p>{useTranslation('Coffee POS System — Documento Oficial de Reporte de Datos de Ventas')}</p>
         </div>
       </div>
     </div>

@@ -1,16 +1,29 @@
 import { formatBusinessDateTime } from './dateTime.js';
 
-/**
- * Formatea un valor como moneda
- * @param {number} value - Valor a formatear
- * @returns {string} Valor formateado como moneda
- */
-export function formatCurrency(value) {
+const CURRENCY_KEY = 'moneda_predeterminada';
+
+export function formatCurrency(value, currency) {
   const num = Number(value);
   const safe = Number.isFinite(num) ? num : 0;
+
+  const selectedCurrency = currency || typeof window !== 'undefined' ? localStorage.getItem(CURRENCY_KEY) || 'MXN' : 'MXN';
+
   return new Intl.NumberFormat('es-MX', {
     style: 'currency',
-    currency: 'MXN',
+    currency: selectedCurrency,
+    minimumFractionDigits: 2
+  }).format(safe);
+}
+
+export function formatCurrencyWith(value, currency) {
+  const num = Number(value);
+  const safe = Number.isFinite(num) ? num : 0;
+
+  const selectedCurrency = currency || typeof window !== 'undefined' ? localStorage.getItem(CURRENCY_KEY) || 'MXN' : 'MXN';
+
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: selectedCurrency,
     minimumFractionDigits: 2
   }).format(safe);
 }

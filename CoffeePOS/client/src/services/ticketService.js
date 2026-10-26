@@ -29,7 +29,17 @@ export function generateTicketHTML(sale, customerName = null, businessInfo = nul
   const formatDate = (dateString) => formatBusinessDateTime(dateString);
 
   const formatCurrency = (value) => {
-    return `$${value.toFixed(2)}`;
+    const num = Number(value);
+    const safe = Number.isFinite(num) ? num : 0;
+    const currency = sale.moneda_predeterminada || localStorage.getItem('moneda_predeterminada') || 'MXN';
+    if (currency === 'USD') {
+      return `$${safe.toFixed(2)}`;
+    }
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 2
+    }).format(safe);
   };
 
   // Usar tipo de cambio guardado en la venta, si no existe usar el del sistema (no hardcodear 18)
@@ -324,14 +334,14 @@ export function generateTicketHTML(sale, customerName = null, businessInfo = nul
             <span>Efectivo MXN:</span>
             <span>${formatCurrency(sale.efectivo_mxn)}</span>
           </div>` : ''}
-          ${sale.efectivo_usd > 0 ? `
+${sale.efectivo_usd > 0 ? `
           <div class="ticket-info-row">
             <span>Efectivo USD:</span>
-            <span>$${sale.efectivo_usd.toFixed(2)} USD</span>
-          </div>
+            <span>${formatCurrency(sale.efectivo_usd)}</span>
+          </div>` : ''}
           <div class="ticket-info-row">
             <span>  (= MXN):</span>
-            <span>${formatCurrency(sale.efectivo_usd * (sale.tipo_cambio || 20))}</span>
+            <span>${formatCurrency(sale.efectivo_usd * (sale.tipo_cambio || 20), sale)}</span>
           </div>` : ''}
           ${sale.tarjeta_credito > 0 ? `
           <div class="ticket-info-row">
@@ -354,12 +364,12 @@ export function generateTicketHTML(sale, customerName = null, businessInfo = nul
         <div class="ticket-info" style="border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px;">
           <div class="ticket-info-row">
             <span>Monto USD:</span>
-            <span>$${sale.monto_dolar ? sale.monto_dolar.toFixed(2) : '0.00'} USD</span>
+            <span>${formatCurrency(sale.monto_dolar)}</span>
           </div>
           ${sale.dolar_recibido ? `
           <div class="ticket-info-row">
             <span>Recibido USD:</span>
-            <span>$${sale.dolar_recibido.toFixed(2)} USD</span>
+            <span>${formatCurrency(sale.dolar_recibido)}</span>
           </div>` : ''}
           ${sale.cambio_pesos !== null && sale.cambio_pesos !== undefined ? `
           <div class="ticket-info-row">
