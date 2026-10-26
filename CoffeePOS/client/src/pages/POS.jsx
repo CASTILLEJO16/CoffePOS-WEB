@@ -11,7 +11,7 @@ import {	getPromotions } from '../services/promotionService.js';
 import { getLoyaltyConfig } from '../services/loyaltyService.js';
 import api from '../services/api.js';
 import { createSale } from '../services/saleService.js';
-import { printTicket } from '../services/ticketService.js';
+import { printTicket } from '../services/ticketService.jsx';
 import { printLabels } from '../services/labelService.js';
 import { getOpenCashRegister } from '../services/cashRegisterService.js';
 import { getAllConfig } from '../services/configService.js';

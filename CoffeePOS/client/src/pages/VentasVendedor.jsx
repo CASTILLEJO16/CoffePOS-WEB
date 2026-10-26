@@ -29,7 +29,7 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import { getSales, getSaleById, refundSale } from '../services/saleService.js';
 import { getOpenCashRegister } from '../services/cashRegisterService.js';
-import { printTicket } from '../services/ticketService.js';
+import { printTicket } from '../services/ticketService.jsx';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import {
   formatBusinessDateTime,
