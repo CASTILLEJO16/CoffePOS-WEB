@@ -1,4 +1,4 @@
-/* English translations for CoffeePOS */
+/* Translations for CoffeePOS */
 export const translations = {
   en: {
     // Admin Configuration
@@ -12,7 +12,7 @@ export const translations = {
     "Agregar": "Add",
     "Configuración del Sistema": "System Configuration",
     "admin-title": "System Configuration",
-    "admin-subtitle": "General settings, warehouse and boxes",
+    "admin-subtitle": "General settings, warehouse and cash registers",
     "config-grid": "config grid",
     "config-card": "config card",
     "config-card-header": "config card header",
@@ -46,7 +46,7 @@ export const translations = {
     "Developer Panel": "Developer Panel",
     "Developer Login": "Developer Login",
     "Licenses": "Licenses",
-    
+
     // POS - Payment methods
     "Efectivo": "Cash",
     "Tarjeta": "Card",
@@ -57,7 +57,7 @@ export const translations = {
     "Cambio MXN": "Change MXN",
     "Tipo de Cambio": "Exchange Rate",
     "1 USD =": "1 USD =",
-    
+
     // Ticket / Sale
     "Ticket #": "Ticket #",
     "Fecha": "Date",
@@ -67,7 +67,6 @@ export const translations = {
     "MÉTODO DE PAGO: TARJETA": "PAYMENT METHOD: CARD",
     "Subtotal": "Subtotal",
     "IVA": "IVA",
-    "IVA (%)": "IVA (%)",
     "TOTAL": "TOTAL",
     "¡Gracias por su compra!": "Thank you for your purchase!",
     "Desarrollado por CoffeePOS": "Developed by CoffeePOS",
@@ -77,7 +76,7 @@ export const translations = {
     "IMPORTE": "AMOUNT",
     "Descuento": "Discount",
     "Descuento: -": "Discount: -",
-    
+
     // Product customization
     "Leche": "Milk",
     "Entera": "Whole",
@@ -86,15 +85,14 @@ export const translations = {
     "Ninguno": "None",
     "Sirope": "Syrup",
     "Doceza": "Sweetness",
-    "Opción de té": "Te option",
+    "Opción de té": "Tea option",
     "Caliente": "Hot",
-    
+
     // Admin KPIs / Reports
     "REPORTE EJECUTIVO DE DATOS Y VENTAS": "EXECUTIVE DATA AND SALES REPORT",
     "KPIs Ejecutivos": "Executive KPIs",
     "Ventas Totales": "Total Sales",
     "Ticket Promedio": "Average Ticket",
-    "Subtotal": "Subtotal",
     "Impuestos": "Taxes",
     "Fondo Inicial": "Initial Fund",
     "Ventas Efectivo": "Cash Sales",
@@ -107,7 +105,7 @@ export const translations = {
     "Generar Reporte": "Generate Report",
     "Descargar Excel": "Download Excel",
     "Descargar PDF": "Download PDF",
-    
+
     // Common messages
     "Error": "Error",
     "Éxito": "Success",
@@ -122,7 +120,7 @@ export const translations = {
     "Por favor ingrese": "Please enter",
     "No se pudo": "Could not",
     "Vuelva a intentar": "Try again",
-    
+
     // POS Order / Cart
     "Resumen": "Summary",
     "Artículos": "Items",
@@ -131,81 +129,78 @@ export const translations = {
     "Pago": "Payment",
     "Cambio": "Change",
     "Pago con": "Pay with",
-    "USD": "USD",
     "MXN": "MXN",
-    
+
     // Status
     "Activo": "Active",
     "Inactivo": "Inactive",
     "Abierta": "Open",
     "Cerrada": "Closed",
-    
+
     // Cash register
     "Caja": "Cash register",
     "Cierre de caja": "Cash register close",
     "Abrir caja": "Open cash register",
     "Cerrar caja": "Close cash register",
-    
+
     // Product list
     "Nombre": "Name",
     "Precio": "Price",
     "Categoría": "Category",
     "Estado": "Status",
-    "Activo": "Active",
-    "Inactivo": "Inactive",
     "Ver más": "View more",
     "Ocultar": "Hide",
-    
+
     // Discount
     "Aplicar descuento": "Apply discount",
     "Quitar descuento": "Remove discount",
-    
+
     // Loyalty
     "TARJETA DE LEALTAD": "LOYALTY CARD",
     "Escanea para acumular": "Scan to accumulate",
-    
+
     // Error messages
-    "Error al": "Error al",
+    "Error al": "Error while",
     "No se pudo guardar": "Could not save",
     "No se pudo agregar": "Could not add",
     "Error de validación": "Validation error",
-    
+
     // Time
     "Hora": "Hour",
     "Minutos": "Minutes",
-    
+
     // General buttons
     "Guardar": "Save",
     "Eliminar": "Delete",
     "Editar": "Edit",
     "Ver detalles": "View details",
-    
+
     // POS specific
     "Pagar": "Pay",
     "Cancelar pedido": "Cancel order",
     "Modificar": "Modify",
-    
+
     // Empty states
     "No hay ventas": "No sales",
     "No hay productos": "No products",
-    
+
     // Notifications
     "Venta procesada": "Sale processed",
     "Ticket generado": "Ticket generated",
-    
+
     // Developer panel specific
     "Licencia inválida": "Invalid license",
     "Licencia activada": "License activated",
     "Ver licencias": "View licenses",
     "Agregar licencia": "Add license",
-    
-    // Not used yet but good to have
+
+    // General
     "Configuración": "Configuration",
     "Preferencias": "Preferences",
   },
-  
+
   es: {
-    // Spanish translations (same as current, for completeness)
+    // Admin Configuration
     "Almacén e Inventario": "Almacén e Inventario",
     "IVA (%)": "IVA (%)",
     "Tipo de Cambio Dólar (MXN)": "Tipo de Cambio Dólar (MXN)",
@@ -223,7 +218,7 @@ export const translations = {
     "config-card-body": "cuerpo de tarjeta de configuración",
     "form-group": "grupo de formulario",
     "help-text": "texto de ayuda",
-    "primary-btn": "botón primary",
+    "primary-btn": "botón principal",
     "Save": "Guardar",
     "Settings": "Configuración",
     "Warehouse": "Almacén",
@@ -234,12 +229,12 @@ export const translations = {
     "add-caja-form > button": "botón agregar",
     "cajas-list": "lista de cajas",
     "caja-item": "artículo de caja",
-    "status-badge": "badged de estado",
+    "status-badge": "insignia de estado",
     "active": "Activo",
     "inactive": "Inactivo",
     "Desactivar": "Desactivar",
     "Activar": "Activar",
-    "User List": "Usuario",
+    "User List": "Lista de Usuarios",
     "User Form": "Formulario de Usuario",
     "Create User": "Crear Usuario",
     "Update User": "Actualizar Usuario",
@@ -250,7 +245,7 @@ export const translations = {
     "Developer Panel": "Panel de Desarrollador",
     "Developer Login": "Login Desarrollador",
     "Licenses": "Licencias",
-    
+
     // POS - Payment methods
     "Efectivo": "Efectivo",
     "Tarjeta": "Tarjeta",
@@ -261,7 +256,7 @@ export const translations = {
     "Cambio MXN": "Cambio MXN",
     "Tipo de Cambio": "Tipo de Cambio",
     "1 USD =": "1 USD =",
-    
+
     // Ticket / Sale
     "Ticket #": "Ticket #",
     "Fecha": "Fecha",
@@ -271,7 +266,6 @@ export const translations = {
     "MÉTODO DE PAGO: TARJETA": "MÉTODO DE PAGO: TARJETA",
     "Subtotal": "Subtotal",
     "IVA": "IVA",
-    "IVA (%)": "IVA (%)",
     "TOTAL": "TOTAL",
     "¡Gracias por su compra!": "¡Gracias por su compra!",
     "Desarrollado por CoffeePOS": "Desarrollado por CoffeePOS",
@@ -281,7 +275,7 @@ export const translations = {
     "IMPORTE": "IMPORTE",
     "Descuento": "Descuento",
     "Descuento: -": "Descuento: -",
-    
+
     // Product customization
     "Leche": "Leche",
     "Entera": "Entera",
@@ -289,16 +283,15 @@ export const translations = {
     "Cold foam": "Cold foam",
     "Ninguno": "Ninguno",
     "Sirope": "Sirope",
-    "Doceza": "Doceza",
+    "Doceza": "Dulzura",
     "Opción de té": "Opción de té",
     "Caliente": "Caliente",
-    
+
     // Admin KPIs / Reports
     "REPORTE EJECUTIVO DE DATOS Y VENTAS": "REPORTE EJECUTIVO DE DATOS Y VENTAS",
     "KPIs Ejecutivos": "KPIs Ejecutivos",
     "Ventas Totales": "Ventas Totales",
     "Ticket Promedio": "Ticket Promedio",
-    "Subtotal": "Subtotal",
     "Impuestos": "Impuestos",
     "Fondo Inicial": "Fondo Inicial",
     "Ventas Efectivo": "Ventas Efectivo",
@@ -311,7 +304,7 @@ export const translations = {
     "Generar Reporte": "Generar Reporte",
     "Descargar Excel": "Descargar Excel",
     "Descargar PDF": "Descargar PDF",
-    
+
     // Common messages
     "Error": "Error",
     "Éxito": "Éxito",
@@ -326,7 +319,7 @@ export const translations = {
     "Por favor ingrese": "Por favor ingrese",
     "No se pudo": "No se pudo",
     "Vuelva a intentar": "Vuelva a intentar",
-    
+
     // POS Order / Cart
     "Resumen": "Resumen",
     "Artículos": "Artículos",
@@ -335,74 +328,71 @@ export const translations = {
     "Pago": "Pago",
     "Cambio": "Cambio",
     "Pago con": "Pago con",
-    "USD": "USD",
     "MXN": "MXN",
-    
+
     // Status
     "Activo": "Activo",
     "Inactivo": "Inactivo",
     "Abierta": "Abierta",
     "Cerrada": "Cerrada",
-    
+
     // Cash register
     "Caja": "Caja",
     "Cierre de caja": "Cierre de caja",
     "Abrir caja": "Abrir caja",
     "Cerrar caja": "Cerrar caja",
-    
+
     // Product list
     "Nombre": "Nombre",
     "Precio": "Precio",
     "Categoría": "Categoría",
     "Estado": "Estado",
-    "Activo": "Activo",
-    "Inactivo": "Inactivo",
     "Ver más": "Ver más",
     "Ocultar": "Ocultar",
-    
+
     // Discount
     "Aplicar descuento": "Aplicar descuento",
     "Quitar descuento": "Quitar descuento",
-    
+
     // Loyalty
     "TARJETA DE LEALTAD": "TARJETA DE LEALTAD",
     "Escanea para acumular": "Escanea para acumular",
-    
+
     // Error messages
     "Error al": "Error al",
     "No se pudo guardar": "No se pudo guardar",
     "No se pudo agregar": "No se pudo agregar",
     "Error de validación": "Error de validación",
-    
+
     // Time
     "Hora": "Hora",
     "Minutos": "Minutos",
-    
+
     // General buttons
     "Guardar": "Guardar",
     "Eliminar": "Eliminar",
     "Editar": "Editar",
     "Ver detalles": "Ver detalles",
-    
+
     // POS specific
     "Pagar": "Pagar",
     "Cancelar pedido": "Cancelar pedido",
     "Modificar": "Modificar",
-    
+
     // Empty states
     "No hay ventas": "No hay ventas",
     "No hay productos": "No hay productos",
-    
+
     // Notifications
     "Venta procesada": "Venta procesada",
     "Ticket generado": "Ticket generado",
-    
+
     // Developer panel specific
     "Licencia inválida": "Licencia inválida",
     "Licencia activada": "Licencia activada",
     "Ver licencias": "Ver licencias",
     "Agregar licencia": "Agregar licencia",
-    
+
     // General
     "Configuración": "Configuración",
     "Preferencias": "Preferencias",
