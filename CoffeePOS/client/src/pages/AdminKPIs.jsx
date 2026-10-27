@@ -545,7 +545,7 @@ function formatCurrency(value) {
                   label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                 >
                   {paymentData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={VIBRANT_COLORS[index % VIBRANT_COLORS.length]} stroke="#ffffff" strokeWidth={2} />
+                    <Cell key={entry.name || `cell-${index}`} fill={VIBRANT_COLORS[index % VIBRANT_COLORS.length]} stroke="#ffffff" strokeWidth={2} />
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip currency={true} />} />
@@ -586,8 +586,8 @@ function formatCurrency(value) {
                 </tr>
               </thead>
               <tbody>
-                {paymentData.map((item, index) => (
-                  <tr key={index}>
+                {paymentData.map((item) => (
+                  <tr key={item.name || item.id || `row-${item.value}`}>
                     <td className="font-semibold">{item.name}</td>
                     <td>{formatNumber(item.cantidad)}</td>
                     <td className="text-emerald font-bold">{formatCurrency(item.value)}</td>
@@ -608,8 +608,8 @@ function formatCurrency(value) {
                 </tr>
               </thead>
               <tbody>
-                {topProductsData.map((item, index) => (
-                  <tr key={index}>
+                {topProductsData.map((item) => (
+                  <tr key={item.nombre || item.id || `row-${item.ingresos}`}>
                     <td className="font-semibold">{item.nombre}</td>
                     <td>{formatNumber(item.cantidad)}</td>
                     <td className="text-indigo font-bold">{formatCurrency(item.ingresos)}</td>
@@ -711,8 +711,8 @@ function formatCurrency(value) {
                 </tr>
               </thead>
               <tbody>
-                {monthlyData.map((m, idx) => (
-                  <tr key={idx}>
+                {monthlyData.map((m) => (
+                  <tr key={m.mes || `row-${m.total}`}>
                     <td>{m.mes}</td>
                     <td className="text-center">{formatNumber(m.ventas)}</td>
                     <td className="text-right font-semibold">{formatCurrency(m.total)}</td>
@@ -736,14 +736,14 @@ function formatCurrency(value) {
               </tr>
             </thead>
             <tbody>
-              {topProductsData.map((prod, idx) => (
-                <tr key={idx}>
-                  <td>{idx + 1}</td>
-                  <td className="font-semibold">{prod.nombre}</td>
-                  <td className="text-center">{formatNumber(prod.cantidad)}</td>
-                  <td className="text-right">{formatCurrency(prod.ingresos)}</td>
-                </tr>
-              ))}
+{topProductsData.map((prod) => (
+                  <tr key={prod.nombre || prod.id || `row-${prod.ingresos}`}>
+                    <td>{topProductsData.indexOf(prod) + 1}</td>
+                    <td className="font-semibold">{prod.nombre}</td>
+                    <td className="text-center">{formatNumber(prod.cantidad)}</td>
+                    <td className="text-right">{formatCurrency(prod.ingresos)}</td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
