@@ -30,14 +30,20 @@ export default function Configuracion() {
 
   useEffect(() => {
     if (config.idioma) {
-      localStorage.setItem('idioma', config.idioma);
-      window.dispatchEvent(new Event('idiomaUpdated'));
+      const currentLang = localStorage.getItem('idioma');
+      if (currentLang !== config.idioma) {
+        localStorage.setItem('idioma', config.idioma);
+        window.dispatchEvent(new Event('idiomaUpdated'));
+      }
     }
     if (config.moneda_predeterminada) {
-      localStorage.setItem('moneda_predeterminada', config.moneda_predeterminada);
-      window.dispatchEvent(new Event('configUpdated'));
+      const currentCurrency = localStorage.getItem('moneda_predeterminada');
+      if (currentCurrency !== config.moneda_predeterminada) {
+        localStorage.setItem('moneda_predeterminada', config.moneda_predeterminada);
+        window.dispatchEvent(new Event('configUpdated'));
+      }
     }
-  }, [config]);
+  }, [config.idioma, config.moneda_predeterminada]);
 
   async function loadData() {
     try {
