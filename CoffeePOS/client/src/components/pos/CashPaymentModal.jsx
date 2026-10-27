@@ -87,7 +87,7 @@ export default function CashPaymentModal({ isOpen, onClose, total, onConfirm, su
           <Button onClick={handleClose} className="modal-action-btn cancel">{t('Cancelar')}</Button>
           <Button
             onClick={handleConfirm}
-            disabled={difference < 0 || submitting}
+            disabled={difference < 0 || propSubmitting}
             className="modal-action-btn confirm"
           >
             {t('Cobrar')}
