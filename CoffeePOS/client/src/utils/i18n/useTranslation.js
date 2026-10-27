@@ -4,26 +4,8 @@ import { translations } from './translations.js';
 const DEFAULT_LANGUAGE = 'es';
 
 export function useTranslation() {
-  const [language, setLanguage] = useState(DEFAULT_LANGUAGE);
-
-  useEffect(() => {
-    const storedLang = localStorage.getItem('idioma');
-    if (storedLang) {
-      setLanguage(storedLang);
-    }
-
-    const handleLanguageChange = () => {
-      const newLang = localStorage.getItem('idioma');
-      if (newLang) {
-        setLanguage(newLang);
-      }
-    };
-
-    window.addEventListener('idiomaUpdated', handleLanguageChange);
-    return () => window.removeEventListener('idiomaUpdated', handleLanguageChange);
-  }, []);
-
   const translate = (key) => {
+    const language = localStorage.getItem('idioma') || DEFAULT_LANGUAGE;
     const keyMap = translations[language]?.[key];
     if (keyMap) {
       return keyMap;
