@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import { useTranslation } from '../utils/i18n/useTranslation.js';
 import { 
@@ -49,6 +49,7 @@ const CustomTooltip = ({ active, payload, label, currency = true, unit = '' }) =
 };
 
 export default function AdminKPIs() {
+  const { t } = useTranslation();
   const [kpis, setKpis] = useState(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('day');
@@ -400,7 +401,7 @@ function formatCurrency(value) {
               <DollarSign size={24} />
             </div>
             <div className="kpi-card-content">
-              <p className="kpi-card-label">{useTranslation('Ventas Totales')}</p>
+              <p className="kpi-card-label">{t('Ventas Totales')}</p>
               <p className="kpi-card-value">{formatCurrency(kpis?.general?.total || 0)}</p>
             </div>
           </div>
@@ -410,7 +411,7 @@ function formatCurrency(value) {
               <ShoppingCart size={24} />
             </div>
             <div className="kpi-card-content">
-              <p className="kpi-card-label">{useTranslation('Número de Ventas')}</p>
+              <p className="kpi-card-label">{t('Número de Ventas')}</p>
               <p className="kpi-card-value">{formatNumber(kpis?.general?.total_ventas || 0)}</p>
             </div>
           </div>
@@ -420,7 +421,7 @@ function formatCurrency(value) {
               <TrendingUp size={24} />
             </div>
             <div className="kpi-card-content">
-              <p className="kpi-card-label">{useTranslation('Ticket Promedio')}</p>
+              <p className="kpi-card-label">{t('Ticket Promedio')}</p>
               <p className="kpi-card-value">{formatCurrency(kpis?.general?.ticket_promedio || 0)}</p>
             </div>
           </div>
@@ -485,7 +486,7 @@ function formatCurrency(value) {
           <div className="kpi-chart-card">
             <div className="chart-header-row">
               <Clock size={20} className="chart-icon text-indigo" />
-              <h3 className="kpi-chart-title">{useTranslation('Ventas por Hora (Picos de Venta)')}</h3>
+              <h3 className="kpi-chart-title">{t('Ventas por Hora (Picos de Venta)')}</h3>
             </div>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={hourlyData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
@@ -503,7 +504,7 @@ function formatCurrency(value) {
           <div className="kpi-chart-card">
             <div className="chart-header-row">
               <TrendingUp size={20} className="chart-icon text-emerald" />
-              <h3 className="kpi-chart-title">{useTranslation('Tendencia de Ventas por Día')}</h3>
+              <h3 className="kpi-chart-title">{t('Tendencia de Ventas por Día')}</h3>
             </div>
             <ResponsiveContainer width="100%" height={280}>
               <AreaChart data={dailyData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
@@ -529,7 +530,7 @@ function formatCurrency(value) {
           <div className="kpi-chart-card">
             <div className="chart-header-row">
               <PieIcon size={20} className="chart-icon text-purple" />
-              <h3 className="kpi-chart-title">{useTranslation('Ventas por Método de Pago')}</h3>
+              <h3 className="kpi-chart-title">{t('Ventas por Método de Pago')}</h3>
             </div>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
@@ -626,7 +627,7 @@ function formatCurrency(value) {
         <div className="pdf-header">
           <div className="pdf-header-title">
             <h2 className="pdf-company-name">COFFEE POS</h2>
-            <p className="pdf-report-title">{useTranslation('REPORTE EJECUTIVO DE DATOS Y VENTAS')}</p>
+            <p className="pdf-report-title">{t('REPORTE EJECUTIVO DE DATOS Y VENTAS')}</p>
           </div>
           <div className="pdf-header-meta">
             <p><strong>Filtro:</strong> {selectedYear ? `Año ${selectedYear}` : period.toUpperCase()}</p>
@@ -636,7 +637,7 @@ function formatCurrency(value) {
 
         {/* 1. Resumen de Métricas Clave */}
         <div className="pdf-section">
-          <h3 className="pdf-section-title">{useTranslation('1. Resumen General de Métricas')}</h3>
+          <h3 className="pdf-section-title">{t('1. Resumen General de Métricas')}</h3>
           <table className="pdf-table">
             <thead>
               <tr>
@@ -671,7 +672,7 @@ function formatCurrency(value) {
 
         {/* 2. Desglose por Método de Pago */}
         <div className="pdf-section">
-          <h3 className="pdf-section-title">{useTranslation('2. Desglose de Ventas por Método de Pago')}</h3>
+          <h3 className="pdf-section-title">{t('2. Desglose de Ventas por Método de Pago')}</h3>
           <table className="pdf-table">
             <thead>
               <tr>
@@ -701,7 +702,7 @@ function formatCurrency(value) {
         {/* 3. Desglose de Ventas por Mes (Enero - Diciembre) */}
         {monthlyData.length > 0 && (
           <div className="pdf-section">
-            <h3 className="pdf-section-title">{useTranslation('3. Rendimiento Mensual de Ventas')}</h3>
+            <h3 className="pdf-section-title">{t('3. Rendimiento Mensual de Ventas')}</h3>
             <table className="pdf-table">
               <thead>
                 <tr>
@@ -725,7 +726,7 @@ function formatCurrency(value) {
 
         {/* 4. Top 10 Productos Más Vendidos */}
         <div className="pdf-section">
-          <h3 className="pdf-section-title">{useTranslation('4. Top 10 Productos Más Vendidos')}</h3>
+          <h3 className="pdf-section-title">{t('4. Top 10 Productos Más Vendidos')}</h3>
           <table className="pdf-table">
             <thead>
               <tr>
@@ -750,7 +751,7 @@ function formatCurrency(value) {
 
         {/* Pie de Página PDF */}
         <div className="pdf-footer">
-          <p>{useTranslation('Coffee POS System — Documento Oficial de Reporte de Datos de Ventas')}</p>
+          <p>{t('Coffee POS System — Documento Oficial de Reporte de Datos de Ventas')}</p>
         </div>
       </div>
     </div>
