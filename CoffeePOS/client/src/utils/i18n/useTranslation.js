@@ -3,7 +3,7 @@ import { translations } from './translations.js';
 
 const DEFAULT_LANGUAGE = 'es';
 
-export function useTranslation(key) {
+export function useTranslation() {
   const [language, setLanguage] = useState(DEFAULT_LANGUAGE);
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export function useTranslation(key) {
     return key ? key.replace(/([A-Z])/g, ' $1').trim() : '';
   };
 
-  return translate(key);
+  return translate;
 }
 
 /**
