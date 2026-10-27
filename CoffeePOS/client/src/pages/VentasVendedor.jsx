@@ -127,7 +127,7 @@ function KpiCard({ icon: Icon, title, value, description, growth, label, loading
 }
 
 export default function VentasVendedor() {
-  const navigate = useNavigate();
+  const { t, language } = useTranslation();
   const { user } = useAuth();
   const historialRef = useRef(null);
 

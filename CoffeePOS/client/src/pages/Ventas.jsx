@@ -8,7 +8,7 @@ import { RotateCcw } from 'lucide-react';
 import './Ventas.css';
 
 export default function Ventas() {
-  const t = useTranslation();
+  const { t, language } = useTranslation();
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
 

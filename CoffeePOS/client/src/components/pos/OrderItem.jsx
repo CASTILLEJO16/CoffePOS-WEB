@@ -1,8 +1,10 @@
 import { X, Plus, Minus } from 'lucide-react';
 import './OrderItem.css';
 import { formatCurrency } from '../../utils/formatCurrency.js';
+import { useCurrency } from '../../utils/i18n/useTranslation.js';
 
 export default function OrderItem({ item, onUpdateQuantity, onRemove, onEdit }) {
+  const currency = useCurrency(); // Force re-render on currency change
   const hasCustomizations = item.personalizaciones && Object.keys(item.personalizaciones).length > 0;
   const hasPromotion = item.promoDescuento && item.promoDescuento > 0;
   const hasBuyXPayYPromo = item.promoAplicada && (item.promoAplicada.includes('2x1') || item.promoAplicada.includes('X/Y'));

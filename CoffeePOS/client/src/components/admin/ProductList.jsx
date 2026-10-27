@@ -10,7 +10,7 @@ import Input from '../common/Input.jsx';
 import './ProductList.css';
 
 export default function ProductList({ onEdit, onRefresh }) {
-  const t = useTranslation();
+  const { t, language } = useTranslation();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);

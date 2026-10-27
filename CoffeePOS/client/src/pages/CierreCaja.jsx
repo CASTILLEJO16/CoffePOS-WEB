@@ -23,7 +23,7 @@ import {
 import './CierreCaja.css';
 
 export default function CierreCaja() {
-  const t = useTranslation();
+  const { t, language } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { id } = useParams();

@@ -21,7 +21,7 @@ import {
 import './CortesCaja.css';
 
 export default function CortesCaja() {
-  const t = useTranslation();
+  const { t, language } = useTranslation();
   const navigate = useNavigate();
   const [cortes, setCortes] = useState([]);
   const [loading, setLoading] = useState(true);

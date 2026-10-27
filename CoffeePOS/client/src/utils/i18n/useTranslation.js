@@ -31,7 +31,8 @@ export function useTranslation() {
     return key ? key.replace(/([A-Z])/g, ' $1').trim() : '';
   };
 
-  return translate;
+  // Return both translate function and language to force re-renders
+  return { t: translate, language };
 }
 
 /**
@@ -45,9 +46,45 @@ export function useLanguage() {
     if (storedLang) {
       setLanguage(storedLang);
     }
+
+    const handleLanguageChange = () => {
+      const newLang = localStorage.getItem('idioma');
+      if (newLang) {
+        setLanguage(newLang);
+      }
+    };
+
+    window.addEventListener('idiomaUpdated', handleLanguageChange);
+    return () => window.removeEventListener('idiomaUpdated', handleLanguageChange);
   }, []);
 
   return language;
+}
+
+/**
+ * Get the current currency and listen for changes
+ */
+export function useCurrency() {
+  const [currency, setCurrency] = useState('MXN');
+
+  useEffect(() => {
+    const storedCurrency = localStorage.getItem('moneda_predeterminada');
+    if (storedCurrency) {
+      setCurrency(storedCurrency);
+    }
+
+    const handleCurrencyChange = () => {
+      const newCurrency = localStorage.getItem('moneda_predeterminada');
+      if (newCurrency) {
+        setCurrency(newCurrency);
+      }
+    };
+
+    window.addEventListener('configUpdated', handleCurrencyChange);
+    return () => window.removeEventListener('configUpdated', handleCurrencyChange);
+  }, []);
+
+  return currency;
 }
 
 /**

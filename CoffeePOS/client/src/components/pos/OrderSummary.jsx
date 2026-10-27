@@ -1,10 +1,11 @@
 import './OrderSummary.css';
 import { formatCurrency } from '../../utils/formatCurrency.js';
-import { useTranslation } from '../../utils/i18n/useTranslation.js';
+import { useTranslation, useCurrency } from '../../utils/i18n/useTranslation.js';
 import Button from '../common/Button.jsx';
 
 export default function OrderSummary({ subtotal, impuestos, total, onCheckout, onCancel, onClear, disabled, loyaltyDiscount = 0, loyaltyFreeProduct = null }) {
-  const t = useTranslation();
+  const { t, language } = useTranslation();
+  const currency = useCurrency(); // Force re-render on currency change
   // 🔥 Calcular IVA en tiempo real (evita valores viejos en el state)
   const ivaRate = (() => {
     const val = localStorage.getItem('iva_rate');

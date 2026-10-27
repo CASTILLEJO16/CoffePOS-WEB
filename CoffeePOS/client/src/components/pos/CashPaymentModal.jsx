@@ -1,14 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Modal from '../common/Modal.jsx';
 import Button from '../common/Button.jsx';
 import Input from '../common/Input.jsx';
 import { formatCurrency } from '../../utils/formatCurrency.js';
-import { useTranslation } from '../../utils/i18n/useTranslation.js';
+import { useTranslation, useCurrency } from '../../utils/i18n/useTranslation.js';
 import './PaymentModals.css';
 
-export default function CashPaymentModal({ isOpen, onClose, total, onConfirm }) {
-  console.log('[CashPaymentModal] render', { isOpen, total });
-  const t = useTranslation();
+export default function CashPaymentModal({ isOpen, onClose, total, onConfirm, submitting }) {
+  const { t, language } = useTranslation();
+  const currency = useCurrency(); // Force re-render on currency change
   const [denominationsTotal, setDenominationsTotal] = useState(0);
   const [manualAmount, setManualAmount] = useState('');
   const [mode, setMode] = useState('buttons');
