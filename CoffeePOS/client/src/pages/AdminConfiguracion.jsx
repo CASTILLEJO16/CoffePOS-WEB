@@ -19,16 +19,20 @@ export default function AdminConfiguracion() {
     return () => clearInterval(interval);
   }, []);
 
+  // Aplicar idioma y moneda al cargar la config desde el servidor
   useEffect(() => {
-    if (config.idioma) {
+    if (!loading && config.idioma) {
       localStorage.setItem('idioma', config.idioma);
       window.dispatchEvent(new Event('idiomaUpdated'));
     }
-    if (config.moneda_predeterminada) {
+  }, [loading]);
+
+  useEffect(() => {
+    if (!loading && config.moneda_predeterminada) {
       localStorage.setItem('moneda_predeterminada', config.moneda_predeterminada);
       window.dispatchEvent(new Event('configUpdated'));
     }
-  }, [config]);
+  }, [loading]);
 
   async function loadData() {
     try {
@@ -101,6 +105,17 @@ export default function AdminConfiguracion() {
   async function handleSaveConfig() {
     try {
       await updateConfig(config);
+
+      // Aplicar idioma y moneda inmediatamente en el cliente
+      if (config.idioma) {
+        localStorage.setItem('idioma', config.idioma);
+        window.dispatchEvent(new Event('idiomaUpdated'));
+      }
+      if (config.moneda_predeterminada) {
+        localStorage.setItem('moneda_predeterminada', config.moneda_predeterminada);
+        window.dispatchEvent(new Event('configUpdated'));
+      }
+
       Swal.fire({
         title: '¡Guardado!',
         text: 'La configuración se actualizó correctamente.',

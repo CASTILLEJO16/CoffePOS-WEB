@@ -4,11 +4,14 @@ import { translations } from './translations.js';
 const DEFAULT_LANGUAGE = 'es';
 
 export function useTranslation() {
-  const [language, setLanguage] = useState(DEFAULT_LANGUAGE);
+  const [language, setLanguage] = useState(
+    () => localStorage.getItem('idioma') || DEFAULT_LANGUAGE
+  );
 
   useEffect(() => {
+    // Sync with any value already in storage (in case it changed externally)
     const storedLang = localStorage.getItem('idioma');
-    if (storedLang) {
+    if (storedLang && storedLang !== language) {
       setLanguage(storedLang);
     }
 
@@ -39,11 +42,13 @@ export function useTranslation() {
  * Get the current language code
  */
 export function useLanguage() {
-  const [language, setLanguage] = useState(DEFAULT_LANGUAGE);
+  const [language, setLanguage] = useState(
+    () => localStorage.getItem('idioma') || DEFAULT_LANGUAGE
+  );
 
   useEffect(() => {
     const storedLang = localStorage.getItem('idioma');
-    if (storedLang) {
+    if (storedLang && storedLang !== language) {
       setLanguage(storedLang);
     }
 
@@ -65,11 +70,13 @@ export function useLanguage() {
  * Get the current currency and listen for changes
  */
 export function useCurrency() {
-  const [currency, setCurrency] = useState('MXN');
+  const [currency, setCurrency] = useState(
+    () => localStorage.getItem('moneda_predeterminada') || 'MXN'
+  );
 
   useEffect(() => {
     const storedCurrency = localStorage.getItem('moneda_predeterminada');
-    if (storedCurrency) {
+    if (storedCurrency && storedCurrency !== currency) {
       setCurrency(storedCurrency);
     }
 

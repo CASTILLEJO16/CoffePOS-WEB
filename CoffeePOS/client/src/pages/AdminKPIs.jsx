@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
-import { useTranslation } from '../utils/i18n/useTranslation.js';
+import { useTranslation, useCurrency } from '../utils/i18n/useTranslation.js';
 import { 
   BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, 
   Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell 
@@ -50,6 +50,7 @@ const CustomTooltip = ({ active, payload, label, currency = true, unit = '' }) =
 
 export default function AdminKPIs() {
   const { t } = useTranslation();
+  const currency = useCurrency();
   const [kpis, setKpis] = useState(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('day');
@@ -220,8 +221,7 @@ export default function AdminKPIs() {
   }
 
 function formatCurrency(value) {
-    const currencyCode = localStorage.getItem('moneda_predeterminada') || 'MXN';
-    if (currencyCode === 'USD') {
+    if (currency === 'USD') {
       return `$${Number(value).toFixed(2)}`;
     }
     return new Intl.NumberFormat('es-MX', {
@@ -232,8 +232,7 @@ function formatCurrency(value) {
   }
   
   function formatNumber(value) {
-    const currencyCode = localStorage.getItem('moneda_predeterminada') || 'MXN';
-    if (currencyCode === 'USD') {
+    if (currency === 'USD') {
       return `$${Number(value).toFixed(2)}`;
     }
     return new Intl.NumberFormat('es-MX', {
