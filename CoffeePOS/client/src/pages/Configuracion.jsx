@@ -8,7 +8,15 @@ import Swal from 'sweetalert2';
 import './Configuracion.css';
 
 export default function Configuracion() {
-  const [config, setConfig] = useState({ permitir_stock_negativo: '0', tipo_cambio_dolar: '20.00', imprimir_ticket: '1', imprimir_etiquetas: '1', idioma: 'es', moneda_predeterminada: 'MXN' });
+  const [config, setConfig] = useState({
+    iva_rate: '',
+    tipo_cambio: '',
+    permitir_stock_negativo: false,
+    nombre_caja: '',
+    idioma: '',
+    moneda_predeterminada: ''
+  });
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   const [cajas, setCajas] = useState([]);
   const [nuevaCaja, setNuevaCaja] = useState('');
   const [loading, setLoading] = useState(true);
@@ -29,21 +37,24 @@ export default function Configuracion() {
   }, []);
 
   useEffect(() => {
-    if (config.idioma) {
+    if (config.idioma && initialLoadDone) {
       const currentLang = localStorage.getItem('idioma');
       if (currentLang !== config.idioma) {
         localStorage.setItem('idioma', config.idioma);
         window.dispatchEvent(new Event('idiomaUpdated'));
       }
     }
-    if (config.moneda_predeterminada) {
+  }, [config.idioma, initialLoadDone]);
+
+  useEffect(() => {
+    if (config.moneda_predeterminada && initialLoadDone) {
       const currentCurrency = localStorage.getItem('moneda_predeterminada');
       if (currentCurrency !== config.moneda_predeterminada) {
         localStorage.setItem('moneda_predeterminada', config.moneda_predeterminada);
         window.dispatchEvent(new Event('configUpdated'));
       }
     }
-  }, [config.idioma, config.moneda_predeterminada]);
+  }, [config.moneda_predeterminada, initialLoadDone]);
 
   async function loadData() {
     try {
@@ -56,6 +67,7 @@ export default function Configuracion() {
 
       setConfig(prev => ({ ...prev, ...configData }));
       setCajas(cajasData || []);
+      setInitialLoadDone(true);
       if (clientData) {
         const bName = clientData.businessName || '';
         const bAddr = clientData.address || '';
