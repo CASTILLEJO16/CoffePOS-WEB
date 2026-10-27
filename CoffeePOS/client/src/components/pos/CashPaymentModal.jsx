@@ -6,13 +6,13 @@ import { formatCurrency } from '../../utils/formatCurrency.js';
 import { useTranslation, useCurrency } from '../../utils/i18n/useTranslation.js';
 import './PaymentModals.css';
 
-export default function CashPaymentModal({ isOpen, onClose, total, onConfirm, submitting }) {
+export default function CashPaymentModal({ isOpen, onClose, total, onConfirm, submitting: propSubmitting }) {
   const { t, language } = useTranslation();
   const currency = useCurrency(); // Force re-render on currency change
   const [denominationsTotal, setDenominationsTotal] = useState(0);
   const [manualAmount, setManualAmount] = useState('');
   const [mode, setMode] = useState('buttons');
-  const [submitting, setSubmitting] = useState(false);
+  const [isSubmitting, setSubmitting] = useState(false);
 
   const received = useMemo(() => {
     if (mode === 'manual') {
@@ -37,7 +37,7 @@ export default function CashPaymentModal({ isOpen, onClose, total, onConfirm, su
   }
 
   function handleConfirm() {
-    if (submitting) return;
+    if (isSubmitting) return;
     if (difference < 0) return;
 
     console.log('[CashPaymentModal] confirm', { received, difference });

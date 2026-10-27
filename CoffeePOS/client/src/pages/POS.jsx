@@ -13,7 +13,6 @@ import OrderItem from '../components/pos/OrderItem.jsx';
 import OrderSummary from '../components/pos/OrderSummary.jsx';
 import Modal from '../components/common/Modal.jsx';
 import Toast from '../components/common/Toast.jsx';
-import { formatBusinessTime } from '../utils/dateTime.js';
 import { Coffee, Search, DollarSign, CreditCard, Smartphone, X, Sun, Moon, LogOut, ShoppingBag, Phone } from 'lucide-react';
 import api from '../services/api.js';
 import { printTicket } from '../services/ticketService.js';
