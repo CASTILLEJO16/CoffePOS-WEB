@@ -11,6 +11,16 @@ export function useTranslation() {
     if (storedLang) {
       setLanguage(storedLang);
     }
+
+    const handleLanguageChange = () => {
+      const newLang = localStorage.getItem('idioma');
+      if (newLang) {
+        setLanguage(newLang);
+      }
+    };
+
+    window.addEventListener('idiomaUpdated', handleLanguageChange);
+    return () => window.removeEventListener('idiomaUpdated', handleLanguageChange);
   }, []);
 
   const translate = (key) => {
