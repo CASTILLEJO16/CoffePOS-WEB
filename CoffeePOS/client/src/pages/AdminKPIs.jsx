@@ -20,8 +20,8 @@ const CustomTooltip = ({ active, payload, label, currency = true, unit = '' }) =
     return (
       <div className="kpi-custom-tooltip">
         <p className="tooltip-label">{label}</p>
-        {payload.map((entry, index) => {
-const formattedVal = currency 
+{payload.map((entry) => {
+          const formattedVal = currency
             ? (() => {
                 const currencyCode = localStorage.getItem('moneda_predeterminada') || 'MXN';
                 if (currencyCode === 'USD') {
@@ -35,7 +35,7 @@ const formattedVal = currency
               })()
             : `${new Intl.NumberFormat('es-MX').format(entry.value)} ${unit}`;
           return (
-            <p key={`item-${index}`} className="tooltip-item" style={{ color: entry.color || '#38bdf8' }}>
+            <p key={entry.name || entry.id || `item-${entry.value}`} className="tooltip-item" style={{ color: entry.color || '#38bdf8' }}>
               <span className="tooltip-dot" style={{ backgroundColor: entry.color || '#38bdf8' }}></span>
               <span className="tooltip-name">{entry.name}:</span>
               <span className="tooltip-val">{formattedVal}</span>
@@ -544,8 +544,8 @@ function formatCurrency(value) {
                   dataKey="value"
                   label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                 >
-                  {paymentData.map((entry, index) => (
-                    <Cell key={entry.name || `cell-${index}`} fill={VIBRANT_COLORS[index % VIBRANT_COLORS.length]} stroke="#ffffff" strokeWidth={2} />
+                  {paymentData.map((entry) => (
+                    <Cell key={entry.name || entry.id || `cell-${entry.value}`} fill={VIBRANT_COLORS[paymentData.indexOf(entry) % VIBRANT_COLORS.length]} stroke="#ffffff" strokeWidth={2} />
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip currency={true} />} />
