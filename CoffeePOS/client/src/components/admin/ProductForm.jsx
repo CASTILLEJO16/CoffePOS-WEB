@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Camera, Upload, X, Check, Plus } from 'lucide-react';
+import { useTranslation } from '../../utils/i18n/useTranslation.js';
 import Input from '../common/Input.jsx';
 import Button from '../common/Button.jsx';
 import { getCategories, createCategory } from '../../services/categoryService.js';
@@ -9,6 +10,7 @@ import './ProductForm.css';
 const DEFAULT_CATEGORIES = ['Cafés Calientes', 'Cafés Fríos', 'Frappés', 'Especiales', 'Tés'];
 
 export default function ProductForm({ product, onSubmit, onCancel }) {
+  const t = useTranslation();
   const [formData, setFormData] = useState({
     nombre: '',
     precio: '',

@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { getSales, refundSale } from '../services/saleService.js';
 import { formatCurrency, formatDate } from '../utils/formatCurrency.js';
 import { formatPaymentMethod } from '../utils/salesAnalytics.js';
+import { useTranslation } from '../utils/i18n/useTranslation.js';
 import Modal from '../components/common/Modal.jsx';
 import { RotateCcw } from 'lucide-react';
 import './Ventas.css';
 
 export default function Ventas() {
+  const t = useTranslation();
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -81,19 +83,19 @@ export default function Ventas() {
   }
 
   if (loading) {
-    return <div className="loading">Cargando ventas...</div>;
+    return <div className="loading">{t('Cargando...')}</div>;
   }
 
   return (
     <div className="ventas-page">
       <div className="ventas-header">
-        <h1 className="ventas-title">Historial de Ventas</h1>
+        <h1 className="ventas-title">{t('Historial de ventas')}</h1>
       </div>
 
       <div className="ventas-content">
         {sales.length === 0 ? (
           <div className="empty-state">
-            <p>No hay ventas registradas</p>
+            <p>{t('No hay ventas')}</p>
           </div>
         ) : (
           <table className="data-table">

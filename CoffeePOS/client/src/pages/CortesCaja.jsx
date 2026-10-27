@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getAllCashRegisters } from '../services/cashRegisterService.js';
 import { formatCurrency, formatDate } from '../utils/formatCurrency.js';
 import { formatBusinessDateTime } from '../utils/dateTime.js';
+import { useTranslation } from '../utils/i18n/useTranslation.js';
 import html2pdf from 'html2pdf.js';
 import {
   Wallet,
@@ -20,6 +21,7 @@ import {
 import './CortesCaja.css';
 
 export default function CortesCaja() {
+  const t = useTranslation();
   const navigate = useNavigate();
   const [cortes, setCortes] = useState([]);
   const [loading, setLoading] = useState(true);

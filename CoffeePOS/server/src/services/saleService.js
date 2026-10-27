@@ -628,6 +628,12 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     const lastSale = await Sale.findOne({ clientId }).sort({ numero_venta: -1 });
     const nextNumeroVenta = lastSale && lastSale.numero_venta ? lastSale.numero_venta + 1 : 1;
 
+    // Obtener configuración de idioma y moneda del cliente
+    const configIdioma = await Config.findOne({ clave: 'idioma', clientId });
+    const configMoneda = await Config.findOne({ clave: 'moneda_predeterminada', clientId });
+    const idioma = configIdioma?.valor || 'es';
+    const monedaPredeterminada = configMoneda?.valor || 'MXN';
+
     const newSale = await Sale.create([{
       clientId,
       numero_venta: nextNumeroVenta,
@@ -649,7 +655,9 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
       efectivo_usd: efectivoUsd,
       tarjeta_credito: tarjetaCredito,
       tarjeta_debito: tarjetaDebito,
-      iva_rate: ivaRate
+      iva_rate: ivaRate,
+      idioma,
+      moneda_predeterminada: monedaPredeterminada
     }], { session });
 
     const ventaId = newSale[0]._id;

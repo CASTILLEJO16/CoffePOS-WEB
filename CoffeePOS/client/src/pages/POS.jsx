@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatBusinessTime } from '../utils/dateTime.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
+import { useTranslation } from '../utils/i18n/useTranslation.js';
 import { Coffee, Search, DollarSign, CreditCard, Smartphone, X, Sun, Moon, LogOut, ShoppingBag, Phone } from 'lucide-react';
 import { useOrder } from '../context/OrderContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
@@ -31,6 +32,7 @@ import Swal from 'sweetalert2';
 import './POS.css';
 
 export default function POS() {
+  const t = useTranslation();
   const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem, setPromotions: setContextPromotions, customerPhone, setCustomerPhone, loyaltyCard, setLoyaltyCard, loyaltyDiscount, setLoyaltyDiscount, loyaltyFreeProduct, setLoyaltyFreeProduct, loadCustomerLoyalty, calculateLoyaltyDiscount } = useOrder();
   console.log('[POS] Estado de la orden - Items:', items.length, 'Subtotal:', subtotal, 'Impuestos:', impuestos, 'Total:', total);
   const { theme, toggleTheme } = useTheme();
@@ -152,11 +154,11 @@ export default function POS() {
         setLoyaltyDiscount(discount);
         setLoyaltyFreeProduct(freeProduct);
         
-        if (discount > 0) {
-          showToast(`¡Descuento de ${discount}% aplicado por lealtad!`, 'success');
+        if (loyaltyDiscount > 0) {
+          showToast(`${t('¡Descuento de')} ${loyaltyDiscount}% ${t('aplicado por lealtad!')}`, 'success');
         }
         if (freeProduct) {
-          showToast(`¡Producto gratis disponible por lealtad!`, 'success');
+          showToast(t('¡Producto gratis disponible por lealtad!'), 'success');
         }
       } else {
         setLoyaltyDiscount(0);
@@ -574,7 +576,7 @@ export default function POS() {
 
   function handleCheckout() {
     if (!items || items.length === 0) {
-      showToast('Agrega productos antes de cobrar', 'info');
+      showToast(t('Agrega productos antes de cobrar'), 'info');
       return;
     }
     setShowPaymentModal(true);
@@ -614,12 +616,12 @@ export default function POS() {
       }
 
       if (!cashRegister) {
-        showToast('Debes abrir una caja antes de vender', 'error');
+        showToast(t('Debes abrir una caja antes de vender'), 'error');
         return;
       }
 
       if (!items || items.length === 0) {
-        showToast('No hay productos en la orden', 'error');
+        showToast(t('No hay productos en la orden'), 'error');
         return;
       }
       setProcessing(true);

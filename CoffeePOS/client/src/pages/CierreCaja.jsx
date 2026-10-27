@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { getCashRegisterSummary, closeCashRegister } from '../services/cashRegisterService.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import { formatBusinessDate, formatBusinessTime, formatBusinessDateTime } from '../utils/dateTime.js';
+import { useTranslation } from '../utils/i18n/useTranslation.js';
 import html2pdf from 'html2pdf.js';
 import {
   Wallet,
@@ -22,6 +23,7 @@ import {
 import './CierreCaja.css';
 
 export default function CierreCaja() {
+  const t = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { id } = useParams();

@@ -8,7 +8,7 @@ import Swal from 'sweetalert2';
 import './Configuracion.css';
 
 export default function Configuracion() {
-  const [config, setConfig] = useState({ permitir_stock_negativo: '0', tipo_cambio_dolar: '20.00', imprimir_ticket: '1', imprimir_etiquetas: '1' });
+  const [config, setConfig] = useState({ permitir_stock_negativo: '0', tipo_cambio_dolar: '20.00', imprimir_ticket: '1', imprimir_etiquetas: '1', idioma: 'es', moneda_predeterminada: 'MXN' });
   const [cajas, setCajas] = useState([]);
   const [nuevaCaja, setNuevaCaja] = useState('');
   const [loading, setLoading] = useState(true);
@@ -27,6 +27,17 @@ export default function Configuracion() {
       } catch {}
     }
   }, []);
+
+  useEffect(() => {
+    if (config.idioma) {
+      localStorage.setItem('idioma', config.idioma);
+      window.dispatchEvent(new Event('idiomaUpdated'));
+    }
+    if (config.moneda_predeterminada) {
+      localStorage.setItem('moneda_predeterminada', config.moneda_predeterminada);
+      window.dispatchEvent(new Event('configUpdated'));
+    }
+  }, [config]);
 
   async function loadData() {
     try {
@@ -170,6 +181,34 @@ export default function Configuracion() {
         <div className="config-section">
           <h2 className="section-title"><FileText size={18} style={{marginRight: 8}} />Configuración General</h2>
           <div className="config-form">
+            <div className="form-group">
+              <label className="form-label">Idioma / Language</label>
+              <select
+                className="form-input"
+                value={config.idioma !== undefined && config.idioma !== '' ? config.idioma : 'es'}
+                onChange={(e) => setConfig(prev => ({ ...prev, idioma: e.target.value }))}
+              >
+                <option value="es">Español</option>
+                <option value="en">English</option>
+              </select>
+              <p style={{fontSize: '0.85rem', color: '#666', marginTop: '5px'}}>
+                Selecciona el idioma del sistema / Select system language
+              </p>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Moneda Predeterminada / Default Currency</label>
+              <select
+                className="form-input"
+                value={config.moneda_predeterminada !== undefined && config.moneda_predeterminada !== '' ? config.moneda_predeterminada : 'MXN'}
+                onChange={(e) => setConfig(prev => ({ ...prev, moneda_predeterminada: e.target.value }))}
+              >
+                <option value="MXN">MXN (Peso Mexicano)</option>
+                <option value="USD">USD (Dólar Americano)</option>
+              </select>
+              <p style={{fontSize: '0.85rem', color: '#666', marginTop: '5px'}}>
+                Moneda por defecto para todos los montos / Default currency for all amounts
+              </p>
+            </div>
             <div className="form-group">
               <label className="form-label">Porcentaje de IVA (%)</label>
               <select

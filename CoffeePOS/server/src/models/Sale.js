@@ -104,6 +104,14 @@ const SaleSchema = new mongoose.Schema({
   tarjeta_debito: {
     type: Number,
     default: 0
+  },
+  idioma: {
+    type: String,
+    default: 'es'
+  },
+  moneda_predeterminada: {
+    type: String,
+    default: 'MXN'
   }
 }, {
   timestamps: true

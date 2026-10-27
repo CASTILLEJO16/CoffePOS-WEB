@@ -27,6 +27,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useTranslation } from '../utils/i18n/useTranslation.js';
 import { getSales, getSaleById, refundSale } from '../services/saleService.js';
 import { getOpenCashRegister } from '../services/cashRegisterService.js';
 import { printTicket } from '../services/ticketService.js';

@@ -3,10 +3,12 @@ import Modal from '../common/Modal.jsx';
 import Button from '../common/Button.jsx';
 import Input from '../common/Input.jsx';
 import { formatCurrency } from '../../utils/formatCurrency.js';
+import { useTranslation } from '../../utils/i18n/useTranslation.js';
 import './PaymentModals.css';
 
 export default function CashPaymentModal({ isOpen, onClose, total, onConfirm }) {
   console.log('[CashPaymentModal] render', { isOpen, total });
+  const t = useTranslation();
   const [denominationsTotal, setDenominationsTotal] = useState(0);
   const [manualAmount, setManualAmount] = useState('');
   const [mode, setMode] = useState('buttons');
@@ -78,17 +80,17 @@ export default function CashPaymentModal({ isOpen, onClose, total, onConfirm }) 
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Pago en efectivo"
+      title={t('Pago en efectivo')}
       size="extra-large"
       footer={
         <div style={{ display: 'flex', gap: 16, justifyContent: 'flex-end' }}>
-          <Button onClick={handleClose} className="modal-action-btn cancel">Cancelar</Button>
+          <Button onClick={handleClose} className="modal-action-btn cancel">{t('Cancelar')}</Button>
           <Button
             onClick={handleConfirm}
             disabled={difference < 0 || submitting}
             className="modal-action-btn confirm"
           >
-            Cobrar
+            {t('Cobrar')}
           </Button>
         </div>
       }
@@ -97,24 +99,24 @@ export default function CashPaymentModal({ isOpen, onClose, total, onConfirm }) 
         {/* LEFT PANEL */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20, minWidth: '300px' }} className="payment-modal-left">
           <div className="amount-section">
-            <span className="amount-label">Total de la venta</span>
+            <span className="amount-label">{t('Total de la venta')}</span>
             <span className="amount-value">{formatCurrency(total)}</span>
           </div>
 
           <div className="amount-section">
-            <span className="amount-label">Monto recibido</span>
+            <span className="amount-label">{t('Monto recibido')}</span>
             <span className="amount-value primary">{formatCurrency(received)}</span>
           </div>
 
           <div className="amount-section">
             {difference >= 0 ? (
               <>
-                <span className="amount-label">Cambio</span>
+                <span className="amount-label">{t('Cambio')}</span>
                 <span className="amount-value success">{formatCurrency(difference)}</span>
               </>
             ) : (
               <>
-                <span className="amount-label">Faltan</span>
+                <span className="amount-label">{t('Faltan')}</span>
                 <span className="amount-value danger">{formatCurrency(Math.abs(difference))}</span>
               </>
             )}
@@ -132,7 +134,7 @@ export default function CashPaymentModal({ isOpen, onClose, total, onConfirm }) 
               }}
               className="quick-action-btn primary"
             >
-              Exacto
+              {t('Exacto')}
             </button>
             {suggestions.map((s, i) => (
               <button
@@ -147,7 +149,7 @@ export default function CashPaymentModal({ isOpen, onClose, total, onConfirm }) 
 
           {/* BILLS */}
           <div>
-            <div style={{ marginBottom: 8, fontSize: 13, opacity: 0.7 }}>Billetes</div>
+            <div style={{ marginBottom: 8, fontSize: 13, opacity: 0.7 }}>{t('Billetes')}</div>
             <div className="denominations-grid">
               {bills.map(v => (
                 <button
@@ -163,7 +165,7 @@ export default function CashPaymentModal({ isOpen, onClose, total, onConfirm }) 
 
           {/* COINS */}
           <div>
-            <div style={{ marginBottom: 8, fontSize: 13, opacity: 0.7 }}>Monedas</div>
+            <div style={{ marginBottom: 8, fontSize: 13, opacity: 0.7 }}>{t('Monedas')}</div>
             <div className="coins-container">
               {coins.map(v => (
                 <button
@@ -179,9 +181,9 @@ export default function CashPaymentModal({ isOpen, onClose, total, onConfirm }) 
 
           {/* MANUAL INPUT */}
           <div>
-            <div style={{ marginBottom: 6, fontSize: 13, opacity: 0.7 }}>Ingresa monto</div>
+            <div style={{ marginBottom: 6, fontSize: 13, opacity: 0.7 }}>{t('Ingresa monto')}</div>
             <Input
-              placeholder="Ej: 200"
+              placeholder={t('Ej: 200')}
               value={manualAmount}
               onChange={handleManualChange}
               className="payment-input"

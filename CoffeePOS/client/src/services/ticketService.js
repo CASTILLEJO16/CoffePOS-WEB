@@ -34,12 +34,12 @@ export function generateTicketHTML(sale, customerName = null, businessInfo = nul
     const num = Number(value);
     const safe = Number.isFinite(num) ? num : 0;
     const currency = sale.moneda_predeterminada || localStorage.getItem('moneda_predeterminada') || 'MXN';
-    if (currency === 'USD') {
-      return `$${safe.toFixed(2)}`;
-    }
-    return new Intl.NumberFormat('es-MX', {
+    const language = sale.idioma || localStorage.getItem('idioma') || 'es';
+    const locale = language === 'en' ? 'en-US' : 'es-MX';
+    
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'MXN',
+      currency: currency,
       minimumFractionDigits: 2
     }).format(safe);
   };

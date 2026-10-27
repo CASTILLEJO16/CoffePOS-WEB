@@ -1,8 +1,10 @@
 import './OrderSummary.css';
 import { formatCurrency } from '../../utils/formatCurrency.js';
+import { useTranslation } from '../../utils/i18n/useTranslation.js';
 import Button from '../common/Button.jsx';
 
 export default function OrderSummary({ subtotal, impuestos, total, onCheckout, onCancel, onClear, disabled, loyaltyDiscount = 0, loyaltyFreeProduct = null }) {
+  const t = useTranslation();
   // 🔥 Calcular IVA en tiempo real (evita valores viejos en el state)
   const ivaRate = (() => {
     const val = localStorage.getItem('iva_rate');
@@ -21,27 +23,27 @@ export default function OrderSummary({ subtotal, impuestos, total, onCheckout, o
     <div className="order-summary">
       <div className="order-summary-totals">
         <div className="summary-row">
-          <span className="summary-label">Subtotal</span>
+          <span className="summary-label">{t('Subtotal')}</span>
           <span className="summary-value">{formatCurrency(subtotal)}</span>
         </div>
         {loyaltyDiscount > 0 && (
           <div className="summary-row" style={{ color: '#10b981' }}>
-            <span className="summary-label">Descuento Lealtad ({loyaltyDiscount}%)</span>
+            <span className="summary-label">{t('Descuento Lealtad')} ({loyaltyDiscount}%)</span>
             <span className="summary-value">-{formatCurrency(discountAmount)}</span>
           </div>
         )}
         <div className="summary-row">
-          <span className="summary-label">IVA ({ivaPercent}%)</span>
+          <span className="summary-label">{t('IVA')} ({ivaPercent}%)</span>
           <span className="summary-value">{formatCurrency(impuestosCalc)}</span>
         </div>
         {loyaltyFreeProduct && (
           <div className="summary-row" style={{ color: '#10b981', fontWeight: 'bold' }}>
-            <span className="summary-label">Producto Gratis</span>
+            <span className="summary-label">{t('Producto Gratis')}</span>
             <span className="summary-value">{loyaltyFreeProduct.description}</span>
           </div>
         )}
         <div className="summary-row summary-row-total">
-          <span className="summary-label summary-label-total">Total</span>
+          <span className="summary-label summary-label-total">{t('Total')}</span>
           <span className="summary-value summary-value-total">{formatCurrency(totalCalc)}</span>
         </div>
       </div>
@@ -53,7 +55,7 @@ export default function OrderSummary({ subtotal, impuestos, total, onCheckout, o
           onClick={onCheckout}
           disabled={disabled || total === 0}
         >
-          Cobrar
+          {t('Cobrar')}
         </Button>
         <Button 
           variant="danger" 
@@ -61,7 +63,7 @@ export default function OrderSummary({ subtotal, impuestos, total, onCheckout, o
           onClick={onCancel}
           disabled={disabled || total === 0}
         >
-          Cancelar
+          {t('Cancelar')}
         </Button>
         <Button 
           variant="secondary" 
@@ -69,7 +71,7 @@ export default function OrderSummary({ subtotal, impuestos, total, onCheckout, o
           onClick={onClear}
           disabled={disabled || total === 0}
         >
-          Vaciar
+          {t('Vaciar')}
         </Button>
       </div>
     </div>
