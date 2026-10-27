@@ -118,6 +118,7 @@
 .period-buttons {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .period-btn {
@@ -253,7 +254,7 @@
 /* ── KPI Cards ───────────────────────────────────── */
 .kpi-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
 }
 
@@ -489,46 +490,257 @@
 .font-semibold { font-weight: var(--font-weight-semibold); }
 .font-bold     { font-weight: var(--font-weight-bold); }
 
-/* ===== Responsive ===== */
+/* =====================================================
+   RESPONSIVE — AdminKPIs
+   Breakpoints: 1200 | 1024 | 768 | 480 | 360
+   ===================================================== */
+
+/* ── Tablet grande / laptop pequeño ─────────────────── */
+@media (max-width: 1200px) {
+  .kpi-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── Tablet ──────────────────────────────────────────── */
 @media (max-width: 1024px) {
-  .admin-page { padding: 20px; }
-  .admin-header { flex-direction: column; }
-  .export-buttons { width: 100%; }
-  .export-buttons .export-btn { flex: 1; justify-content: center; }
-  .kpi-filters { flex-direction: column; align-items: stretch; }
-  .year-filter-group { margin-left: 0; border-left: none; padding-left: 0; border-top: 1px solid var(--color-border); padding-top: 12px; }
-  .custom-range-filters { flex-wrap: wrap; }
+  .admin-page {
+    padding: 20px 16px;
+    gap: 20px;
+  }
+
+  /* Header apilado */
+  .admin-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  /* Botones de exportación full-width */
+  .export-buttons {
+    width: 100%;
+  }
+  .export-buttons .export-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* Filtros en columna */
+  .kpi-filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px;
+  }
+  .filter-group {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .year-filter-group {
+    margin-left: 0;
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--color-border);
+    padding-top: 12px;
+  }
+  .custom-range-filters {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  /* Grids en columna única */
+  .kpi-charts-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .kpi-tables {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 }
 
+/* ── Móvil ────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .admin-page { padding: 12px; padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
-  .kpi-cards { grid-template-columns: 1fr; gap: 12px; }
-  .kpi-card { padding: 14px; }
-  .kpi-chart-card { padding: 14px; }
-  .kpi-table-card { padding: 0; border-radius: 12px; overflow: hidden; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .kpi-table-card .kpi-table-title { padding: 14px 14px 0; }
-  .kpi-table { min-width: 560px; }
-  .kpi-tables { grid-template-columns: 1fr; gap: 12px; }
-  .kpi-charts-grid { gap: 12px; }
-  .kpi-filters { padding: 12px; gap: 12px; }
-  .period-buttons { flex-wrap: wrap; width: 100%; }
-  .period-btn { flex: 1; min-width: 80px; justify-content: center; min-height: 44px; }
-  .filter-group { flex-wrap: wrap; width: 100%; }
-  .export-buttons { gap: 8px; }
-  .kpi-table th, .kpi-table td { padding: 10px 12px; font-size: 13px; }
+  .admin-page {
+    padding: 12px 12px calc(80px + env(safe-area-inset-bottom)) 12px;
+    gap: 14px;
+  }
+
+  /* Título más compacto */
+  .admin-title {
+    font-size: 1.25rem;
+  }
+  .admin-subtitle {
+    font-size: 0.78rem;
+  }
+
+  /* KPI cards — 2 columnas en móvil */
+  .kpi-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .kpi-card {
+    padding: 14px 12px;
+    gap: 10px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .kpi-card-icon {
+    width: 40px;
+    height: 40px;
+  }
+  .kpi-card-value {
+    font-size: 1.05rem;
+  }
+  .kpi-card-label {
+    font-size: 0.68rem;
+  }
+
+  /* Gráficas */
+  .kpi-chart-card {
+    padding: 16px 12px;
+  }
+  .kpi-chart-title {
+    font-size: 0.9rem;
+  }
+  .chart-header-row {
+    margin-bottom: 12px;
+  }
+
+  /* Filtros */
+  .kpi-filters {
+    padding: 12px;
+    gap: 10px;
+  }
+  .period-buttons {
+    width: 100%;
+    gap: 6px;
+  }
+  .period-btn {
+    flex: 1;
+    min-width: 60px;
+    text-align: center;
+    min-height: 40px;
+    padding: 6px 8px;
+    font-size: 0.78rem;
+  }
+  .year-select-dropdown {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .date-input {
+    flex: 1;
+    min-width: 0;
+  }
+  .date-picker {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Botones de exportación */
+  .export-buttons {
+    gap: 8px;
+  }
+  .export-btn {
+    padding: 10px 14px;
+    font-size: 0.8rem;
+  }
+
+  /* Tablas con scroll horizontal */
+  .kpi-table-card {
+    padding: 0;
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+  }
+  .kpi-table-card .kpi-table-title {
+    padding: 14px 14px 0;
+  }
+  .kpi-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .kpi-table {
+    min-width: 480px;
+  }
+  .kpi-table th,
+  .kpi-table td {
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
+  .kpi-tables {
+    gap: 10px;
+  }
+  .kpi-charts-grid {
+    gap: 10px;
+  }
 }
 
+/* ── Móvil pequeño ───────────────────────────────── */
 @media (max-width: 480px) {
-  .kpi-filters { padding: 12px; }
-  .kpi-cards { gap: 10px; }
-  .kpi-card-icon { width: 40px; height: 40px; }
-  .kpi-card-value { font-size: 17px; }
+  .admin-page {
+    padding: 10px 10px calc(80px + env(safe-area-inset-bottom)) 10px;
+    gap: 12px;
+  }
+
+  /* KPI Cards — 1 columna en pantallas muy pequeñas */
+  .kpi-cards {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .kpi-card {
+    flex-direction: row;
+    align-items: center;
+    padding: 14px;
+  }
+  .kpi-card-value {
+    font-size: 1.1rem;
+  }
+
+  /* Botones de periodo en 2 columnas */
+  .period-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .period-btn {
+    min-height: 38px;
+    font-size: 0.75rem;
+    padding: 6px 4px;
+  }
+
+  /* Botones export compactos */
+  .export-btn span,
+  .export-btn > svg ~ * {
+    display: none;
+  }
+  .export-btn {
+    padding: 10px 14px;
+    gap: 0;
+  }
+
+  /* Gráficas aún más compactas */
+  .kpi-chart-card {
+    padding: 12px 10px;
+  }
+  .kpi-chart-title {
+    font-size: 0.85rem;
+  }
 }
 
-@media (max-width: 430px) {
-  .kpi-card-value { font-size: 18px; }
-  .kpi-chart-title { font-size: 15px; }
-  .export-btn { padding: 10px 12px; font-size: 13px; }
+/* ── Móvil muy pequeño ───────────────────────────── */
+@media (max-width: 360px) {
+  .admin-page {
+    padding: 8px 8px calc(80px + env(safe-area-inset-bottom)) 8px;
+  }
+  .kpi-card-value {
+    font-size: 1rem;
+  }
+  .kpi-card-icon {
+    width: 36px;
+    height: 36px;
+  }
+  .period-buttons {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* ── Print / PDF ─────────────────────────────────── */

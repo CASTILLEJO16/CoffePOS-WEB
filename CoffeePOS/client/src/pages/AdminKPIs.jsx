@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import { useTranslation } from '../utils/i18n/useTranslation.js';
 import { 
@@ -578,6 +578,7 @@ function formatCurrency(value) {
         <div className="kpi-tables">
           <div className="kpi-table-card">
             <h3 className="kpi-table-title">Detalle por Método de Pago</h3>
+            <div className="kpi-table-wrapper">
             <table className="kpi-table">
               <thead>
                 <tr>
@@ -596,10 +597,12 @@ function formatCurrency(value) {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
 
           <div className="kpi-table-card">
             <h3 className="kpi-table-title">Top 10 Productos</h3>
+            <div className="kpi-table-wrapper">
             <table className="kpi-table">
               <thead>
                 <tr>
@@ -618,6 +621,7 @@ function formatCurrency(value) {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       </div>
