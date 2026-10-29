@@ -53,7 +53,23 @@ export async function login(req, res) {
       });
     }
 
-    const result = await authService.login(usuario, contraseña);
+    // Resolver clientId desde headers de licencia (dispositivo activado)
+    let clientId = null;
+    const licenseKey = req.headers['x-license-key'] || req.body.licenseKey || req.body.license_key;
+    const deviceId = req.headers['x-device-id'] || req.body.deviceId || req.body.device_id;
+
+    if (licenseKey && deviceId) {
+      try {
+        const licResult = await licenseService.verifyLicense(licenseKey, deviceId);
+        if (licResult.valid && licResult.client) {
+          clientId = licResult.client._id || licResult.client.id || licResult.license?.client;
+        }
+      } catch (e) {
+        console.warn('[login] Error verificando licencia:', e.message);
+      }
+    }
+
+    const result = await authService.login(usuario, contraseña, clientId);
 
     // Registrar inicio de sesión
     await logAction(result.user.id, 'LOGIN', `Usuario ${usuario} inició sesión`);

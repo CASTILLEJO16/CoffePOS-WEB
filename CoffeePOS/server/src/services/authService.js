@@ -13,17 +13,29 @@ import { logAction } from './logService.js';
  * Autentica un usuario con usuario y contraseña
  * @param {string} username - Nombre de usuario
  * @param {string} password - Contraseña
+ * @param {string} clientId - ID del cliente (opcional, para multi-tenant)
  * @returns {Object} Token y datos del usuario
  */
-export async function login(username, password) {
+export async function login(username, password, clientId = null) {
   try {
     const normalizedUsername = String(username).toLowerCase();
     // Buscar usuario por nombre de usuario - excluir developer (solo para dev-login)
-    const user = await User.findOne({ 
-      usuario: normalizedUsername, 
+    const filter = {
+      usuario: normalizedUsername,
       rol: { $ne: 'developer' },
-      activo: true 
-    });
+      activo: true
+    };
+
+    // Si se proporciona clientId, intentar buscar con clientId primero
+    let user;
+    if (clientId) {
+      user = await User.findOne({ ...filter, clientId });
+    }
+
+    // Si no se encontró con clientId o no se proporcionó clientId, buscar globalmente
+    if (!user) {
+      user = await User.findOne(filter);
+    }
 
     if (!user) {
       throw new Error('Credenciales inválidas');
