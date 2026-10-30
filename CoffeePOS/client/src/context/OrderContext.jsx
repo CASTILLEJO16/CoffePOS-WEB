@@ -2,6 +2,7 @@ import { createContext, useContext, useReducer, useEffect } from 'react';
 import { getPromotions } from '../services/promotionService.js';
 import { getCustomerByPhone } from '../services/customerService.js';
 import { getCardByQRToken } from '../services/loyaltyService.js';
+import { calculateCustomizationPrice } from './AdminOrderContext.jsx';
 
 const OrderContext = createContext();
 

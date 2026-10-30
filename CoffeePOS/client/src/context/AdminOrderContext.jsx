@@ -346,7 +346,7 @@ export function useAdminOrder() {
   return context;
 }
 
-function calculateCustomizationPrice(customization) {
+export function calculateCustomizationPrice(customization) {
   if (!customization) return 0;
   
   let total = 0;
