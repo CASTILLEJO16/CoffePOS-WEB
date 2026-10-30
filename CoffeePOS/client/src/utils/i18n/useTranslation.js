@@ -31,6 +31,7 @@ export function useTranslation() {
     if (keyMap) {
       return keyMap;
     }
+    // Fallback: format the key readable (e.g., "debES ABRIR UNA CAJA ANTES DE VENDER")
     return key ? key.replace(/([A-Z])/g, ' $1').trim() : '';
   };
 

@@ -30,6 +30,7 @@ export default function CashRegisterCheck({ children, redirectPath = '/apertura-
           return;
         }
 
+        // Caja no abierta - redirigir a apertura de caja
         setLoading(false);
         if (location.pathname !== redirectPath) {
           navigate(redirectPath, { replace: true });
@@ -64,7 +65,8 @@ export default function CashRegisterCheck({ children, redirectPath = '/apertura-
   }
 
   if (!ready) {
-    // Allow rendering the cash opening screen itself
+    // Si no hay caja abierta y no estamos en la pantalla de apertura, redirigir
+    // Si ya estamos en la pantalla de apertura, permitir acceso
     if (location.pathname === redirectPath) {
       return children;
     }
