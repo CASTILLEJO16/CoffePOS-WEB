@@ -6,8 +6,8 @@
   height: calc(100dvh - 64px);
   padding: 20px 24px;
   background: var(--color-background);
-  max-width: 1800px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
   width: 100%;
   overflow: hidden;
 }

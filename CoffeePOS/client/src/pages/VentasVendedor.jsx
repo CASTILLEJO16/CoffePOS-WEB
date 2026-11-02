@@ -627,7 +627,7 @@ export default function VentasVendedor() {
 
         <div className="mv-quick-actions">
           <button type="button" className="mv-action-btn primary" onClick={() => navigate('/')}>
-            <Plus size={16} /> Nueva venta
+            <Plus size={16} /> {t('Nueva venta')}
           </button>
           <button
             type="button"
@@ -635,16 +635,16 @@ export default function VentasVendedor() {
             onClick={() => lastSale && handleReprint(lastSale)}
             disabled={!lastSale || (!lastSale._id && !lastSale.id && !lastSale.numero_venta) || actionLoading}
           >
-            <Printer size={16} /> Reimprimir
+            <Printer size={16} /> {t('Reimprimir')}
           </button>
           <button type="button" className="mv-action-btn" onClick={handleCorteCaja}>
-            <Wallet size={16} /> {cashRegister ? 'Corte de caja' : 'Abrir caja'}
+            <Wallet size={16} /> {cashRegister ? t('Corte de caja') : t('Abrir caja')}
           </button>
           <button type="button" className="mv-action-btn" onClick={scrollToHistorial}>
-            <Ticket size={16} /> Historial
+            <Ticket size={16} /> {t('Historial')}
           </button>
           <button type="button" className="mv-action-btn" onClick={loadData} disabled={loading}>
-            <RefreshCw size={16} className={loading ? 'spin' : ''} /> Actualizar
+            <RefreshCw size={16} className={loading ? 'spin' : ''} /> {t('Actualizar')}
           </button>
         </div>
       </header>
@@ -666,8 +666,8 @@ export default function VentasVendedor() {
         <article className="mv-card chart-card">
           <div className="mv-card-header">
             <div>
-              <h2>Gráfica de ventas</h2>
-              <p>Visualiza tu ritmo de ventas</p>
+              <h2>{t('Gráfica de ventas')}</h2>
+              <p>{t('Visualiza tu ritmo de ventas')}</p>
             </div>
             <div className="chart-mode-tabs">
               {CHART_MODES.map((mode) => (
