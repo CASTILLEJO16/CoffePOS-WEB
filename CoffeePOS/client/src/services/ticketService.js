@@ -1,4 +1,5 @@
 import { formatBusinessDateTime } from '../utils/dateTime.js';
+import { translations } from '../utils/i18n/translations.js';
 
 /* @jsxImportSource react */
 
@@ -6,6 +7,14 @@ import { formatBusinessDateTime } from '../utils/dateTime.js';
  * Servicio de Tickets para Cliente
  * Genera e imprime tickets de venta
  */
+
+/**
+ * Obtiene la traducción para una clave según el idioma
+ */
+function t(key, language = 'es') {
+  const lang = language || localStorage.getItem('idioma') || 'es';
+  return translations[lang]?.[key] || translations['es'][key] || key;
+}
 
 /**
  * Sanitiza texto para inserción segura en HTML del ticket (evita XSS)
@@ -163,6 +172,7 @@ export function generateTicketHTML(sale, customerName = null, businessInfo = nul
   const ticketId = escapeHtml(rawTicketNumber);
   const safeCustomerName = customerName ? escapeHtml(customerName) : null;
   const escapedBusinessHeader = displayBusinessName;
+  const lang = sale.idioma || localStorage.getItem('idioma') || 'es';
 
   return `
     <!DOCTYPE html>
@@ -310,54 +320,54 @@ export function generateTicketHTML(sale, customerName = null, businessInfo = nul
         
         <div class="ticket-info">
           <div class="ticket-info-row">
-            <span>Ticket #:</span>
+            <span>${t('Ticket #:', lang)}</span>
             <span>${ticketId}</span>
           </div>
           <div class="ticket-info-row">
-            <span>Fecha:</span>
+            <span>${t('Fecha:', lang)}</span>
             <span>${formatDate(sale.fecha)}</span>
           </div>
           ${safeCustomerName ? `
           <div class="ticket-info-row">
-            <span>Cliente:</span>
+            <span>${t('Cliente:', lang)}</span>
             <span>${safeCustomerName}</span>
           </div>` : ''}
           <div class="ticket-info-row">
-            <span>Método:</span>
+            <span>${t('Método:', lang)}</span>
             <span>${sale.metodo_pago.toUpperCase()}${sale.metodo_pago === 'tarjeta' && sale.tipo_tarjeta ? ` (${sale.tipo_tarjeta.toUpperCase()})` : ''}</span>
           </div>
         </div>
 
         ${sale.metodo_pago === 'mixto' ? `
         <div class="ticket-info" style="border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px;">
-          <div style="font-weight: bold; margin-bottom: 3px;">Desglose de Pago:</div>
+          <div style="font-weight: bold; margin-bottom: 3px;">${t('Desglose de Pago:', lang)}</div>
           ${sale.efectivo_mxn > 0 ? `
           <div class="ticket-info-row">
-            <span>Efectivo MXN:</span>
+            <span>${t('Efectivo MXN:', lang)}</span>
             <span>${formatCurrency(sale.efectivo_mxn)}</span>
           </div>` : ''}
           ${sale.efectivo_usd > 0 ? `
           <div class="ticket-info-row">
-            <span>Efectivo USD:</span>
+            <span>${t('Efectivo USD:', lang)}</span>
             <span>${formatCurrency(sale.efectivo_usd)}</span>
           </div>
           <div class="ticket-info-row">
-            <span>  (= MXN):</span>
+            <span>  ${t('(= MXN):', lang)}</span>
             <span>${formatCurrency(sale.efectivo_usd * (sale.tipo_cambio || 20))}</span>
           </div>` : ''}
           ${sale.tarjeta_credito > 0 ? `
           <div class="ticket-info-row">
-            <span>Tarjeta Crédito:</span>
+            <span>${t('Tarjeta Crédito:', lang)}</span>
             <span>${formatCurrency(sale.tarjeta_credito)}</span>
           </div>` : ''}
           ${sale.tarjeta_debito > 0 ? `
           <div class="ticket-info-row">
-            <span>Tarjeta Débito:</span>
+            <span>${t('Tarjeta Débito:', lang)}</span>
             <span>${formatCurrency(sale.tarjeta_debito)}</span>
           </div>` : ''}
           ${sale.tipo_cambio ? `
           <div class="ticket-info-row" style="margin-top: 3px; border-top: 1px solid #000; padding-top: 3px;">
-            <span>Tipo de Cambio:</span>
+            <span>${t('Tipo de Cambio:', lang)}</span>
             <span>1 USD = $${Number(sale.tipo_cambio).toFixed(2)}</span>
           </div>` : ''}
         </div>` : ''}
@@ -365,22 +375,22 @@ export function generateTicketHTML(sale, customerName = null, businessInfo = nul
         ${sale.metodo_pago === 'dolar' ? `
         <div class="ticket-info" style="border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px;">
           <div class="ticket-info-row">
-            <span>Monto USD:</span>
+            <span>${t('Monto USD:', lang)}</span>
             <span>${formatCurrency(sale.monto_dolar)}</span>
           </div>
           ${sale.dolar_recibido ? `
           <div class="ticket-info-row">
-            <span>Recibido USD:</span>
+            <span>${t('Recibido USD:', lang)}</span>
             <span>${formatCurrency(sale.dolar_recibido)}</span>
           </div>` : ''}
           ${sale.cambio_pesos !== null && sale.cambio_pesos !== undefined ? `
           <div class="ticket-info-row">
-            <span>Cambio MXN:</span>
+            <span>${t('Cambio MXN:', lang)}</span>
             <span>${formatCurrency(sale.cambio_pesos)}</span>
           </div>` : ''}
           ${sale.tipo_cambio ? `
           <div class="ticket-info-row" style="margin-top: 3px; border-top: 1px solid #000; padding-top: 3px;">
-            <span>Tipo de Cambio:</span>
+            <span>${t('Tipo de Cambio:', lang)}</span>
             <span>1 USD = $${Number(sale.tipo_cambio).toFixed(2)}</span>
           </div>` : ''}
         </div>` : ''}
@@ -389,10 +399,10 @@ export function generateTicketHTML(sale, customerName = null, businessInfo = nul
           <table>
             <thead>
               <tr>
-                <th class="ticket-qty">CANT</th>
-                <th class="ticket-name">PRODUCTO</th>
-                <th class="ticket-price">PRECIO</th>
-                <th class="ticket-total">TOTAL</th>
+                <th class="ticket-qty">${t('CANT', lang)}</th>
+                <th class="ticket-name">${t('PRODUCTO', lang)}</th>
+                <th class="ticket-price">${t('PRECIO', lang)}</th>
+                <th class="ticket-total">${t('TOTAL', lang)}</th>
               </tr>
             </thead>
             <tbody>
@@ -403,39 +413,39 @@ export function generateTicketHTML(sale, customerName = null, businessInfo = nul
         
         <div class="ticket-totals">
           <div class="ticket-total-row">
-            <span>Subtotal:</span>
+            <span>${t('Subtotal:', lang)}</span>
             <span>${formatCurrency(sale.subtotal)}</span>
           </div>
           <div class="ticket-total-row">
-            <span>IVA (${ivaPercent}%):</span>
+            <span>${t('IVA (%):', lang).replace('%', ivaPercent)}</span>
             <span>${formatCurrency(sale.impuestos)}</span>
           </div>
           <div class="ticket-total-row ticket-grand-total">
-            <span>TOTAL:</span>
+            <span>${t('TOTAL', lang)}:</span>
             <span>${formatCurrency(sale.total)}</span>
           </div>
           ${sale.metodo_pago !== 'mixto' && sale.metodo_pago !== 'dolar' ? `
           <div class="ticket-total-row">
-            <span>Redondeo:</span>
+            <span>${t('Redondeo:', lang)}</span>
             <span>${formatCurrency(diferenciaRedondeo)}</span>
           </div>
           <div class="ticket-total-row ticket-grand-total">
-            <span>TOTAL EFECTIVO:</span>
+            <span>${t('TOTAL EFECTIVO:', lang)}</span>
             <span>${formatCurrency(totalRedondeado)}</span>
           </div>
           <div class="ticket-total-row">
-            <span>Total USD:</span>
+            <span>${t('Total USD:', lang)}</span>
             <span>$${totalUSD.toFixed(2)} USD</span>
           </div>
           <div class="ticket-total-row">
-            <span>Total USD (Redondeado):</span>
+            <span>${t('Total USD (Redondeado):', lang)}</span>
             <span>$${totalRedondeadoUSD.toFixed(2)} USD</span>
           </div>` : ''}
         </div>
         
         <div class="ticket-footer">
-          <p>¡Gracias por su compra!</p>
-          <p style="margin-top: 6px; font-size: 10px; color: #555;">Desarrollado por CoffeePOS</p>
+          <p>${t('¡Gracias por su compra!', lang)}</p>
+          <p style="margin-top: 6px; font-size: 10px; color: #555;">${t('Desarrollado por CoffeePOS', lang)}</p>
         </div>
       </div>
     </body>
