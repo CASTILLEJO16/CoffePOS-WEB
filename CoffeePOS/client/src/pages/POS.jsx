@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import Loader from '../components/common/Loader.jsx';
 import { getProducts } from '../services/productService.js';
 import {	getPromotions } from '../services/promotionService.js';
+import { getOpenCashRegister } from '../services/cashRegisterService.js';
 import ProductCard from '../components/pos/ProductCard.jsx';
 import OrderItem from '../components/pos/OrderItem.jsx';
 import OrderSummary from '../components/pos/OrderSummary.jsx';
