@@ -54,7 +54,20 @@ export async function getOpenCashRegister(req, res) {
       });
     }
 
+    console.log('[getOpenCashRegister] Buscando caja abierta para userId:', userId);
+    console.log('[getOpenCashRegister] req.user completo:', JSON.stringify(req.user));
+
     const cashRegister = await cashRegisterService.getOpenCashRegisterByUser(userId);
+
+    console.log('[getOpenCashRegister] Caja encontrada:', cashRegister ? 'SÍ' : 'NO');
+    if (cashRegister) {
+      console.log('[getOpenCashRegister] Datos de caja:', {
+        id: cashRegister._id,
+        estado: cashRegister.estado,
+        usuario_id: cashRegister.usuario_id,
+        nombre_caja: cashRegister.nombre_caja
+      });
+    }
 
     res.json({
       success: true,

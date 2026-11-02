@@ -6,6 +6,7 @@ import { Search, Coffee, ShoppingCart, DollarSign, CreditCard, Smartphone, Sun, 
 import { useOrder } from '../context/OrderContext.jsx';
 import { useAdminOrder } from '../context/AdminOrderContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { getProducts } from '../services/productService.js';
 import { getPromotions } from '../services/promotionService.js';
 import { getLoyaltyConfig } from '../services/loyaltyService.js';
@@ -34,6 +35,7 @@ export default function AdminPOS() {
   const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem, setPromotions: setContextPromotions, customerPhone, setCustomerPhone, loyaltyCard, setLoyaltyCard, loyaltyDiscount, setLoyaltyDiscount, loyaltyFreeProduct, setLoyaltyFreeProduct, loadCustomerLoyalty, calculateLoyaltyDiscount } = useAdminOrder();
   console.log('[AdminPOS] Estado de la orden - Items:', items.length, 'Subtotal:', subtotal, 'Impuestos:', impuestos, 'Total:', total);
   const { theme, toggleTheme } = useTheme();
+  const { user } = useAuth();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [promotions, setPromotions] = useState([]);
@@ -301,10 +303,15 @@ export default function AdminPOS() {
 
   async function loadCashRegister() {
     try {
+      console.log('[AdminPOS] Cargando caja abierta...');
       const data = await getOpenCashRegister();
+      console.log('[AdminPOS] Caja recibida del servidor:', data);
+      console.log('[AdminPOS] Estado de caja:', data?.estado);
+      console.log('[AdminPOS] Usuario actual:', user);
       setCashRegister(data);
     } catch (e) {
-      console.error('Error cargando caja:', e);
+      console.error('[AdminPOS] Error cargando caja:', e);
+      console.error('[AdminPOS] Detalle del error:', e.response?.data);
     }
   }
 

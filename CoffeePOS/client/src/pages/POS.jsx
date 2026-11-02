@@ -5,6 +5,7 @@ import { formatCurrency } from '../utils/formatCurrency.js';
 import { useTranslation, useCurrency } from '../utils/i18n/useTranslation.js';
 import { useOrder } from '../context/OrderContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import Loader from '../components/common/Loader.jsx';
 import { getProducts } from '../services/productService.js';
 import {	getPromotions } from '../services/promotionService.js';
@@ -35,6 +36,7 @@ export default function POS() {
   const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem, setPromotions: setContextPromotions, customerPhone, setCustomerPhone, loyaltyCard, setLoyaltyCard, loyaltyDiscount, setLoyaltyDiscount, loyaltyFreeProduct, setLoyaltyFreeProduct, loadCustomerLoyalty, calculateLoyaltyDiscount } = useOrder();
   console.log('[POS] Estado de la orden - Items:', items.length, 'Subtotal:', subtotal, 'Impuestos:', impuestos, 'Total:', total);
   const { theme, toggleTheme } = useTheme();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
@@ -343,10 +345,15 @@ export default function POS() {
 
   async function loadCashRegister() {
     try {
+      console.log('[POS] Cargando caja abierta...');
       const data = await getOpenCashRegister();
+      console.log('[POS] Caja recibida del servidor:', data);
+      console.log('[POS] Estado de caja:', data?.estado);
+      console.log('[POS] Usuario actual:', user);
       setCashRegister(data);
     } catch (error) {
-      console.error('Error al cargar caja:', error);
+      console.error('[POS] Error al cargar caja:', error);
+      console.error('[POS] Detalle del error:', error.response?.data);
     }
   }
 

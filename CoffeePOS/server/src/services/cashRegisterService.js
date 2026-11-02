@@ -16,13 +16,17 @@ import SaleDetail from '../models/SaleDetail.js';
  */
 export async function getOpenCashRegisterByUser(usuarioId) {
   try {
-    const cashRegister = await CashRegister.findOne({ 
-      usuario_id: usuarioId, 
-      estado: 'abierta' 
+    console.log('[getOpenCashRegisterByUser] Buscando caja con usuario_id:', usuarioId, 'estado: abierta');
+
+    const cashRegister = await CashRegister.findOne({
+      usuario_id: usuarioId,
+      estado: 'abierta'
     })
     .populate('usuario_id', 'nombre')
     .sort({ fecha_apertura: -1 })
     .limit(1);
+
+    console.log('[getOpenCashRegisterByUser] Resultado:', cashRegister ? 'Encontrada' : 'No encontrada');
 
     return cashRegister;
   } catch (error) {
