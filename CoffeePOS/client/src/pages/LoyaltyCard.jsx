@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { QrCode, Search, Plus, User, Award, Clock, X, Download, CheckCircle, Filter, Settings, Trash2, Plus as Add } from 'lucide-react';
+import { QrCode, Search, Plus, User, Award, Clock, X, Download, CheckCircle, Filter, Settings, Trash2, Plus as Add, Camera } from 'lucide-react';
 import { getCardByQRToken, addStamp, redeemReward, getLoyaltyConfig, getAllLoyaltyCards, updateLoyaltyConfig } from '../services/loyaltyService.js';
 import { getCustomerByPhone } from '../services/customerService.js';
 import LoyaltyCardGenerator from '../components/LoyaltyCardGenerator.jsx';
@@ -33,6 +33,11 @@ export default function LoyaltyCard() {
   useEffect(() => {
     loadConfig();
     loadAllCards();
+    // Obtener businessName de localStorage
+    const savedBusinessName = localStorage.getItem('businessName');
+    if (savedBusinessName) {
+      setBusinessName(savedBusinessName);
+    }
   }, []);
 
   const loadConfig = async () => {
@@ -98,20 +103,10 @@ export default function LoyaltyCard() {
     }
   };
 
-  const selectCard = async (selectedCard) => {
+  const selectCard = (selectedCard) => {
     setCard(selectedCard);
     setQrToken(selectedCard.qr_token);
     setShowAllCards(false);
-    
-    // Generar QR code para la tarjeta seleccionada
-    try {
-      const response = await getCardByQRToken(selectedCard.qr_token);
-      if (response.success) {
-        setCard(response.data);
-      }
-    } catch (error) {
-      console.error('Error generating QR:', error);
-    }
   };
 
   const handleManualSearch = async () => {
@@ -153,7 +148,7 @@ export default function LoyaltyCard() {
     try {
       const result = await Swal.fire({
         title: '¿Agregar sello?',
-        text: `Agregar sello para ${card.customer?.nombre || 'cliente'}`,
+        text: `Agregar sello para ${card.customerId?.nombre || 'cliente'}`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonText: 'Sí, agregar',
@@ -192,7 +187,7 @@ export default function LoyaltyCard() {
     try {
       const result = await Swal.fire({
         title: '¿Canjear recompensa?',
-        text: `Canjear recompensa para ${card.customer?.nombre || 'cliente'}`,
+        text: `Canjear recompensa para ${card.customerId?.nombre || 'cliente'}`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonText: 'Sí, canjear',
@@ -235,7 +230,7 @@ export default function LoyaltyCard() {
       try {
         const link = document.createElement('a');
         link.href = generatedCardImage;
-        link.download = `tarjeta-${card.customer?.nombre?.replace(/\s+/g, '-') || 'cliente'}.png`;
+        link.download = `tarjeta-${card.customerId?.nombre?.replace(/\s+/g, '-') || 'cliente'}.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -256,7 +251,7 @@ export default function LoyaltyCard() {
       try {
         const link = document.createElement('a');
         link.href = card.qr_code;
-        link.download = `tarjeta-${card.customer?.nombre?.replace(/\s+/g, '-') || 'cliente'}.png`;
+        link.download = `tarjeta-${card.customerId?.nombre?.replace(/\s+/g, '-') || 'cliente'}.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -592,7 +587,7 @@ export default function LoyaltyCard() {
                   <Search size={20} /> Buscar
                 </button>
                 <button onClick={() => setShowScanner(true)} className="btn btn-primary">
-                  <Camera size={20} /> Escanear QR
+                  <Camera size={20} /> Ingresar QR
                 </button>
               </div>
             </div>
@@ -604,10 +599,11 @@ export default function LoyaltyCard() {
                 <button onClick={() => setShowScanner(false)} className="close-btn">
                   <X size={24} />
                 </button>
-                <h2>Escanea el código QR</h2>
+                <h2>Ingresar Código QR</h2>
+                <p className="scanner-hint">Usa un lector QR USB o ingresa el código manualmente</p>
                 <input
                   type="text"
-                  placeholder="O ingresa el código manualmente"
+                  placeholder="Código QR del cliente"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -616,7 +612,6 @@ export default function LoyaltyCard() {
                   }}
                   className="manual-qr-input"
                 />
-                <p className="scanner-hint">Usa un lector QR USB o escanea con cámara</p>
               </div>
             </div>
           )}
@@ -627,7 +622,7 @@ export default function LoyaltyCard() {
             <div className="card-display">
               {/* Generador de tarjeta con diseño (oculto) */}
               <LoyaltyCardGenerator
-                customer={card.customer}
+                customer={card.customerId}
                 qrToken={card.qr_token}
                 businessName={businessName}
                 stamps={card.sellos_actuales}
@@ -643,8 +638,8 @@ export default function LoyaltyCard() {
                 
                 <div className="customer-info">
                   <User size={20} />
-                  <span>{card.customer?.nombre || 'Cliente'}</span>
-                  <span className="phone">{card.customer?.telefono}</span>
+                  <span>{card.customerId?.nombre || 'Cliente'}</span>
+                  <span className="phone">{card.customerId?.telefono}</span>
                 </div>
 
                 <div className="stamps-container">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { QrCode, User, Phone, Mail, CheckCircle } from 'lucide-react';
 import { publicRegisterCustomer } from '../services/customerService.js';
 import LoyaltyCardGenerator from '../components/LoyaltyCardGenerator.jsx';
@@ -14,6 +14,14 @@ export default function CustomerRegistration() {
   const [registeredCard, setRegisteredCard] = useState(null);
   const [generatedCardImage, setGeneratedCardImage] = useState(null);
   const [businessName, setBusinessName] = useState('Mi Cafetería');
+
+  useEffect(() => {
+    // Obtener businessName de localStorage
+    const savedBusinessName = localStorage.getItem('businessName');
+    if (savedBusinessName) {
+      setBusinessName(savedBusinessName);
+    }
+  }, []);
 
   const handleChange = (e) => {
     setFormData({

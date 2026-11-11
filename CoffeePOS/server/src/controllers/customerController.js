@@ -5,6 +5,7 @@
 
 import Customer from '../models/Customer.js';
 import LoyaltyCard from '../models/LoyaltyCard.js';
+import Config from '../models/Config.js';
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 
@@ -71,12 +72,20 @@ export const createCustomer = async (req, res) => {
 
     // Generar tarjeta de lealtad automáticamente
     const qrToken = generateQRToken();
+    
+    // Obtener configuración de lealtad para sellos requeridos
+    const loyaltyConfig = await Config.findOne({ 
+      clientId, 
+      clave: 'loyalty_stamps_required' 
+    });
+    const stampsRequired = loyaltyConfig ? parseInt(loyaltyConfig.valor) : 10;
+    
     const loyaltyCard = await LoyaltyCard.create({
       clientId,
       customerId: customer._id,
       qr_token: qrToken,
       sellos_actuales: 0,
-      sellos_requeridos: 10,
+      sellos_requeridos: stampsRequired,
       recompensas_disponibles: 0,
       estado: 'activa'
     });
