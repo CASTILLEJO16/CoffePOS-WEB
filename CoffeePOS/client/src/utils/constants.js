@@ -43,7 +43,7 @@ export const DEFAULT_CATEGORIES = [
 // Esta función se usará para cargar categorías dinámicamente
 export async function getCategories() {
   try {
-    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+    const token = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('token') : null;
     const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
     const response = await fetch(`${API_BASE_URL}/categorias`, { headers });
     const data = await response.json();

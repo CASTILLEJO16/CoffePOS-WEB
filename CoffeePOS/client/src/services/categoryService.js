@@ -6,7 +6,7 @@ import { API_BASE_URL } from '../utils/constants.js';
  */
 
 function getAuthHeaders() {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   return {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` })

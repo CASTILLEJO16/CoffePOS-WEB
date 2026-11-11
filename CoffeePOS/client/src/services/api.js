@@ -11,7 +11,7 @@ const api = axios.create({
 // Interceptor para agregar token y licencia a las requests
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -40,8 +40,8 @@ api.interceptors.response.use(
 
     if (status === 401 && isTokenExpired) {
       console.warn('Token expirado - cerrando sesión');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
       try {
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('force-logout', {
@@ -51,8 +51,8 @@ api.interceptors.response.use(
       } catch (_) {}
     } else if (status === 403 && isLicenseError) {
       console.warn('Licencia inválida/expirada - cerrando sesión');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
       // Usar clave de licencia inválida para redirigir a activación
       try {
         if (typeof window !== 'undefined') {

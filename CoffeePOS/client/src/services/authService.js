@@ -57,40 +57,40 @@ export async function updateUser(id, userData) {
 }
 
 /**
- * Guarda token en localStorage
+ * Guarda token en sessionStorage
  */
 export function saveToken(token) {
-  localStorage.setItem('token', token);
+  sessionStorage.setItem('token', token);
 }
 
 /**
- * Guarda usuario en localStorage
+ * Guarda usuario en sessionStorage
  */
 export function saveUser(user) {
-  localStorage.setItem('user', JSON.stringify(user));
+  sessionStorage.setItem('user', JSON.stringify(user));
 }
 
 /**
- * Obtiene token del localStorage
+ * Obtiene token del sessionStorage
  */
 export function getToken() {
-  return localStorage.getItem('token');
+  return sessionStorage.getItem('token');
 }
 
 /**
- * Obtiene usuario del localStorage
+ * Obtiene usuario del sessionStorage
  */
 export function getUser() {
-  const user = localStorage.getItem('user');
+  const user = sessionStorage.getItem('user');
   return user ? JSON.parse(user) : null;
 }
 
 /**
- * Elimina token y usuario del localStorage
+ * Elimina token y usuario del sessionStorage
  */
 export function clearAuth() {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
+  sessionStorage.removeItem('token');
+  sessionStorage.removeItem('user');
 }
 
 /**
