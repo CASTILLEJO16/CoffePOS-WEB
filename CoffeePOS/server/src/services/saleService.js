@@ -20,6 +20,69 @@ import Promotion from '../models/Promotion.js';
  * Contiene toda la lógica de negocio relacionada con ventas
  */
 
+function round2(n) {
+  return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * Extrae las opciones seleccionadas de una personalización (array u objeto {tipo: [opciones]})
+ */
+function extractSelectedOptions(personalizaciones) {
+  if (!personalizaciones) return [];
+  if (Array.isArray(personalizaciones)) return personalizaciones;
+  if (typeof personalizaciones === 'object') {
+    return Object.values(personalizaciones)
+      .flat()
+      .filter(op => op && typeof op === 'object');
+  }
+  return [];
+}
+
+/**
+ * Calcula en el servidor el precio unitario de un producto.
+ * Replica la lógica del POS (descuento del producto + extras de personalización y
+ * promociones de % o monto fijo) y SOLO acepta el precio enviado por el navegador
+ * si coincide con uno de los precios legítimos. Si no coincide, se cobra el precio
+ * normal calculado en el servidor.
+ */
+function resolveServerUnitPrice({ product, personalizaciones, optionPriceMap, promotions, requestedPrice }) {
+  const base = Number(product.precio) || 0;
+  const desc = Number(product.descuento) || 0;
+  const applyProductDiscount = (p) => (desc > 0 ? p * (1 - desc / 100) : p);
+
+  // Extras de personalización con el precio de la BD
+  let extras = 0;
+  for (const op of extractSelectedOptions(personalizaciones)) {
+    if (op?.id) extras += optionPriceMap.get(String(op.id)) || 0;
+  }
+
+  const normalPrice = applyProductDiscount(base) + extras;
+  const allowed = [normalPrice];
+
+  const productIdStr = product._id.toString();
+  for (const promo of promotions || []) {
+    const participates = (promo.productosParticipantes || []).some(pp => pp.producto_id?.toString() === productIdStr);
+    if (!participates) continue;
+    if (promo.tipo === 'PERCENTAGE_DISCOUNT') {
+      const promoBase = round2(base * (1 - (Number(promo.descuentoPorcentaje) || 0) / 100));
+      allowed.push(applyProductDiscount(promoBase) + extras);
+    } else if (promo.tipo === 'FIXED_DISCOUNT') {
+      const promoBase = Math.max(0, round2(base - (Number(promo.descuentoFijo) || 0)));
+      allowed.push(applyProductDiscount(promoBase) + extras);
+    }
+  }
+
+  if (requestedPrice !== undefined && requestedPrice !== null && requestedPrice !== '') {
+    const requested = parseFloat(requestedPrice);
+    if (Number.isFinite(requested)) {
+      const match = allowed.find(a => Math.abs(a - requested) <= 0.01);
+      if (match !== undefined) return match;
+      console.warn(`[createSale] Precio enviado (${requested}) no coincide con los precios válidos de "${product.nombre}" (${allowed.map(a => round2(a)).join(', ')}). Se usa ${round2(normalPrice)}.`);
+    }
+  }
+  return normalPrice;
+}
+
 /**
  * Obtiene todas las ventas
  * @param {number} limit - Límite de registros
@@ -144,10 +207,23 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     const processedItems = [];
 
     // Optimización: Obtener todos los productos en una sola query (bulk fetch)
+    if (!clientId) {
+      throw new Error('clientId es requerido para registrar ventas. Vuelve a iniciar sesión.');
+    }
+
+    // Validar IDs antes de consultar (evita CastError y datos basura)
+    for (const item of items) {
+      if (!item || !item.producto_id || !mongoose.Types.ObjectId.isValid(String(item.producto_id))) {
+        throw new Error('Producto inválido en la venta');
+      }
+    }
+
     const productIds = items.map(item => item.producto_id);
-    const products = await Product.find({ 
+    // SOLO productos de esta cafetería
+    const products = await Product.find({
       _id: { $in: productIds },
-      activo: true 
+      clientId,
+      activo: true
     });
     const productsMap = new Map(products.map(p => [p._id.toString(), p]));
 
@@ -156,7 +232,9 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     const combos = missingProductIds.length > 0
       ? await Promotion.find({
           _id: { $in: missingProductIds },
-          tipo: 'COMBO'
+          clientId,
+          tipo: 'COMBO',
+          estado: 'Activa'
         })
       : [];
     const combosMap = new Map(combos.map(c => [c._id.toString(), c]));
@@ -174,6 +252,7 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     if (comboProductIds.length > 0) {
       const additionalProducts = await Product.find({
         _id: { $in: comboProductIds },
+        clientId,
         activo: true
       });
       additionalProducts.forEach(p => productsMap.set(p._id.toString(), p));
@@ -192,10 +271,32 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
       recipesMap.get(key).push(r);
     });
 
+    // --- Datos para calcular precios EN EL SERVIDOR (no confiar en el navegador) ---
+    // Personalizaciones seleccionadas: su precio adicional se toma de la BD
+    const pricingOptionIds = [];
     for (const item of items) {
-      if (!item.cantidad || item.cantidad <= 0) {
+      for (const op of extractSelectedOptions(item.personalizaciones)) {
+        if (op?.id && mongoose.Types.ObjectId.isValid(String(op.id))) pricingOptionIds.push(String(op.id));
+      }
+    }
+    const pricingPersonalizations = pricingOptionIds.length > 0
+      ? await Personalization.find({ _id: { $in: pricingOptionIds }, clientId, activo: true })
+      : [];
+    const optionPriceMap = new Map(pricingPersonalizations.map(p => [p._id.toString(), Number(p.precio_adicional) || 0]));
+
+    // Promociones activas de la cafetería (el POS aplica % y monto fijo al precio unitario)
+    const pricingPromotions = await Promotion.find({
+      clientId,
+      estado: 'Activa',
+      tipo: { $in: ['PERCENTAGE_DISCOUNT', 'FIXED_DISCOUNT'] }
+    });
+
+    for (const item of items) {
+      const qtyNum = Number(item.cantidad);
+      if (!Number.isFinite(qtyNum) || qtyNum <= 0 || !Number.isInteger(qtyNum)) {
         throw new Error('Cantidad inválida');
       }
+      item.cantidad = qtyNum;
       const product = productsMap.get(item.producto_id.toString());
       const combo = combosMap.get(item.producto_id.toString());
 
@@ -208,24 +309,20 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
       let nombre = '';
 
       if (combo) {
+        // El precio del combo SIEMPRE sale de la BD
         nombre = combo.nombre;
-        precio = combo.precioCombo;
-        if (item.precio_final !== undefined && item.precio_final !== null) {
-          const parsed = parseFloat(item.precio_final);
-          if (!Number.isNaN(parsed) && parsed >= 0) {
-            precio = parsed;
-          }
-        }
+        precio = Number(combo.precioCombo) || 0;
       } else {
         nombre = product.nombre;
-        precio = product.precio;
-        if (item.precio_final !== undefined && item.precio_final !== null) {
-          const parsed = parseFloat(item.precio_final);
-          if (!Number.isNaN(parsed) && parsed > 0) {
-            precio = parsed;
-          }
-        }
+        precio = resolveServerUnitPrice({
+          product,
+          personalizaciones: item.personalizaciones,
+          optionPriceMap,
+          promotions: pricingPromotions,
+          requestedPrice: item.precio_final
+        });
       }
+      precio = round2(precio);
 
       const importe = cantidad * precio;
       const personalizaciones = item.personalizaciones ? JSON.stringify(item.personalizaciones) : null;
@@ -268,24 +365,18 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     }
 
     // Calcular impuestos y total
+    // El IVA SIEMPRE se toma de la configuración de la cafetería en la BD.
+    // (el iva_rate que manda el navegador se ignora: podía traer cualquier valor)
     let ivaRate = 0.16;
-    if (ivaFromClient !== undefined && ivaFromClient !== null) {
-      const parsed = parseFloat(ivaFromClient);
-      if (!Number.isNaN(parsed)) {
-        ivaRate = parsed;
+    try {
+      const ivaRow = await Config.findOne({ clave: 'iva_rate', clientId });
+      const parsedIva = ivaRow ? parseFloat(ivaRow.valor) : NaN;
+      if (Number.isFinite(parsedIva) && parsedIva >= 0 && parsedIva < 1) {
+        ivaRate = parsedIva;
       }
-    } else {
-      // fallback: configuración en BD POR CLIENTE
-      try {
-        const ivaRow = await Config.findOne({ clave: 'iva_rate', clientId });
-        if (ivaRow && ivaRow.valor) {
-          ivaRate = parseFloat(ivaRow.valor);
-        } else {
-          // fallback global si no hay config por cliente
-          const globalIva = await Config.findOne({ clave: 'iva_rate', clientId: { $exists: false } });
-          if (globalIva && globalIva.valor) ivaRate = parseFloat(globalIva.valor);
-        }
-      } catch {}
+    } catch {}
+    if (ivaFromClient !== undefined && ivaFromClient !== null && Math.abs(parseFloat(ivaFromClient) - ivaRate) > 0.0001) {
+      console.warn(`[createSale] IVA del navegador (${ivaFromClient}) distinto al configurado (${ivaRate}); se usa el configurado.`);
     }
 
     const impuestos = Number((subtotal * ivaRate).toFixed(2));
@@ -780,6 +871,9 @@ export async function cancelSale(id, usuarioId = null) {
       throw new Error('La venta ya fue cancelada');
     }
 
+    // clientId de la propia venta (antes se usaba una variable inexistente -> ReferenceError)
+    const clientId = sale.clientId;
+
     // Revertir stock de ingredientes
     const ingredientMap = {};
 
@@ -923,14 +1017,18 @@ export async function getSalesByDate(date, usuarioId = null, clientId = null) {
  * @param {string} date - Fecha en formato YYYY-MM-DD
  * @returns {Object} Resumen de ventas
  */
-export async function getDailySummary(date) {
+export async function getDailySummary(date, clientId) {
   try {
+    if (!clientId) {
+      throw new Error('clientId es requerido para el resumen diario');
+    }
     const startDate = new Date(date);
     const endDate = new Date(date);
     endDate.setHours(23, 59, 59, 999);
 
     const summary = await Sale.aggregate([
       { $match: { 
+        clientId: new mongoose.Types.ObjectId(clientId),
         fecha: { $gte: startDate, $lte: endDate },
         cancelada: { $ne: true }
       }},

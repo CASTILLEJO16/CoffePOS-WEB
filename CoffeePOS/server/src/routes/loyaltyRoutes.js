@@ -3,7 +3,7 @@
  */
 
 import express from 'express';
-import { authenticateToken as authenticate } from '../middlewares/authMiddleware.js';
+import { authenticateToken as authenticate, requireAdmin } from '../middlewares/authMiddleware.js';
 import * as loyaltyController from '../controllers/loyaltyController.js';
 
 const router = express.Router();
@@ -34,7 +34,7 @@ router.post('/revert', loyaltyController.revertStamp);
 
 // Configuración de lealtad
 router.get('/config', loyaltyController.getLoyaltyConfig);
-router.put('/config', loyaltyController.updateLoyaltyConfig);
+router.put('/config', requireAdmin, loyaltyController.updateLoyaltyConfig);
 
 // Obtener todas las tarjetas
 router.get('/all', loyaltyController.getAllLoyaltyCards);

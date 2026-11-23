@@ -127,10 +127,10 @@ export async function loginPin(req, res) {
           code: 'LICENSE_INVALID'
         });
       }
-    } else if (req.body.clientId) {
-      // Fallback: permitir clientId explícito si el front lo envía
-      clientId = req.body.clientId;
     }
+    // Nota de seguridad: NO aceptar clientId desde el body. La cafetería solo se
+    // resuelve desde una licencia + dispositivo activados; de lo contrario se podría
+    // adivinar el PIN (4 dígitos) de cualquier cafetería conociendo su clientId.
 
     if (!clientId) {
       return res.status(400).json({

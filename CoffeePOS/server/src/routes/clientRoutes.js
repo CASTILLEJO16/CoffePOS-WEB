@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken, requireAdmin } from '../middlewares/authMiddleware.js';
+import { authenticateToken, requireDeveloper } from '../middlewares/authMiddleware.js';
 import {
   createClient,
   getClients,
@@ -15,8 +15,9 @@ const router = express.Router();
 // Ruta para cafetería autenticada (cualquier rol) - solo lectura, edición solo desde DeveloperPanel
 router.get('/me', authenticateToken, getMyClient);
 
-// Todas las rutas de administración de clientes requieren estar autenticado como Admin
-router.use(authenticateToken, requireAdmin);
+// Administración de cafeterías: SOLO developer (DeveloperPanel).
+// Un admin de cafetería NO debe poder ver/crear/borrar otras cafeterías.
+router.use(authenticateToken, requireDeveloper);
 
 router.post('/', createClient);
 router.get('/', getClients);

@@ -304,17 +304,24 @@ export default function POS() {
   }
 
   async function loadIVA() {
+    // El servidor cobra SIEMPRE con el IVA configurado para la cafetería,
+    // así que el POS lo toma de ahí para que lo mostrado coincida con lo cobrado.
+    let rate = 0.16;
     try {
-      // ✅ Usar SIEMPRE el IVA del frontend (evita que backend lo sobrescriba)
-      const local = localStorage.getItem('iva_rate');
-      const parsed = local ? parseFloat(local) : 0.16;
-      if (!Number.isNaN(parsed)) {
-        setIvaRate(parsed);
-        recalcTotals();
+      const config = await getAllConfig();
+      const serverRate = parseFloat(config?.iva_rate);
+      if (Number.isFinite(serverRate) && serverRate >= 0 && serverRate < 1) {
+        rate = serverRate;
       }
     } catch (e) {
-      console.error('Error cargando IVA', e);
+      // Sin conexión: usar el último valor conocido
+      const local = parseFloat(localStorage.getItem('iva_rate'));
+      if (Number.isFinite(local)) rate = local;
+      console.error('Error cargando IVA del servidor', e);
     }
+    try { localStorage.setItem('iva_rate', String(rate)); } catch {}
+    setIvaRate(rate);
+    recalcTotals();
   }
 
   async function loadLabelConfig() {

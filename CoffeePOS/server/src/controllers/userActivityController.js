@@ -2,6 +2,26 @@ import { getUserById } from '../services/authService.js';
 import { getSalesByUser } from '../services/saleService.js';
 import { getCashRegistersByUser } from '../services/cashRegisterService.js';
 import { getLogsByUser } from '../services/logService.js';
+import mongoose from 'mongoose';
+import User from '../models/User.js';
+import { belongsToRequester, isDeveloperRequest } from '../utils/tenant.js';
+
+/**
+ * Verifica que el usuario consultado pertenezca a la cafetería de quien consulta.
+ * Responde 400/404 y retorna false si no procede.
+ */
+async function ensureScopedUser(req, res, userId) {
+  if (!userId || userId === 'undefined' || !mongoose.Types.ObjectId.isValid(userId)) {
+    res.status(400).json({ success: false, error: 'ID de usuario inválido' });
+    return false;
+  }
+  const target = await User.findById(userId).select('clientId rol');
+  if (!target || !belongsToRequester(req, target.clientId) || (target.rol === 'developer' && !isDeveloperRequest(req))) {
+    res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+    return false;
+  }
+  return true;
+}
 
 /**
  * Controlador de Actividad de Usuario
@@ -12,12 +32,7 @@ export async function getUserActivity(req, res) {
   try {
     const { userId } = req.params;
 
-    if (!userId || userId === 'undefined') {
-      return res.status(400).json({
-        success: false,
-        error: 'ID de usuario inválido'
-      });
-    }
+    if (!(await ensureScopedUser(req, res, userId))) return;
 
     // Obtener información básica del usuario
     const user = await getUserById(userId);
@@ -68,6 +83,7 @@ export async function getUserActivity(req, res) {
 export async function getUserCashRegisters(req, res) {
   try {
     const { userId } = req.params;
+    if (!(await ensureScopedUser(req, res, userId))) return;
     const cashRegisters = await getCashRegistersByUser(userId);
 
     res.json({
@@ -86,6 +102,7 @@ export async function getUserCashRegisters(req, res) {
 export async function getUserSales(req, res) {
   try {
     const { userId } = req.params;
+    if (!(await ensureScopedUser(req, res, userId))) return;
     const sales = await getSalesByUser(userId);
 
     res.json({
@@ -104,6 +121,7 @@ export async function getUserSales(req, res) {
 export async function getUserLogs(req, res) {
   try {
     const { userId } = req.params;
+    if (!(await ensureScopedUser(req, res, userId))) return;
     const logs = await getLogsByUser(userId);
 
     res.json({

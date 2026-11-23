@@ -5,20 +5,16 @@ import {
   updateCategory,
   deleteCategory
 } from '../controllers/categoryController.js';
-import { authenticateToken } from '../middlewares/authMiddleware.js';
+import { authenticateToken, requireAdmin } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// Obtener todas las categorías (requiere autenticación)
+// Obtener todas las categorías (cualquier usuario autenticado: el POS las necesita)
 router.get('/', authenticateToken, getCategories);
 
-// Crear categoría (requiere autenticación)
-router.post('/', authenticateToken, createCategory);
-
-// Actualizar categoría (requiere autenticación)
-router.put('/:id', authenticateToken, updateCategory);
-
-// Eliminar categoría (requiere autenticación)
-router.delete('/:id', authenticateToken, deleteCategory);
+// Crear / actualizar / eliminar categoría: solo admin
+router.post('/', authenticateToken, requireAdmin, createCategory);
+router.put('/:id', authenticateToken, requireAdmin, updateCategory);
+router.delete('/:id', authenticateToken, requireAdmin, deleteCategory);
 
 export default router;

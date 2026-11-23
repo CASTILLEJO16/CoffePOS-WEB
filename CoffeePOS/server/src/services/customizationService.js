@@ -55,10 +55,13 @@ export async function getAllCustomizations(clientId = null) {
  * @param {string} id - ID de la personalización
  * @returns {Object} Personalización
  */
-export async function getCustomizationById(id) {
+export async function getCustomizationById(id, clientId = null) {
   try {
     validateObjectId(id);
-    const customization = await Personalization.findById(id);
+    // Si se pasa clientId, solo se encuentra si pertenece a esa cafetería
+    const customization = clientId
+      ? await Personalization.findOne({ _id: id, clientId })
+      : await Personalization.findById(id);
     return customization;
   } catch (error) {
     console.error('Error al obtener personalización:', error);
@@ -104,12 +107,13 @@ export async function createCustomization(customizationData, usuarioId = null, c
  * @param {string} usuarioId - ID del usuario
  * @returns {Object} Personalización actualizada
  */
-export async function updateCustomization(id, customizationData, usuarioId = null) {
+export async function updateCustomization(id, customizationData, usuarioId = null, clientId = null) {
   try {
     validateObjectId(id);
+    if (!clientId) throw new Error('clientId requerido');
     const { tipo, nombre, precio_adicional, activo } = customizationData;
 
-    const existing = await getCustomizationById(id);
+    const existing = await getCustomizationById(id, clientId);
     if (!existing) {
       throw new Error('Personalización no encontrada');
     }
@@ -140,10 +144,11 @@ export async function updateCustomization(id, customizationData, usuarioId = nul
  * @param {string} id - ID de la personalización
  * @param {string} usuarioId - ID del usuario
  */
-export async function deleteCustomization(id, usuarioId = null) {
+export async function deleteCustomization(id, usuarioId = null, clientId = null) {
   try {
     validateObjectId(id);
-    const existing = await getCustomizationById(id);
+    if (!clientId) throw new Error('clientId requerido');
+    const existing = await getCustomizationById(id, clientId);
     if (!existing) {
       throw new Error('Personalización no encontrada');
     }

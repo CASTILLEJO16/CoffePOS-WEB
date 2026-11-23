@@ -324,10 +324,15 @@ export async function updateUser(id, userData, updaterId = null) {
 
     if (usuario !== undefined) {
       const normalized = String(usuario).toLowerCase();
-      // verificar duplicado
-      const existing = await User.findOne({ 
-        usuario: normalized, 
-        _id: { $ne: id } 
+      // verificar duplicado dentro de la misma cafetería
+      const owner = await User.findById(id).select('clientId');
+      if (!owner) {
+        throw new Error('Usuario no encontrado');
+      }
+      const existing = await User.findOne({
+        usuario: normalized,
+        clientId: owner.clientId,
+        _id: { $ne: id }
       });
       if (existing) {
         throw new Error('El nombre de usuario ya existe');
@@ -344,6 +349,11 @@ export async function updateUser(id, userData, updaterId = null) {
     }
 
     if (rol !== undefined) {
+      // Solo roles de cafetería. Nunca permitir escalar a 'developer' desde esta vía.
+      const allowedRoles = ['admin', 'cajero'];
+      if (!allowedRoles.includes(rol)) {
+        throw new Error('Rol inválido');
+      }
       updates.rol = rol;
     }
 

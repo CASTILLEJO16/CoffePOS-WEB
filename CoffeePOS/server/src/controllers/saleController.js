@@ -2,6 +2,8 @@ import * as saleService from '../services/saleService.js';
 import * as ticketService from '../services/ticketService.js';
 import { logAction } from '../services/logService.js';
 import mongoose from 'mongoose';
+import Sale from '../models/Sale.js';
+import { belongsToRequester } from '../utils/tenant.js';
 
 /**
  * Controlador de Ventas
@@ -17,9 +19,11 @@ export async function getSales(req, res) {
     const userId = req.user?.userId;
     const clientId = req.user?.clientId;
 
-    // Si se proporciona usuarioId en los query params, usarlo (para vendedores que solo quieren ver sus ventas)
-    // Si no, usar el userId del token (para admins que pueden ver todas las ventas)
-    const effectiveUserId = usuarioId || userId;
+    // Cajero: SIEMPRE solo sus propias ventas (se ignora cualquier usuarioId enviado).
+    // Admin: todas las ventas de su cafetería, o las de un vendedor si manda ?usuarioId=.
+    const role = req.user?.role || req.user?.rol;
+    const isAdminRole = role === 'admin';
+    const effectiveUserId = isAdminRole ? (usuarioId || null) : userId;
 
     let sales;
 
@@ -77,14 +81,15 @@ export async function getSale(req, res) {
     
     const sale = await saleService.getSaleById(id);
 
-    if (!sale) {
+    // 404 también si la venta es de otra cafetería (no revelar que existe)
+    if (!sale || !belongsToRequester(req, sale.clientId)) {
       return res.status(404).json({
         success: false,
         error: 'Venta no encontrada'
       });
     }
 
-    // Admins pueden ver cualquier venta
+    // Admins pueden ver cualquier venta de SU cafetería
     if (role === 'admin') {
       return res.json({
         success: true,
@@ -165,6 +170,11 @@ export async function cancelSale(req, res) {
       });
     }
 
+    const saleOwner = await Sale.findById(id).select('clientId');
+    if (!saleOwner || !belongsToRequester(req, saleOwner.clientId)) {
+      return res.status(404).json({ success: false, error: 'Venta no encontrada' });
+    }
+
     await saleService.cancelSale(id, userId);
 
     res.json({
@@ -195,6 +205,11 @@ export async function refundSale(req, res) {
         success: false,
         error: 'ID de venta inválido'
       });
+    }
+
+    const saleOwner = await Sale.findById(id).select('clientId');
+    if (!saleOwner || !belongsToRequester(req, saleOwner.clientId)) {
+      return res.status(404).json({ success: false, error: 'Venta no encontrada' });
     }
 
     // Verificar que se proporcionó la contraseña
@@ -243,16 +258,20 @@ export async function printTicket(req, res) {
     const userId = req.user?.userId;
     const role = req.user?.role;
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, error: 'ID de venta inválido' });
+    }
+
     const sale = await saleService.getSaleById(id);
 
-    if (!sale) {
+    if (!sale || !belongsToRequester(req, sale.clientId)) {
       return res.status(404).json({
         success: false,
         error: 'Venta no encontrada'
       });
     }
 
-    // Admins pueden reimprimir cualquier ticket
+    // Admins pueden reimprimir cualquier ticket de su cafetería
     if (role === 'admin') {
       const result = await ticketService.printTicket(sale);
       await logAction(userId, 'REIMPRIMIR_TICKET', `Ticket reimpreso`);
@@ -307,7 +326,12 @@ export async function getDailySummary(req, res) {
       });
     }
 
-    const summary = await saleService.getDailySummary(date);
+    const clientId = req.user?.clientId;
+    if (!clientId) {
+      return res.status(400).json({ success: false, error: 'clientId requerido' });
+    }
+
+    const summary = await saleService.getDailySummary(date, clientId);
 
     res.json({
       success: true,

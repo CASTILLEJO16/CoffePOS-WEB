@@ -116,9 +116,10 @@ export const addStamp = async (req, res) => {
     }
 
     // Verificar que esta venta no haya generado sellos ya
-    const existingStamp = await StampHistory.findOne({ 
-      venta_id, 
-      tipo: 'otorgado' 
+    const existingStamp = await StampHistory.findOne({
+      venta_id,
+      clientId,
+      tipo: 'otorgado'
     });
 
     if (existingStamp) {
@@ -367,9 +368,15 @@ export const revertStamp = async (req, res) => {
     const clientId = req.user?.clientId;
     const { venta_id, motivo } = req.body;
 
-    const stamp = await StampHistory.findOne({ 
-      venta_id, 
-      tipo: 'otorgado' 
+    if (!clientId) {
+      return res.status(400).json({ success: false, message: 'Usuario sin cafetería asignada' });
+    }
+
+    // Solo sellos de la misma cafetería
+    const stamp = await StampHistory.findOne({
+      venta_id,
+      clientId,
+      tipo: 'otorgado'
     }).populate('loyaltyCardId');
 
     if (!stamp) {

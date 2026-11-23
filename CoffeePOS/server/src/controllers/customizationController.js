@@ -46,7 +46,11 @@ function getErrorStatus(err) {
 export async function getCustomization(req, res) {
   try {
     const { id } = req.params;
-    const customization = await customizationService.getCustomizationById(id);
+    const clientId = req.user?.clientId;
+    if (!clientId) {
+      return res.status(400).json({ success: false, error: 'clientId requerido' });
+    }
+    const customization = await customizationService.getCustomizationById(id, clientId);
 
     if (!customization) {
       return res.status(404).json({
@@ -101,7 +105,8 @@ export async function updateCustomization(req, res) {
     const customizationData = req.body;
     const userId = req.user?.userId;
 
-    const customization = await customizationService.updateCustomization(id, customizationData, userId);
+    const clientId = req.user?.clientId;
+    const customization = await customizationService.updateCustomization(id, customizationData, userId, clientId);
 
     res.json({
       success: true,
@@ -124,7 +129,8 @@ export async function deleteCustomization(req, res) {
     const { id } = req.params;
     const userId = req.user?.userId;
 
-    await customizationService.deleteCustomization(id, userId);
+    const clientId = req.user?.clientId;
+    await customizationService.deleteCustomization(id, userId, clientId);
 
     res.json({
       success: true,

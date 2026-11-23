@@ -59,10 +59,14 @@ export async function createCategory(nombre, clientId = null) {
 /**
  * Actualiza una categoría
  */
-export async function updateCategory(id, nombre) {
+export async function updateCategory(id, nombre, clientId = null) {
   try {
-    const updatedCategory = await Category.findByIdAndUpdate(
-      id, 
+    if (!clientId) {
+      throw new Error('clientId es requerido para actualizar categoría');
+    }
+    // Solo actualiza si la categoría pertenece a la cafetería (si no, retorna null -> 404)
+    const updatedCategory = await Category.findOneAndUpdate(
+      { _id: id, clientId }, 
       { nombre }, 
       { new: true }
     );

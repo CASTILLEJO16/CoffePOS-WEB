@@ -69,7 +69,8 @@ export async function updateCategory(req, res) {
       });
     }
     
-    const category = await categoryService.updateCategory(id, nombre);
+    const clientId = req.user?.clientId;
+    const category = await categoryService.updateCategory(id, nombre, clientId);
     
     if (!category) {
       return res.status(404).json({

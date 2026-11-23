@@ -3,8 +3,32 @@ import License from '../models/License.js';
 import Client from '../models/Client.js';
 import Device from '../models/Device.js';
 
-// Clave secreta para firmar licencias (debería estar en .env)
-const SECRET_KEY = process.env.LICENSE_SECRET_KEY || 'coffee-pos-secret-key-2024';
+// Clave secreta para firmar licencias.
+// LEGACY_SECRET_KEY es la clave que se usaba por defecto (pública en el código).
+// Si LICENSE_SECRET_KEY está configurada, las licencias firmadas con la clave legacy
+// se aceptan UNA vez y se re-firman automáticamente con la clave nueva (migración sin cortes).
+const LEGACY_SECRET_KEY = 'coffee-pos-secret-key-2024';
+const CONFIGURED_SECRET_KEY = process.env.LICENSE_SECRET_KEY;
+const SECRET_KEY = CONFIGURED_SECRET_KEY || LEGACY_SECRET_KEY;
+const CAN_MIGRATE_LEGACY = !!CONFIGURED_SECRET_KEY && CONFIGURED_SECRET_KEY !== LEGACY_SECRET_KEY;
+
+if (!CONFIGURED_SECRET_KEY) {
+  const msg = '⚠️  LICENSE_SECRET_KEY no está configurada: las licencias se firman con la clave por defecto (insegura). Configúrala en las variables de entorno.';
+  if (process.env.NODE_ENV === 'production') console.error(msg); else console.warn(msg);
+}
+
+function hmacHex(key, data) {
+  return crypto.createHmac('sha256', key).update(JSON.stringify(data)).digest('hex');
+}
+
+function safeEqualHex(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
+  } catch {
+    return false;
+  }
+}
 
 class LicenseService {
   // Generar clave de licencia única
@@ -16,22 +40,36 @@ class LicenseService {
 
   // Generar firma digital
   generateSignature(licenseData) {
-    const dataString = JSON.stringify(licenseData);
-    const signature = crypto
-      .createHmac('sha256', SECRET_KEY)
-      .update(dataString)
-      .digest('hex');
-    return signature;
+    return hmacHex(SECRET_KEY, licenseData);
   }
 
-  // Verificar firma digital
+  // Verificar firma digital (con la clave actual)
   verifySignature(licenseData, signature) {
-    const dataString = JSON.stringify(licenseData);
-    const expectedSignature = crypto
-      .createHmac('sha256', SECRET_KEY)
-      .update(dataString)
-      .digest('hex');
-    return expectedSignature === signature;
+    return safeEqualHex(hmacHex(SECRET_KEY, licenseData), signature);
+  }
+
+  /**
+   * Migración: si la licencia está firmada con la clave legacy y ya hay una
+   * LICENSE_SECRET_KEY configurada, la re-firma con la clave nueva.
+   * Se llama antes de verificar; no hace nada si no aplica.
+   */
+  async migrateLegacySignature(lic, buildData) {
+    if (!CAN_MIGRATE_LEGACY || !lic?.signature) return;
+    const recalculated = Math.ceil((new Date(lic.endDate) - new Date(lic.startDate)) / (1000 * 60 * 60 * 24));
+    const durations = [...new Set([lic.duration, recalculated])];
+    const variants = [];
+    for (const d of durations) { variants.push(buildData(d, true), buildData(d, false)); }
+
+    // Ya firmada con la clave nueva: nada que hacer
+    if (variants.some(v => this.verifySignature(v, lic.signature))) return;
+
+    const legacyMatch = variants.find(v => safeEqualHex(hmacHex(LEGACY_SECRET_KEY, v), lic.signature));
+    if (!legacyMatch) return;
+
+    lic.duration = legacyMatch.duration;
+    lic.signature = this.generateSignature(buildData(legacyMatch.duration, true));
+    await lic.save();
+    console.log(`[license] Licencia ${lic.licenseKey} migrada a la nueva LICENSE_SECRET_KEY`);
   }
 
   // Crear nueva licencia
@@ -298,6 +336,8 @@ class LicenseService {
         return d;
       };
 
+      await this.migrateLegacySignature(license, baseData);
+
       let sigValid = this.verifySignature(baseData(license.duration, true), license.signature) || this.verifySignature(baseData(license.duration, false), license.signature);
 
       // Auto-reparación: si falla, probar con duración recalculada (bug de extend que no guardó duration)
@@ -559,6 +599,8 @@ class LicenseService {
           if (withMaxUsers) d.maxUsers = lic.maxUsers || 3;
           return d;
         };
+        await this.migrateLegacySignature(lic, baseDataLic);
+
         let sigValidLic = this.verifySignature(baseDataLic(lic.duration, true), lic.signature) || this.verifySignature(baseDataLic(lic.duration, false), lic.signature);
         if (!sigValidLic) {
           const recalculatedDuration = Math.ceil((new Date(lic.endDate) - new Date(lic.startDate)) / (1000*60*60*24));

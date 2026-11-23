@@ -5,11 +5,36 @@ import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
 
-// Rate limit para login (protección básica contra fuerza bruta)
+// Rate limits contra fuerza bruta. Solo cuentan los intentos FALLIDOS
+// (skipSuccessfulRequests), así el uso normal del POS no se bloquea.
+const limiterMessage = { success: false, error: 'Demasiados intentos fallidos, intenta en 15 minutos', message: 'Demasiados intentos fallidos, intenta en 15 minutos' };
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // 100 intentos por IP
-  message: { success: false, message: 'Demasiados intentos, intenta más tarde' }
+  max: 20, // 20 intentos fallidos por IP
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: limiterMessage
+});
+
+// PIN de 4 dígitos = solo 10,000 combinaciones: límite más estricto
+const pinLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15, // 15 intentos fallidos por IP
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: limiterMessage
+});
+
+const devLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: limiterMessage
 });
 
 // Validación básica de input
@@ -37,9 +62,9 @@ function validateLogin(req, res, next) {
 }
 
 // Rutas públicas
-router.post('/dev-login', loginLimiter, validateLogin, authController.devLogin);
+router.post('/dev-login', devLoginLimiter, validateLogin, authController.devLogin);
 router.post('/login', loginLimiter, validateLogin, authController.login);
-router.post('/login-pin', loginLimiter, authController.loginPin);
+router.post('/login-pin', pinLimiter, authController.loginPin);
 
 // Rutas protegidas
 router.post('/logout', authenticateToken, authController.logout);

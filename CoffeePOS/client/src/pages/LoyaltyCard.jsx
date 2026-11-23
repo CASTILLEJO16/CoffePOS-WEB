@@ -5,9 +5,13 @@ import { getCustomerByPhone } from '../services/customerService.js';
 import LoyaltyCardGenerator from '../components/LoyaltyCardGenerator.jsx';
 import Swal from 'sweetalert2';
 import QRCode from 'qrcode';
+import { useAuth } from '../context/AuthContext.jsx';
 import './LoyaltyCard.css';
 
 export default function LoyaltyCard() {
+  const { user } = useAuth();
+  // Solo el admin puede configurar el programa (el backend también lo exige)
+  const isAdmin = user?.rol === 'admin' || user?.role === 'admin';
   const [qrToken, setQrToken] = useState('');
   const [card, setCard] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -416,9 +420,11 @@ export default function LoyaltyCard() {
             <button onClick={() => setShowAllCards(true)} className="btn btn-secondary">
               <Filter size={20} /> Ver Todos
             </button>
-            <button onClick={() => setShowConfigModal(true)} className="btn btn-secondary">
-              <Settings size={20} /> Configurar
-            </button>
+            {isAdmin && (
+              <button onClick={() => setShowConfigModal(true)} className="btn btn-secondary">
+                <Settings size={20} /> Configurar
+              </button>
+            )}
             <button onClick={downloadPublicQR} className="btn btn-primary">
               <Download size={20} /> QR Registro
             </button>

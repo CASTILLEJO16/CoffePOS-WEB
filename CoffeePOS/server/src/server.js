@@ -32,6 +32,11 @@ const __dirname = path.dirname(__filename);
 // Inicializar Express
 const app = express();
 
+// Render/Vercel ponen un proxy delante: confiar en 1 salto para que req.ip sea
+// la IP real del cliente (necesario para que los rate limits sean por cliente
+// y no globales para todas las cafeterías).
+app.set('trust proxy', 1);
+
 // Middlewares globales
 app.use(helmet({
   crossOriginResourcePolicy: false

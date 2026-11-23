@@ -2,6 +2,7 @@ import * as cashRegisterService from '../services/cashRegisterService.js';
 import { logAction } from '../services/logService.js';
 import CashRegisterName from '../models/CashRegisterName.js';
 import mongoose from 'mongoose';
+import { belongsToRequester } from '../utils/tenant.js';
 
 /**
  * Controlador de Cajas
@@ -180,7 +181,8 @@ export async function closeCashRegister(req, res) {
 
     // Obtener la caja
     const cashRegister = await cashRegisterService.getCashRegisterById(id);
-    if (!cashRegister) {
+    // 404 también si la caja es de otra cafetería
+    if (!cashRegister || !belongsToRequester(req, cashRegister.clientId)) {
       return res.status(404).json({
         success: false,
         error: 'Caja no encontrada'
@@ -265,7 +267,8 @@ export async function getCashRegisterSummary(req, res) {
     }
 
     const cashRegister = await cashRegisterService.getCashRegisterById(id);
-    if (!cashRegister) {
+    // 404 también si la caja es de otra cafetería
+    if (!cashRegister || !belongsToRequester(req, cashRegister.clientId)) {
       return res.status(404).json({
         success: false,
         error: 'Caja no encontrada'
@@ -356,13 +359,26 @@ export async function getCashRegister(req, res) {
   try {
     const { id } = req.params;
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, error: 'ID de caja inválido' });
+    }
+
     const cashRegister = await cashRegisterService.getCashRegisterById(id);
 
-    if (!cashRegister) {
+    if (!cashRegister || !belongsToRequester(req, cashRegister.clientId)) {
       return res.status(404).json({
         success: false,
         error: 'Caja no encontrada'
       });
+    }
+
+    // Un cajero solo puede consultar sus propias cajas
+    const isAdminView = req.user?.role === 'admin' || req.user?.rol === 'admin' || req.user?.isDeveloper === true;
+    const ownerIdView = cashRegister.usuario_id?._id
+      ? cashRegister.usuario_id._id.toString()
+      : cashRegister.usuario_id?.toString();
+    if (!isAdminView && ownerIdView !== String(req.user?.userId)) {
+      return res.status(403).json({ success: false, error: 'No tienes permiso para ver esta caja' });
     }
 
     res.json({

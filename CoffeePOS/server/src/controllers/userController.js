@@ -1,5 +1,30 @@
+import mongoose from 'mongoose';
 import * as authService from '../services/authService.js';
 import { logAction } from '../services/logService.js';
+import User from '../models/User.js';
+import { belongsToRequester, isDeveloperRequest } from '../utils/tenant.js';
+
+/**
+ * Verifica que el usuario objetivo exista y pertenezca a la misma cafetería
+ * que quien hace la petición. Las cuentas developer nunca son accesibles
+ * desde un admin de cafetería.
+ * Responde 404 (sin revelar si existe en otra cafetería) y retorna null si no procede.
+ */
+async function findScopedTargetUser(req, res, id) {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(400).json({ success: false, error: 'ID de usuario inválido' });
+    return null;
+  }
+  const target = await User.findById(id).select('clientId rol');
+  const notAllowed = !target
+    || !belongsToRequester(req, target.clientId)
+    || (target.rol === 'developer' && !isDeveloperRequest(req));
+  if (notAllowed) {
+    res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+    return null;
+  }
+  return target;
+}
 
 /**
  * Controlador de Usuarios
@@ -33,6 +58,8 @@ export async function getUsers(req, res) {
 export async function getUser(req, res) {
   try {
     const { id } = req.params;
+    const target = await findScopedTargetUser(req, res, id);
+    if (!target) return;
     const user = await authService.getUserById(id);
 
     if (!user) {
@@ -91,6 +118,9 @@ export async function updateUser(req, res) {
     const userData = req.body;
     const updaterId = req.user?.userId;
 
+    const target = await findScopedTargetUser(req, res, id);
+    if (!target) return;
+
     const user = await authService.updateUser(id, userData, updaterId);
 
     // Registrar actualización de usuario
@@ -116,7 +146,9 @@ export async function activateUser(req, res) {
   try {
     const { id } = req.params;
     const updaterId = req.user?.userId;
-    const user = await authService.updateUser(id, { activo: 1 }, updaterId);
+    const target = await findScopedTargetUser(req, res, id);
+    if (!target) return;
+    const user = await authService.updateUser(id, { activo: true }, updaterId);
     res.json({ success: true, data: user, message: 'Usuario activado correctamente' });
   } catch (error) {
     console.error('Error en activateUser:', error);
@@ -131,7 +163,9 @@ export async function deactivateUser(req, res) {
   try {
     const { id } = req.params;
     const updaterId = req.user?.userId;
-    const user = await authService.updateUser(id, { activo: 0 }, updaterId);
+    const target = await findScopedTargetUser(req, res, id);
+    if (!target) return;
+    const user = await authService.updateUser(id, { activo: false }, updaterId);
     res.json({ success: true, data: user, message: 'Usuario desactivado correctamente' });
   } catch (error) {
     console.error('Error en deactivateUser:', error);

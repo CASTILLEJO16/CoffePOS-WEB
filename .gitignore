@@ -17,6 +17,11 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+# Copias de variables de entorno con secretos (nunca versionar)
+env.txt
+env_temp.txt
+**/env.txt
+**/env_temp.txt
 
 # ==============================
 # Node modules (NUNCA subir esto)

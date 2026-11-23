@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken, requireAdmin } from '../middlewares/authMiddleware.js';
+import { authenticateToken, requireDeveloper } from '../middlewares/authMiddleware.js';
 import {
   generateLicense,
   getLicenses,
@@ -21,8 +21,9 @@ const router = express.Router();
 router.post('/public/verify', verifyLicense);
 router.post('/public/activate', activateDevice);
 
-// Rutas de licencias (administración - CON autenticación estricta de Admin)
-router.use(authenticateToken, requireAdmin);
+// Administración de licencias: SOLO developer (DeveloperPanel).
+// Un admin de cafetería NO debe poder generarse/extenderse licencias.
+router.use(authenticateToken, requireDeveloper);
 
 router.post('/generate', generateLicense);
 router.get('/', getLicenses);
