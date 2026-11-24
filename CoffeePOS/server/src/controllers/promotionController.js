@@ -1,5 +1,6 @@
 import Promotion from '../models/Promotion.js';
 import Product from '../models/Product.js';
+import { belongsToRequester } from '../utils/tenant.js';
 
 export async function getPromotions(req, res) {
   try {
@@ -69,10 +70,10 @@ export async function createPromotion(req, res) {
     const startDate = new Date(fechaInicio);
     const endDate = new Date(fechaFinalizacion);
 
-    if (startDate >= endDate) {
+    if (startDate > endDate) {
       return res.status(400).json({
         success: false,
-        error: 'La fecha de inicio debe ser anterior a la fecha de finalización'
+        error: 'La fecha de inicio no puede ser posterior a la fecha de finalización'
       });
     }
 
@@ -166,8 +167,8 @@ export async function updatePromotion(req, res) {
     if (fechaInicio && fechaFinalizacion) {
       const startDate = new Date(fechaInicio);
       const endDate = new Date(fechaFinalizacion);
-      if (startDate >= endDate) {
-        return res.status(400).json({ success: false, error: 'La fecha de inicio debe ser anterior a la fecha de finalización' });
+      if (startDate > endDate) {
+        return res.status(400).json({ success: false, error: 'La fecha de inicio no puede ser posterior a la fecha de finalización' });
       }
     }
 
@@ -252,7 +253,8 @@ export async function togglePromotion(req, res) {
     const clientId = req.user.clientId;
     
     const promo = await Promotion.findById(id);
-    if (!promo || promo.clientId.toString() !== clientId) {
+    // Antes comparaba ObjectId contra texto y siempre respondía "no encontrada"
+    if (!promo || !belongsToRequester(req, promo.clientId)) {
       return res.status(404).json({
         success: false,
         error: 'Promoción no encontrada'

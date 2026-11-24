@@ -53,11 +53,8 @@ export default function CierreCaja() {
       const data = await getCashRegisterSummary(id);
       setSummary(data);
       
-      // Pre-llenar el total contado con el esperado
-      setFormData(prev => ({
-        ...prev,
-        total_contado: data.total_esperado?.toString() || '0'
-      }));
+      // Conteo "a ciegas": el cajero captura lo que realmente contó
+      // (antes se prellenaba con el esperado y la diferencia siempre salía en 0)
     } catch (err) {
       setError(err.response?.data?.error || 'Error al cargar el resumen');
     } finally {
@@ -173,7 +170,7 @@ export default function CierreCaja() {
             ${summary.ventas_dolar > 0 ? `<div class="ticket-info-row"><span>Ventas USD:</span><span>${formatCurrency(summary.ventas_dolar)}</span></div>` : ''}
             <div class="ticket-info-row">
               <span>Total Vendido:</span>
-              <span>${formatCurrency(summary.ventas_efectivo + summary.ventas_tarjeta)}</span>
+              <span>${formatCurrency((summary.total_vendido ?? (summary.ventas_efectivo + summary.ventas_tarjeta)))}</span>
             </div>
           </div>
 
@@ -245,7 +242,7 @@ export default function CierreCaja() {
         <p><strong>Total USD recibido:</strong> $${summary.total_dolar?.toFixed(2) || '0.00'} USD</p>` : ''}
         <p><strong>Total Descuentos:</strong> ${formatCurrency(summary.total_descuentos)}</p>
         <p><strong>Total Devoluciones:</strong> ${formatCurrency(summary.total_devoluciones)}</p>
-        <p style="font-size: 1.2em; margin-top: 15px;"><strong>Total Vendido:</strong> ${formatCurrency(summary.ventas_efectivo + summary.ventas_tarjeta)}</p>
+        <p style="font-size: 1.2em; margin-top: 15px;"><strong>Total Vendido:</strong> ${formatCurrency((summary.total_vendido ?? (summary.ventas_efectivo + summary.ventas_tarjeta)))}</p>
         <hr style="margin: 20px 0;" />
         <p><strong>Total Esperado:</strong> ${formatCurrency(summary.total_esperado)}</p>
         <p><strong>Total Contado:</strong> ${formatCurrency(formData.total_contado || 0)}</p>

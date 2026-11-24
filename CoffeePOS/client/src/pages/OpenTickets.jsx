@@ -154,7 +154,7 @@ export default function OpenTickets() {
       }
     } catch (error) {
       console.error('Error adding item:', error);
-      Swal.fire('Error', 'Error al agregar producto', 'error');
+      Swal.fire('Error', error.response?.data?.message || 'Error al agregar producto', 'error');
     }
   };
 
@@ -187,7 +187,8 @@ export default function OpenTickets() {
       }
     } catch (error) {
       console.error('Error closing ticket:', error);
-      Swal.fire('Error', 'Error al cobrar ticket', 'error');
+      // Mostrar el motivo real (sin caja abierta, stock insuficiente, etc.)
+      Swal.fire('Error', error.response?.data?.message || 'Error al cobrar ticket', 'error');
     }
   };
 

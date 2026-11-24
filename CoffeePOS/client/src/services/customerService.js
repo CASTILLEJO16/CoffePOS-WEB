@@ -4,6 +4,18 @@
 
 import api from './api.js';
 import axios from 'axios';
+import { API_BASE_URL } from '../utils/constants.js';
+
+/**
+ * Obtiene el id de cafetería del enlace público (?c=...)
+ */
+export function getPublicCafeIdFromUrl() {
+  try {
+    return new URLSearchParams(window.location.search).get('c') || null;
+  } catch {
+    return null;
+  }
+}
 
 export const createCustomer = async (data) => {
   const response = await api.post('/customers', data);
@@ -11,8 +23,14 @@ export const createCustomer = async (data) => {
 };
 
 // Registro público (sin autenticación - no agregar headers de token)
-export const publicRegisterCustomer = async (data) => {
-  const response = await axios.post(`${import.meta.env.VITE_API_URL}/customers/public-register`, data);
+export const publicRegisterCustomer = async (data, cafeId) => {
+  const response = await axios.post(`${API_BASE_URL}/customers/public-register`, { ...data, cafeId });
+  return response.data;
+};
+
+// Nombre público de la cafetería (para mostrarlo en el registro)
+export const getPublicCafeInfo = async (cafeId) => {
+  const response = await axios.get(`${API_BASE_URL}/customers/public-cafe/${encodeURIComponent(cafeId)}`);
   return response.data;
 };
 
@@ -33,8 +51,10 @@ export const getCustomerByPhone = async (telefono) => {
 };
 
 // Búsqueda pública (sin autenticación)
-export const publicLookupCustomer = async (telefono) => {
-  const response = await axios.get(`${import.meta.env.VITE_API_URL}/customers/public-lookup/${telefono}`);
+export const publicLookupCustomer = async (telefono, cafeId) => {
+  const response = await axios.get(`${API_BASE_URL}/customers/public-lookup/${encodeURIComponent(telefono)}`, {
+    params: { cafeId }
+  });
   return response.data;
 };
 

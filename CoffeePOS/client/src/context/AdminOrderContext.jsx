@@ -1,5 +1,6 @@
 import { createContext, useContext, useReducer } from 'react';
 import { getCustomerByPhone } from '../services/customerService.js';
+import { calculateCartTotals, getIVARate as getCartIVARate } from '../utils/cartTotals.js';
 
 /**
  * Contexto de Orden exclusivo para el Admin.
@@ -7,18 +8,11 @@ import { getCustomerByPhone } from '../services/customerService.js';
  */
 const AdminOrderContext = createContext();
 
-function getIVARate() {
-  const val = localStorage.getItem('iva_rate');
-  const num = val ? parseFloat(val) : 0.16;
-  return Number.isFinite(num) ? num : 0.16;
-}
+const getIVARate = getCartIVARate;
 
-function calculateTotals(items) {
-  const subtotal = items.reduce((sum, item) => sum + item.importe, 0);
-  const ivaRate = getIVARate();
-  const impuestos = subtotal * ivaRate;
-  const total = subtotal + impuestos;
-  return { subtotal, impuestos, total };
+// Totales con la misma regla del servidor (incluye 2x1 / Compra X paga Y)
+function calculateTotals(items, promotions = []) {
+  return calculateCartTotals(items, promotions);
 }
 
 function calculatePriceWithDiscount(precio, descuento) {
@@ -34,6 +28,8 @@ const initialState = {
   subtotal: 0,
   impuestos: 0,
   total: 0,
+  promoDiscount: 0,
+  promoDetails: [],
   customerName: '',
   customerPhone: '',
   loyaltyCard: null,
@@ -87,8 +83,8 @@ function orderReducer(state, action) {
           ];
         }
 
-        const { subtotal, impuestos, total } = calculateTotals(newItems);
-        return { ...state, items: newItems, subtotal, impuestos, total };
+        const totals = calculateTotals(newItems, state.promotions);
+        return { ...state, items: newItems, ...totals };
       }
 
       // Producto normal (con o sin promoción pre-calculada desde handlePromotionClick)
@@ -133,17 +129,17 @@ function orderReducer(state, action) {
         ];
       }
 
-      const { subtotal, impuestos, total } = calculateTotals(newItems);
+      const totals = calculateTotals(newItems, state.promotions);
 
-      return { ...state, items: newItems, subtotal, impuestos, total };
+      return { ...state, items: newItems, ...totals };
     }
 
 
     case 'REMOVE_ITEM': {
       const { uniqueId } = action.payload;
       const newItems = state.items.filter(item => item.uniqueId !== uniqueId);
-      const { subtotal, impuestos, total } = calculateTotals(newItems);
-      return { ...state, items: newItems, subtotal, impuestos, total };
+      const totals = calculateTotals(newItems, state.promotions);
+      return { ...state, items: newItems, ...totals };
     }
 
     case 'UPDATE_QUANTITY': {
@@ -156,13 +152,13 @@ function orderReducer(state, action) {
           ? { ...item, cantidad, importe: cantidad * item.precio_final }
           : item
       );
-      const { subtotal, impuestos, total } = calculateTotals(newItems);
-      return { ...state, items: newItems, subtotal, impuestos, total };
+      const totals = calculateTotals(newItems, state.promotions);
+      return { ...state, items: newItems, ...totals };
     }
 
     case 'RECALC_TOTALS': {
-      const { subtotal, impuestos, total } = calculateTotals(state.items);
-      return { ...state, subtotal, impuestos, total };
+      const totals = calculateTotals(state.items, state.promotions);
+      return { ...state, ...totals };
     }
 
     case 'SET_CUSTOMER_NAME': {
@@ -193,8 +189,8 @@ function orderReducer(state, action) {
           : item
       );
 
-      const { subtotal, impuestos, total } = calculateTotals(newItems);
-      return { ...state, items: newItems, subtotal, impuestos, total };
+      const totals = calculateTotals(newItems, state.promotions);
+      return { ...state, items: newItems, ...totals };
     }
 
     case 'SET_PROMOTIONS': {
@@ -211,7 +207,9 @@ function orderReducer(state, action) {
       return {
         ...state,
         promotions: validPromotions,
-        productsMap: mappedProducts
+        productsMap: mappedProducts,
+        // Recalcular: las promociones cambian el total
+        ...calculateTotals(state.items, validPromotions)
       };
     }
 
@@ -244,7 +242,8 @@ function orderReducer(state, action) {
     }
 
     case 'CLEAR_ORDER':
-      return initialState;
+      // Conservar las promociones cargadas (si no, el 2x1 deja de calcularse tras la 1a venta)
+      return { ...initialState, promotions: state.promotions, productsMap: state.productsMap };
 
     default:
       return state;

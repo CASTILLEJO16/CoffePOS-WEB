@@ -210,26 +210,19 @@ export async function closeCashRegister(req, res) {
       });
     }
 
-    // Calcular totales de ventas
-    const salesSummary = await cashRegisterService.getSalesSummaryByCashRegister(id);
+    const contado = Number(total_contado);
+    if (total_contado === undefined || total_contado === null || total_contado === '' || !Number.isFinite(contado) || contado < 0) {
+      return res.status(400).json({ success: false, error: 'Captura el total contado en caja' });
+    }
 
-    // Calcular total esperado (incluyendo descuentos)
-    const total_esperado = cashRegister.fondo_inicial + salesSummary.ventas_efectivo - salesSummary.total_descuentos - salesSummary.total_devoluciones;
-
-    // Calcular diferencia
-    const diferencia = total_contado - total_esperado;
-
-    // Cerrar la caja
+    // Cerrar la caja (el servidor calcula el esperado con la misma fórmula del resumen)
     const closedCashRegister = await cashRegisterService.closeCashRegister(id, {
-      total_contado,
-      total_esperado,
-      diferencia,
-      observaciones: observaciones || cashRegister.observaciones,
-      ...salesSummary
+      total_contado: contado,
+      observaciones: observaciones || cashRegister.observaciones
     });
 
     // Registrar cierre en log
-    await logAction(userId, 'CIERRE_CAJA', `Caja cerrada - Diferencia: ${diferencia}`);
+    await logAction(userId, 'CIERRE_CAJA', `Caja cerrada - Esperado: ${closedCashRegister.total_esperado} - Contado: ${closedCashRegister.total_contado} - Diferencia: ${closedCashRegister.diferencia}`);
 
     res.json({
       success: true,
@@ -288,13 +281,8 @@ export async function getCashRegisterSummary(req, res) {
       });
     }
 
-    // Obtener resumen de ventas
+    // Resumen con la MISMA fórmula que se usa al cerrar
     const salesSummary = await cashRegisterService.getSalesSummaryByCashRegister(id);
-
-    // Calcular total esperado (incluyendo descuentos y devoluciones)
-    // ventas_dolar ya está incluido en ventas_efectivo
-    const fondoInicial = cashRegister.fondo_inicial || 0;
-    const total_esperado = fondoInicial + (salesSummary.ventas_efectivo || 0) - (salesSummary.total_descuentos || 0) - (salesSummary.total_devoluciones || 0);
 
     res.json({
       success: true,
@@ -302,9 +290,7 @@ export async function getCashRegisterSummary(req, res) {
         ...cashRegister.toObject(),
         usuario_nombre: cashRegister.usuario_id?.nombre || 'Desconocido',
         nombre_caja: cashRegister.nombre_caja || 'Sin nombre',
-        fondo_inicial: fondoInicial,
-        ...salesSummary,
-        total_esperado
+        ...salesSummary
       }
     });
   } catch (error) {

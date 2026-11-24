@@ -8,7 +8,8 @@ export default function PublicQR() {
   useEffect(() => {
     // Obtener la URL base actual
     const baseUrl = window.location.origin;
-    setQrUrl(`${baseUrl}/registro-cliente`);
+    const cafeId = new URLSearchParams(window.location.search).get('c');
+    setQrUrl(cafeId ? `${baseUrl}/registro-cliente?c=${encodeURIComponent(cafeId)}` : `${baseUrl}/registro-cliente`);
   }, []);
 
   const styles = {
@@ -146,7 +147,7 @@ export default function PublicQR() {
 
         <div style={styles.manualLink}>
           <p style={styles.manualText}>O visita directamente:</p>
-          <a href="/registro-cliente" style={styles.link}>{qrUrl || '/registro-cliente'}</a>
+          <a href={qrUrl || '/registro-cliente'} style={styles.link}>{qrUrl || '/registro-cliente'}</a>
         </div>
       </div>
     </div>

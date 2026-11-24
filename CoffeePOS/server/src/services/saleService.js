@@ -7,13 +7,16 @@ import CashRegister from '../models/CashRegister.js';
 import { config } from '../config/config.js';
 import { logAction } from './logService.js';
 import { getOpenCashRegisterByUser } from './cashRegisterService.js';
-import { formatInTimeZone } from 'date-fns-tz';
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
+import { BUSINESS_TIMEZONE } from '../utils/dateTime.js';
 import Config from '../models/Config.js';
 import Ingredient from '../models/Ingredient.js';
 import Recipe from '../models/Recipe.js';
 import RecipePersonalization from '../models/RecipePersonalization.js';
 import Personalization from '../models/Personalization.js';
 import Promotion from '../models/Promotion.js';
+import { computeBuyXPayYDiscounts, isPromotionActiveNow } from './promotionEngine.js';
+import { nextSequence } from '../utils/sequence.js';
 
 /**
  * Servicio de Ventas
@@ -185,6 +188,24 @@ export async function getSaleById(id) {
  * @returns {Object} Venta creada con detalles
  */
 export async function createSale(saleData, usuarioId = null, clientId = null) {
+  // Dos cajeros vendiendo el mismo producto a la vez chocan al descontar stock dentro de la
+  // transacción (WriteConflict). MongoDB marca esos errores como TransientTransactionError:
+  // la transacción se abortó completa y es seguro repetirla.
+  const MAX_ATTEMPTS = 10;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await createSaleOnce(saleData, usuarioId, clientId);
+    } catch (error) {
+      const transient = typeof error?.hasErrorLabel === 'function' && error.hasErrorLabel('TransientTransactionError');
+      if (!transient || attempt >= MAX_ATTEMPTS) throw error;
+      // Espera exponencial con azar (máx ~800ms) para que las ventas en conflicto no choquen otra vez
+      const base = Math.min(800, 25 * 2 ** (attempt - 1));
+      await new Promise(r => setTimeout(r, Math.floor(base / 2 + Math.random() * base)));
+    }
+  }
+}
+
+async function createSaleOnce(saleData, usuarioId = null, clientId = null) {
   let session;
   try {
     session = await Sale.startSession();
@@ -285,11 +306,12 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     const optionPriceMap = new Map(pricingPersonalizations.map(p => [p._id.toString(), Number(p.precio_adicional) || 0]));
 
     // Promociones activas de la cafetería (el POS aplica % y monto fijo al precio unitario)
-    const pricingPromotions = await Promotion.find({
+    const pricingNow = new Date();
+    const pricingPromotions = (await Promotion.find({
       clientId,
       estado: 'Activa',
       tipo: { $in: ['PERCENTAGE_DISCOUNT', 'FIXED_DISCOUNT'] }
-    });
+    })).filter(promo => isPromotionActiveNow(promo, pricingNow));
 
     for (const item of items) {
       const qtyNum = Number(item.cantidad);
@@ -379,146 +401,34 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
       console.warn(`[createSale] IVA del navegador (${ivaFromClient}) distinto al configurado (${ivaRate}); se usa el configurado.`);
     }
 
-    const impuestos = Number((subtotal * ivaRate).toFixed(2));
-    const total = Number((subtotal + impuestos).toFixed(2));
+    // Promociones "Compra X, paga Y" (2x1, 3x2...). Los % y monto fijo ya vienen en el
+    // precio unitario (resolveServerUnitPrice). Misma lógica que el POS (promotionEngine).
+    const buyXPayYPromotions = await Promotion.find({ clientId, estado: 'Activa', tipo: 'BUY_X_PAY_Y' });
+    const { discount: promotionDiscountRaw, details: promotionDetails } = computeBuyXPayYDiscounts(
+      processedItems.map(i => ({
+        producto_id: i.producto_id.toString(),
+        producto_nombre: i.producto_nombre,
+        cantidad: i.cantidad,
+        precio: i.precio,
+        isCombo: i.isCombo
+      })),
+      buyXPayYPromotions,
+      new Date()
+    );
+    const promotionDiscount = Math.min(round2(promotionDiscountRaw), round2(subtotal));
 
-    // Aplicar promociones activas - calcular descuento y ajustar totales
-    let promotionDiscount = 0;
-    let promotionDetails = [];
-    if (processedItems.length > 0) {
-      const now = new Date();
-      const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-      const todayDay = dayNames[now.getDay()];
-      
-      // Buscar promociones activas para el cliente y fecha actual
-      const promotions = await Promotion.find({
-        clientId,
-        estado: 'Activa',
-        fechaInicio: { $lte: now },
-        fechaFinalizacion: { $gte: now }
-      });
-      
-      // Crear mapa de productos en el carrito: producto_id -> cantidad total
-      const cartProducts = new Map();
-      for (const item of processedItems) {
-        const key = item.producto_id.toString();
-        cartProducts.set(key, (cartProducts.get(key) || 0) + item.cantidad);
-      }
-      
-      // Para cada promoción, verificar si aplica y calcular descuento
-      for (const promo of promotions) {
-        // Verificar días de la semana
-        if (promo.diasSemana && promo.diasSemana.length > 0 && !promo.diasSemana.includes(todayDay)) {
-          continue;
-        }
-        
-        // Verificar hora de vigencia
-        const promoHourStart = promo.horaInicio || '00:00';
-        const promoHourEnd = promo.horaFinalizacion || '23:59';
-        const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
-        const startMinutes = parseInt(promoHourStart.split(':')[0]) * 60 + parseInt(promoHourStart.split(':')[1]);
-        const endMinutes = parseInt(promoHourEnd.split(':')[0]) * 60 + parseInt(promoHourEnd.split(':')[1]);
-        
-        if (currentTimeInMinutes < startMinutes || currentTimeInMinutes > endMinutes) {
-          continue;
-        }
-        
-        // Verificar que los productos de la promoción están en el carrito
-        const promoProductIds = new Set(promo.productosParticipantes.map(pp => pp.producto_id.toString()));
-        const cartProductIds = new Set([...cartProducts.keys()]);
-        const matchingProducts = [...promoProductIds].filter(id => cartProductIds.has(id));
-        
-        if (matchingProducts.length === 0) continue;
-        
-        // Aplicar lógica según el tipo de promoción
-        if (promo.tipo === 'BUY_X_PAY_Y') {
-          const { cantidadComprar, cantidadPagar } = promo;
-          const participatingItems = processedItems.filter(item => promoProductIds.has(item.producto_id.toString()));
-          
-          let discountAmount = 0;
-          let freeItems = [];
-          
-          // Ordenar por precio (de menor a mayor) para que el más barato sea el gratis
-          participatingItems.sort((a, b) => a.precio - b.precio);
-          
-          // Para cada item participante, determinar cuántos son gratuitos
-          // Comprar X, pagar Y → (X - Y) productos gratis por cada grupo de X
-          for (const item of participatingItems) {
-            const totalQtyInCart = cartProducts.get(item.producto_id.toString()) || 0;
-            const qtyToApply = Math.min(item.cantidad, totalQtyInCart);
-            const groups = Math.floor(qtyToApply / cantidadComprar);
-            const freeItemsCount = groups * (cantidadComprar - cantidadPagar);
-            
-            if (freeItemsCount > 0) {
-              const freePrice = item.precio * freeItemsCount;
-              discountAmount += freePrice;
-              freeItems.push({
-                producto_id: item.producto_id,
-                producto_nombre: item.producto_nombre,
-                cantidad: freeItemsCount,
-                precio_unitario: item.precio,
-                descuento: freePrice
-              });
-            }
-          }
-          
-          if (discountAmount > 0) {
-            promotionDiscount += discountAmount;
-            promotionDetails.push({
-              promocion_id: promo._id,
-              tipo: promo.tipo,
-              nombre: promo.nombre,
-              descuento: discountAmount,
-              freeItems
-            });
-          }
-        }
-        // Tipo percentage discount - ya se aplica con product.descuento, no hacer nada extra
-        else if (promo.tipo === 'PERCENTAGE_DISCOUNT') {
-          // Ya está aplicado en el producto.descuento
-        }
-        // Tipo fixed discount
-        else if (promo.tipo === 'FIXED_DISCOUNT') {
-          const participatingItems = processedItems.filter(item => promoProductIds.has(item.producto_id.toString()));
-          let fixedDiscount = 0;
-          
-          for (const item of participatingItems) {
-            const totalQtyInCart = cartProducts.get(item.producto_id.toString()) || 0;
-            const groups = Math.floor(totalQtyInCart / cantidadComprar);
-            fixedDiscount += groups * (cantidadPagar || 0);
-          }
-          
-          if (fixedDiscount > 0) {
-            promotionDiscount += fixedDiscount;
-            promotionDetails.push({
-              promocion_id: promo._id,
-              tipo: promo.tipo,
-              nombre: promo.nombre,
-              descuento: fixedDiscount
-            });
-          }
-        }
-      }
-    }
+    // Totales finales CON el descuento de promociones (antes se calculaban pero no se guardaban)
+    const adjustedSubtotal = round2(subtotal - promotionDiscount);
+    const adjustedImpuestos = round2(adjustedSubtotal * ivaRate);
+    const adjustedTotal = round2(adjustedSubtotal + adjustedImpuestos);
 
-    // Ajustar subtotal, impuestos y total con el descuento de promoción
-    const adjustedSubtotal = subtotal - promotionDiscount;
-    const adjustedIvaRate = ivaRate; // Usar la misma tasa
-    const adjustedImpuestos = Number((adjustedSubtotal * adjustedIvaRate).toFixed(2));
-    const adjustedTotal = Number((adjustedSubtotal + adjustedImpuestos).toFixed(2));
-
-    // Acumular necesidades de stock - incluir items gratuitos de promociones
-    // Los items "free" deben descontar inventario
-    for (const pd of promotionDetails) {
-      for (const freeItem of pd.freeItems) {
-        const key = freeItem.producto_id.toString();
-        if (!productStockNeeds[key]) productStockNeeds[key] = { product: productsMap.get(key), cantidad: 0 };
-        productStockNeeds[key].cantidad += freeItem.cantidad;
-      }
-    }
+    // Nota: los productos "gratis" ya están en la cantidad del carrito y su stock ya se
+    // contó arriba; antes se volvían a descontar (doble descuento de inventario).
 
     // Lógica de almacén POR CLIENTE
-    const configRow = await Config.findOne({ clave: 'permitir_stock_negativo', clientId });
+    // La pantalla de configuración guarda 'permitir_stock_negativo'; 'allow_negative_stock' es la clave vieja
+    const configRow = await Config.findOne({ clave: 'permitir_stock_negativo', clientId })
+      || await Config.findOne({ clave: 'allow_negative_stock', clientId });
     const allowNegativeStock = configRow ? (configRow.valor === '1' || configRow.valor === 'true') : false;
     
     const ingredientNeeds = {};
@@ -600,12 +510,13 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
         const customRecipesToApply = [];
 
         if (subItem.personalizaciones) {
-          let opcionesSeleccionadas = [];
-          if (Array.isArray(subItem.personalizaciones)) {
-            opcionesSeleccionadas = subItem.personalizaciones;
-          } else if (typeof subItem.personalizaciones === 'object') {
-            opcionesSeleccionadas = Object.values(subItem.personalizaciones).flat();
+          // processedItems guarda las personalizaciones como texto JSON; antes no se leían
+          // y nunca se reemplazaba el ingrediente (ej. leche normal -> leche de avena)
+          let persObj = subItem.personalizaciones;
+          if (typeof persObj === 'string') {
+            try { persObj = JSON.parse(persObj); } catch { persObj = null; }
           }
+          const opcionesSeleccionadas = extractSelectedOptions(persObj);
 
           for (const opcion of opcionesSeleccionadas) {
             if (!opcion?.id) continue;
@@ -703,7 +614,7 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
 
     if (metodo_pago === 'dolar') {
       tipoCambio = saleData.tipo_cambio ? parseFloat(saleData.tipo_cambio) : systemTipoCambio;
-      montoDolar = Number((total / tipoCambio).toFixed(2));
+      montoDolar = Number((adjustedTotal / tipoCambio).toFixed(2));
       dolarRecibido = saleData.dolar_recibido || montoDolar;
       cambioPesos = Number(((dolarRecibido - montoDolar) * tipoCambio).toFixed(2));
     } else if (metodo_pago === 'mixto') {
@@ -716,8 +627,11 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     }
 
     // Generar número de venta secuencial POR CLIENTE
-    const lastSale = await Sale.findOne({ clientId }).sort({ numero_venta: -1 });
-    const nextNumeroVenta = lastSale && lastSale.numero_venta ? lastSale.numero_venta + 1 : 1;
+    // Número de venta secuencial POR CLIENTE, atómico (sin duplicados con ventas simultáneas)
+    const nextNumeroVenta = await nextSequence(clientId, 'numero_venta', async () => {
+      const lastSale = await Sale.findOne({ clientId }).sort({ numero_venta: -1 }).select('numero_venta');
+      return lastSale?.numero_venta || 0;
+    });
 
     // Obtener configuración de idioma y moneda del cliente
     const configIdioma = await Config.findOne({ clave: 'idioma', clientId });
@@ -728,9 +642,9 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     const newSale = await Sale.create([{
       clientId,
       numero_venta: nextNumeroVenta,
-      subtotal,
-      impuestos,
-      total,
+      subtotal: adjustedSubtotal,
+      impuestos: adjustedImpuestos,
+      total: adjustedTotal,
       descuento_promociones: promotionDiscount,
       promociones_aplicadas: promotionDetails,
       metodo_pago,
@@ -794,7 +708,7 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
     }
 
     // Registrar log
-    await logAction(usuarioId, 'CREAR_VENTA', `Venta creada: Total: $${total.toFixed(2)}`);
+    await logAction(usuarioId, 'CREAR_VENTA', `Venta creada: Total: $${adjustedTotal.toFixed(2)}`);
 
     await session.commitTransaction();
 
@@ -852,154 +766,189 @@ export async function createSale(saleData, usuarioId = null, clientId = null) {
 }
 
 /**
- * Cancela una venta (marca como cancelada)
+ * Regresa al inventario lo que descontó una venta (misma lógica que createSale):
+ * - Ingredientes de la receta base (omitiendo los reemplazados por la personalización elegida)
+ * - Ingredientes de las personalizaciones
+ * - Stock de productos sin receta
+ * - Combos: se desglosan en sus productos
+ * Nota: usa las recetas actuales (si la receta cambió desde la venta, se regresa con la nueva).
+ */
+async function restoreStockForSale(saleId, clientId) {
+  const clientObjectId = new mongoose.Types.ObjectId(String(clientId));
+  const details = await SaleDetail.find({ venta_id: saleId, clientId: clientObjectId }).lean();
+
+  // 1) Desglosar en unidades de producto
+  const units = [];
+  for (const d of details) {
+    if (!d.producto_id) continue;
+    let personalizaciones = null;
+    if (d.personalizaciones) {
+      try { personalizaciones = JSON.parse(d.personalizaciones); } catch { personalizaciones = null; }
+    }
+    if (d.promocion_tipo === 'COMBO' || personalizaciones?.isCombo) {
+      const combo = await Promotion.findOne({ _id: d.producto_id, clientId: clientObjectId }).lean();
+      if (!combo) {
+        console.warn(`[restoreStock] Combo ${d.producto_id} no encontrado; no se regresa su stock`);
+        continue;
+      }
+      for (const pc of combo.productosCombo || []) {
+        units.push({ producto_id: String(pc.producto_id), cantidad: (pc.cantidad || 1) * d.cantidad, personalizaciones: null });
+      }
+    } else {
+      units.push({ producto_id: String(d.producto_id), cantidad: d.cantidad, personalizaciones });
+    }
+  }
+  if (units.length === 0) return;
+
+  const productIds = [...new Set(units.map(u => u.producto_id))].map(id => new mongoose.Types.ObjectId(id));
+
+  // 2) Recetas base con datos del ingrediente (para categoria_reemplazo)
+  const baseRecipes = await Recipe.aggregate([
+    { $match: { producto_id: { $in: productIds }, clientId: clientObjectId } },
+    { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' } },
+    { $unwind: '$ingrediente' },
+    { $match: { 'ingrediente.clientId': clientObjectId } },
+    { $project: { producto_id: 1, ingrediente_id: 1, cantidad: 1, categoria_reemplazo: '$ingrediente.categoria_reemplazo' } }
+  ]);
+  const recipesByProduct = new Map();
+  for (const r of baseRecipes) {
+    const key = r.producto_id.toString();
+    if (!recipesByProduct.has(key)) recipesByProduct.set(key, []);
+    recipesByProduct.get(key).push(r);
+  }
+
+  // 3) Personalizaciones elegidas y sus recetas
+  const optionIds = [];
+  for (const u of units) {
+    for (const op of extractSelectedOptions(u.personalizaciones)) {
+      if (op?.id && mongoose.Types.ObjectId.isValid(String(op.id))) optionIds.push(new mongoose.Types.ObjectId(String(op.id)));
+    }
+  }
+  const personalizations = optionIds.length > 0
+    ? await Personalization.find({ _id: { $in: optionIds }, clientId: clientObjectId }).lean()
+    : [];
+  const personalizationMap = new Map(personalizations.map(p => [p._id.toString(), p]));
+  const persRecipes = optionIds.length > 0
+    ? await RecipePersonalization.find({ personalizacion_id: { $in: optionIds }, clientId: clientObjectId }).lean()
+    : [];
+  const persRecipesMap = new Map();
+  for (const r of persRecipes) {
+    const key = r.personalizacion_id.toString();
+    if (!persRecipesMap.has(key)) persRecipesMap.set(key, []);
+    persRecipesMap.get(key).push(r);
+  }
+
+  // 4) Acumular lo que hay que regresar
+  const ingredientReturns = new Map();
+  const productReturns = new Map();
+  const addIng = (id, qty) => ingredientReturns.set(id.toString(), (ingredientReturns.get(id.toString()) || 0) + qty);
+
+  for (const u of units) {
+    const recipe = recipesByProduct.get(u.producto_id) || [];
+    if (recipe.length === 0) {
+      productReturns.set(u.producto_id, (productReturns.get(u.producto_id) || 0) + u.cantidad);
+      continue;
+    }
+    const options = extractSelectedOptions(u.personalizaciones).filter(op => op?.id);
+    const replacedCategories = new Set(
+      options.map(op => personalizationMap.get(String(op.id))?.tipo).filter(Boolean)
+    );
+    for (const r of recipe) {
+      if (r.categoria_reemplazo && replacedCategories.has(r.categoria_reemplazo)) continue;
+      addIng(r.ingrediente_id, r.cantidad * u.cantidad);
+    }
+    for (const op of options) {
+      for (const r of persRecipesMap.get(String(op.id)) || []) {
+        addIng(r.ingrediente_id, r.cantidad * u.cantidad);
+      }
+    }
+  }
+
+  // 5) Aplicar
+  for (const [ingId, qty] of ingredientReturns) {
+    if (qty > 0) await Ingredient.updateOne({ _id: ingId, clientId: clientObjectId }, { $inc: { stock_actual: qty } });
+  }
+  for (const [prodId, qty] of productReturns) {
+    if (qty > 0) await Product.updateOne({ _id: prodId, clientId: clientObjectId }, { $inc: { stock: qty } });
+  }
+}
+
+/**
+ * Cancela una venta (marca como cancelada) y regresa el stock
  * @param {string} id - ID de la venta
  * @param {string} usuarioId - ID del usuario que cancela
  */
 export async function cancelSale(id, usuarioId = null) {
   try {
-    const session = await Sale.startSession();
-    session.startTransaction();
+    // Marcado atómico: solo una petición puede cancelarla
+    const previous = await Sale.findOneAndUpdate(
+      { _id: id, cancelada: { $ne: true } },
+      { cancelada: true },
+      { new: false }
+    );
 
-    const sale = await getSaleById(id);
-    
-    if (!sale) {
-      throw new Error('Venta no encontrada');
+    if (!previous) {
+      const exists = await Sale.exists({ _id: id });
+      throw new Error(exists ? 'La venta ya fue cancelada' : 'Venta no encontrada');
     }
 
-    if (sale.cancelada) {
-      throw new Error('La venta ya fue cancelada');
-    }
-
-    // clientId de la propia venta (antes se usaba una variable inexistente -> ReferenceError)
-    const clientId = sale.clientId;
-
-    // Revertir stock de ingredientes
-    const ingredientMap = {};
-
-    // Optimización: Obtener todos los IDs de productos y personalizaciones
-    const productIds = sale.detalles.map(d => d.producto_id);
-    const allPersonalizationIds = [];
-    sale.detalles.forEach(item => {
-      if (item.personalizaciones) {
-        let opciones = [];
-        try {
-          opciones = Array.isArray(item.personalizaciones)
-            ? item.personalizaciones
-            : Object.values(item.personalizaciones).flat();
-        } catch {
-          opciones = [];
-        }
-        opciones.forEach(op => {
-          if (op?.id) allPersonalizationIds.push(op.id);
-        });
-      }
-    });
-
-    // Optimización: Obtener todas las recetas base en una sola query
-    const baseRecipes = await Recipe.find({ 
-      producto_id: { $in: productIds },
-      clientId 
-    });
-    const baseRecipesMap = new Map();
-    baseRecipes.forEach(r => {
-      const key = r.producto_id.toString();
-      if (!baseRecipesMap.has(key)) baseRecipesMap.set(key, []);
-      baseRecipesMap.get(key).push(r);
-    });
-
-    // Optimización: Obtener todas las recetas de personalizaciones en una sola query
-    const customRecipes = allPersonalizationIds.length > 0
-      ? await RecipePersonalization.find({ personalizacion_id: { $in: allPersonalizationIds } })
-      : [];
-    const customRecipesMap = new Map();
-    customRecipes.forEach(r => {
-      const key = r.personalizacion_id.toString();
-      if (!customRecipesMap.has(key)) customRecipesMap.set(key, []);
-      customRecipesMap.get(key).push(r);
-    });
-
-    for (const item of sale.detalles) {
-      const qty = item.cantidad;
-
-      const productBaseRecipes = baseRecipesMap.get(item.producto_id.toString()) || [];
-      for (const row of productBaseRecipes) {
-        if (!ingredientMap[row.ingrediente_id]) {
-          ingredientMap[row.ingrediente_id] = 0;
-        }
-        ingredientMap[row.ingrediente_id] += row.cantidad * qty;
-      }
-
-      if (item.personalizaciones) {
-        let opciones = [];
-        try {
-          opciones = Array.isArray(item.personalizaciones)
-            ? item.personalizaciones
-            : Object.values(item.personalizaciones).flat();
-        } catch {
-          opciones = [];
-        }
-
-        for (const opcion of opciones) {
-          if (!opcion?.id) continue;
-
-          const custRecipes = customRecipesMap.get(opcion.id.toString()) || [];
-          for (const row of custRecipes) {
-            if (!ingredientMap[row.ingrediente_id]) {
-              ingredientMap[row.ingrediente_id] = 0;
-            }
-            ingredientMap[row.ingrediente_id] += row.cantidad * qty;
-          }
-        }
+    // Si ya estaba devuelta, su stock ya se regresó en la devolución
+    if (!previous.devuelta) {
+      try {
+        await restoreStockForSale(previous._id, previous.clientId);
+      } catch (e) {
+        console.error(`[cancelSale] Venta ${id} cancelada pero falló regresar stock:`, e.message);
       }
     }
 
-    // Regresar stock
-    for (const [ingId, cantidad] of Object.entries(ingredientMap)) {
-      await Ingredient.findOneAndUpdate({ _id: ingId, clientId }, { $inc: { stock_actual: cantidad } });
-    }
-
-    // Marcar como cancelada
-    await Sale.findByIdAndUpdate(id, { cancelada: true });
-
-    // Registrar cancelación
-    await logAction(usuarioId, 'CANCELAR_VENTA', `Venta cancelada: Total: $${sale.total}`);
-
-    await session.commitTransaction();
-    session.endSession();
+    await logAction(usuarioId, 'CANCELAR_VENTA', `Venta #${previous.numero_venta} cancelada: Total: $${previous.total}`);
   } catch (error) {
     console.error('Error al cancelar venta:', error.message);
     throw error;
   }
 }
 
+// ---------------- Fechas en la zona horaria del negocio ----------------
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Inicio del día (00:00 Tijuana) de una fecha 'YYYY-MM-DD', como Date UTC */
+function businessDayStart(dateStr) {
+  if (DATE_ONLY.test(String(dateStr))) return fromZonedTime(`${dateStr}T00:00:00.000`, BUSINESS_TIMEZONE);
+  return new Date(dateStr);
+}
+
+/** Fin del día (23:59:59.999 Tijuana) de una fecha 'YYYY-MM-DD', como Date UTC */
+function businessDayEnd(dateStr) {
+  if (DATE_ONLY.test(String(dateStr))) return fromZonedTime(`${dateStr}T23:59:59.999`, BUSINESS_TIMEZONE);
+  return new Date(dateStr);
+}
+
+function businessToday() {
+  return formatInTimeZone(new Date(), BUSINESS_TIMEZONE, 'yyyy-MM-dd');
+}
+
+function buildUserFilter(usuarioId) {
+  if (!usuarioId) return null;
+  return mongoose.Types.ObjectId.isValid(usuarioId) ? new mongoose.Types.ObjectId(usuarioId) : usuarioId;
+}
+
 /**
- * Obtiene las ventas de un día específico
+ * Obtiene las ventas de un día específico (día en hora de Tijuana)
  * @param {string} date - Fecha en formato YYYY-MM-DD
  * @param {string|null} usuarioId - Filtrar por vendedor
  * @returns {Array} Lista de ventas del día
  */
 export async function getSalesByDate(date, usuarioId = null, clientId = null) {
   try {
-    const startDate = new Date(date);
-    const endDate = new Date(date);
-    endDate.setHours(23, 59, 59, 999);
-
     const query = {
-      fecha: { $gte: startDate, $lte: endDate },
+      fecha: { $gte: businessDayStart(date), $lte: businessDayEnd(date) },
       cancelada: { $ne: true }
     };
 
-    if (usuarioId) {
-      if (mongoose.Types.ObjectId.isValid(usuarioId)) {
-        query.usuario_id = new mongoose.Types.ObjectId(usuarioId);
-      } else {
-        query.usuario_id = usuarioId;
-      }
-    }
-    if (clientId) {
-      query.clientId = clientId;
-    }
+    const userFilter = buildUserFilter(usuarioId);
+    if (userFilter) query.usuario_id = userFilter;
+    if (clientId) query.clientId = clientId;
 
     const sales = await Sale.find(query)
       .populate('usuario_id', 'nombre')
@@ -1013,7 +962,7 @@ export async function getSalesByDate(date, usuarioId = null, clientId = null) {
 }
 
 /**
- * Obtiene el resumen de ventas de un día
+ * Obtiene el resumen de ventas de un día (hora de Tijuana), sin canceladas ni devueltas
  * @param {string} date - Fecha en formato YYYY-MM-DD
  * @returns {Object} Resumen de ventas
  */
@@ -1022,15 +971,13 @@ export async function getDailySummary(date, clientId) {
     if (!clientId) {
       throw new Error('clientId es requerido para el resumen diario');
     }
-    const startDate = new Date(date);
-    const endDate = new Date(date);
-    endDate.setHours(23, 59, 59, 999);
 
     const summary = await Sale.aggregate([
-      { $match: { 
+      { $match: {
         clientId: new mongoose.Types.ObjectId(clientId),
-        fecha: { $gte: startDate, $lte: endDate },
-        cancelada: { $ne: true }
+        fecha: { $gte: businessDayStart(date), $lte: businessDayEnd(date) },
+        cancelada: { $ne: true },
+        devuelta: { $ne: true }
       }},
       { $group: {
         _id: null,
@@ -1049,7 +996,7 @@ export async function getDailySummary(date, clientId) {
 }
 
 /**
- * Obtiene las ventas de un rango de fechas
+ * Obtiene las ventas de un rango de fechas (días en hora de Tijuana, inclusivo)
  * @param {string} startDate - Fecha inicio YYYY-MM-DD
  * @param {string} endDate - Fecha fin YYYY-MM-DD
  * @param {string|null} usuarioId - Filtrar por vendedor
@@ -1057,25 +1004,14 @@ export async function getDailySummary(date, clientId) {
  */
 export async function getSalesByDateRange(startDate, endDate, usuarioId = null, clientId = null) {
   try {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
-
     const query = {
-      fecha: { $gte: start, $lte: end },
+      fecha: { $gte: businessDayStart(startDate), $lte: businessDayEnd(endDate) },
       cancelada: { $ne: true }
     };
 
-    if (usuarioId) {
-      if (mongoose.Types.ObjectId.isValid(usuarioId)) {
-        query.usuario_id = new mongoose.Types.ObjectId(usuarioId);
-      } else {
-        query.usuario_id = usuarioId;
-      }
-    }
-    if (clientId) {
-      query.clientId = clientId;
-    }
+    const userFilter = buildUserFilter(usuarioId);
+    if (userFilter) query.usuario_id = userFilter;
+    if (clientId) query.clientId = clientId;
 
     const sales = await Sale.find(query)
       .populate('usuario_id', 'nombre')
@@ -1102,12 +1038,14 @@ async function attachSaleDetails(sales) {
   for (const detail of details) {
     if (!bySale[detail.venta_id]) bySale[detail.venta_id] = [];
     const obj = detail.toObject();
+    let personalizaciones = null;
+    if (detail.personalizaciones) {
+      try { personalizaciones = JSON.parse(detail.personalizaciones); } catch { personalizaciones = detail.personalizaciones; }
+    }
     bySale[detail.venta_id].push({
       ...obj,
       producto_nombre: obj.producto_nombre || obj.promocion_nombre || obj.producto_id?.nombre || 'Producto',
-      personalizaciones: detail.personalizaciones
-        ? JSON.parse(detail.personalizaciones)
-        : null
+      personalizaciones
     });
   }
 
@@ -1118,67 +1056,71 @@ async function attachSaleDetails(sales) {
 }
 
 /**
- * Obtiene KPIs de ventas con filtros por período o año específico
+ * Obtiene KPIs de ventas con filtros por período o año específico.
+ * Todas las fechas, horas, días y meses se calculan en hora de Tijuana.
+ * No cuenta ventas canceladas ni devueltas.
  * @param {string} period - 'day', 'week', 'month', 'year'
- * @param {string} startDate - Fecha inicio (opcional)
- * @param {string} endDate - Fecha fin (opcional)
+ * @param {string} startDate - Fecha inicio YYYY-MM-DD (opcional)
+ * @param {string} endDate - Fecha fin YYYY-MM-DD (opcional)
  * @param {string|number} selectedYear - Año específico (opcional)
  * @returns {Object} KPIs de ventas
  */
 export async function getSalesKPIs(period = 'day', startDate = null, endDate = null, selectedYear = null, clientId = null) {
   try {
     let dateFilter = {};
-    const now = new Date();
-    
-    if (selectedYear) {
+    const today = businessToday();
+    const [cy, cm] = today.split('-').map(Number);
+    const yearNum = selectedYear ? parseInt(selectedYear, 10) : NaN;
+
+    if (Number.isFinite(yearNum) && yearNum > 1900) {
+      // Antes: selectedYear + 1 concatenaba texto ("2025" + 1 = "20251")
       dateFilter = {
-        $gte: new Date(selectedYear, 0, 1),
-        $lt: new Date(selectedYear + 1, 0, 1)
+        $gte: businessDayStart(`${yearNum}-01-01`),
+        $lte: businessDayEnd(`${yearNum}-12-31`)
       };
     } else if (startDate && endDate) {
       dateFilter = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
+        $gte: businessDayStart(startDate),
+        $lte: businessDayEnd(endDate)
       };
     } else {
       switch (period) {
-        case 'day':
+        case 'week': {
+          const weekAgo = formatInTimeZone(new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), BUSINESS_TIMEZONE, 'yyyy-MM-dd');
+          dateFilter = { $gte: businessDayStart(weekAgo), $lte: businessDayEnd(today) };
+          break;
+        }
+        case 'month': {
+          // Antes excluía el último día del mes
+          const lastDay = new Date(Date.UTC(cy, cm, 0)).getUTCDate();
+          const mm = String(cm).padStart(2, '0');
           dateFilter = {
-            $gte: new Date(now.setHours(0, 0, 0, 0)),
-            $lt: new Date(now.setHours(23, 59, 59, 999))
+            $gte: businessDayStart(`${cy}-${mm}-01`),
+            $lte: businessDayEnd(`${cy}-${mm}-${String(lastDay).padStart(2, '0')}`)
           };
           break;
-        case 'week':
-          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          dateFilter = { $gte: weekAgo };
-          break;
-        case 'month':
-          dateFilter = {
-            $gte: new Date(now.getFullYear(), now.getMonth(), 1),
-            $lt: new Date(now.getFullYear(), now.getMonth() + 1, 0)
-          };
-          break;
+        }
         case 'year':
           dateFilter = {
-            $gte: new Date(now.getFullYear(), 0, 1),
-            $lt: new Date(now.getFullYear() + 1, 0, 1)
+            $gte: businessDayStart(`${cy}-01-01`),
+            $lte: businessDayEnd(`${cy}-12-31`)
           };
           break;
+        case 'day':
         default:
-          dateFilter = {
-            $gte: new Date(now.setHours(0, 0, 0, 0)),
-            $lt: new Date(now.setHours(23, 59, 59, 999))
-          };
+          dateFilter = { $gte: businessDayStart(today), $lte: businessDayEnd(today) };
       }
     }
 
-    const matchQuery = { fecha: dateFilter, cancelada: { $ne: true } };
-    if (clientId) matchQuery.clientId = new mongoose.Types.ObjectId(clientId);
+    const baseMatch = { cancelada: { $ne: true }, devuelta: { $ne: true } };
+    if (clientId) baseMatch.clientId = new mongoose.Types.ObjectId(clientId);
+    const matchQuery = { ...baseMatch, fecha: dateFilter };
+    const tz = BUSINESS_TIMEZONE;
 
-    // Años disponibles
+    // Años disponibles (de todas las ventas de la cafetería, no solo del filtro actual)
     const availableYears = await Sale.aggregate([
-      { $match: matchQuery },
-      { $group: { _id: { $year: '$fecha' } } },
+      { $match: baseMatch },
+      { $group: { _id: { $year: { date: '$fecha', timezone: tz } } } },
       { $sort: { _id: -1 } }
     ]);
     const aniosDisponibles = availableYears.map(y => String(y._id)).sort((a, b) => b.localeCompare(a));
@@ -1196,8 +1138,8 @@ export async function getSalesKPIs(period = 'day', startDate = null, endDate = n
       }}
     ]);
 
-    // Ventas por método de pago - flatten para frontend (metodo_pago, tipo_tarjeta, cantidad, total)
-    const paymentMethodsRaw = await Sale.aggregate([
+    // Ventas por método de pago
+    const paymentMethods = await Sale.aggregate([
       { $match: matchQuery },
       { $group: {
         _id: { metodo_pago: '$metodo_pago', tipo_tarjeta: '$tipo_tarjeta' },
@@ -1207,13 +1149,12 @@ export async function getSalesKPIs(period = 'day', startDate = null, endDate = n
       { $project: { _id: 0, metodo_pago: '$_id.metodo_pago', tipo_tarjeta: '$_id.tipo_tarjeta', cantidad: 1, total: 1 } },
       { $sort: { total: -1 } }
     ]);
-    const paymentMethods = paymentMethodsRaw;
 
-    // Ventas por hora - flatten a {hora, cantidad_ventas, total_ventas}
+    // Ventas por hora (hora local del negocio)
     const hourlySalesRaw = await Sale.aggregate([
       { $match: matchQuery },
       { $group: {
-        _id: { $hour: '$fecha' },
+        _id: { $hour: { date: '$fecha', timezone: tz } },
         cantidad_ventas: { $sum: 1 },
         total_ventas: { $sum: '$total' }
       }},
@@ -1225,34 +1166,36 @@ export async function getSalesKPIs(period = 'day', startDate = null, endDate = n
       total_ventas: h.total_ventas
     }));
 
-    // Productos más vendidos (filtrado por clientId)
-    const topProductsMatch = { 'venta.fecha': dateFilter, 'venta.cancelada': { $ne: true } };
+    // Productos más vendidos (incluye combos por su nombre)
+    const topProductsMatch = { 'venta.fecha': dateFilter, 'venta.cancelada': { $ne: true }, 'venta.devuelta': { $ne: true } };
+    const detailMatch = clientId ? { clientId: new mongoose.Types.ObjectId(clientId) } : {};
     if (clientId) topProductsMatch['venta.clientId'] = new mongoose.Types.ObjectId(clientId);
     const topProducts = await SaleDetail.aggregate([
+      { $match: detailMatch },
       { $lookup: { from: 'sales', localField: 'venta_id', foreignField: '_id', as: 'venta' }},
       { $unwind: '$venta' },
       { $match: topProductsMatch },
       { $group: {
         _id: '$producto_id',
+        nombre_guardado: { $last: '$producto_nombre' },
         cantidad_vendida: { $sum: '$cantidad' },
         total_ingresos: { $sum: '$importe' }
       }},
       { $sort: { cantidad_vendida: -1 } },
       { $limit: 10 },
       { $lookup: { from: 'products', localField: '_id', foreignField: '_id', as: 'producto' }},
-      { $unwind: '$producto' },
       { $project: {
-        producto_nombre: '$producto.nombre',
+        producto_nombre: { $ifNull: [{ $arrayElemAt: ['$producto.nombre', 0] }, '$nombre_guardado'] },
         cantidad_vendida: 1,
         total_ingresos: 1
       }}
     ]);
 
-    // Ventas por día - flatten a {fecha, cantidad_ventas, total_ventas}
+    // Ventas por día (día local del negocio)
     const dailySalesRaw = await Sale.aggregate([
       { $match: matchQuery },
       { $group: {
-        _id: { $dateToString: { format: '%Y-%m-%d', date: '$fecha' } },
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$fecha', timezone: tz } },
         cantidad_ventas: { $sum: 1 },
         total_ventas: { $sum: '$total' }
       }},
@@ -1264,11 +1207,11 @@ export async function getSalesKPIs(period = 'day', startDate = null, endDate = n
       total_ventas: d.total_ventas
     }));
 
-    // Ventas por mes
+    // Ventas por mes (mes local del negocio)
     const monthlySales = await Sale.aggregate([
       { $match: matchQuery },
       { $group: {
-        _id: { $month: '$fecha' },
+        _id: { $month: { date: '$fecha', timezone: tz } },
         cantidad_ventas: { $sum: 1 },
         total_ventas: { $sum: '$total' }
       }},
@@ -1313,173 +1256,44 @@ export async function getSalesKPIs(period = 'day', startDate = null, endDate = n
 }
 
 /**
- * Devuelve una venta
+ * Devuelve una venta y regresa el stock
  * @param {string} saleId - ID de la venta a devolver
  * @param {string} userId - ID del usuario que realiza la devolución
  * @param {string} motivo - Motivo de la devolución
  */
 export async function refundSale(saleId, userId, motivo = '', clientIdParam = null) {
   try {
-    const session = await Sale.startSession();
-    session.startTransaction();
+    const filter = { _id: saleId, devuelta: { $ne: true }, cancelada: { $ne: true } };
+    if (clientIdParam) filter.clientId = clientIdParam;
 
-    const rawSale = await Sale.findById(saleId);
-    if (!rawSale) {
-      throw new Error('Venta no encontrada');
-    }
-    const sale = await getSaleById(saleId);
+    // Marcado atómico: evita devolver dos veces la misma venta (y regresar stock doble)
+    const sale = await Sale.findOneAndUpdate(
+      filter,
+      { devuelta: true, motivo_devolucion: motivo || 'Devolución solicitada' },
+      { new: true }
+    );
+
     if (!sale) {
-      throw new Error('Venta no encontrada');
-    }
-
-    if (sale.devuelta === true) {
+      const existing = await Sale.findById(saleId).select('devuelta cancelada');
+      if (!existing) throw new Error('Venta no encontrada');
+      if (existing.cancelada) throw new Error('La venta está cancelada');
       throw new Error('La venta ya está devuelta');
     }
 
-    // Determinar clientId para queries multi-tenant
-    const clientId = clientIdParam || rawSale.clientId || sale.clientId;
-    if (!clientId) {
-      throw new Error('ClientId no encontrado para la venta');
-    }
-
-    // Marcar la venta como devuelta (no cancelada)
-    await Sale.findByIdAndUpdate(saleId, { 
-      devuelta: true, 
-      motivo_devolucion: motivo || 'Devolución solicitada' 
-    });
-
-    // Si la venta está asociada a una caja, actualizar el total de devoluciones
+    // Registro informativo en la caja (el corte ya excluye las ventas devueltas)
     if (sale.caja_id) {
-      await CashRegister.findByIdAndUpdate(sale.caja_id, {
-        $inc: { total_devoluciones: sale.total }
-      });
+      await CashRegister.updateOne({ _id: sale.caja_id }, { $inc: { total_devoluciones: sale.total } });
     }
 
-    // Devolver el stock de ingredientes (revertir el stock decrementado)
-    const saleDetails = await SaleDetail.find({ venta_id: saleId });
-    
-    // Optimización: Obtener todos los IDs de productos y personalizaciones
-    const productIds = saleDetails.map(d => d.producto_id);
-    const allPersonalizationIds = [];
-    saleDetails.forEach(detail => {
-      if (detail.personalizaciones) {
-        let opciones = [];
-        try {
-          opciones = Array.isArray(detail.personalizaciones)
-            ? detail.personalizaciones
-            : Object.values(detail.personalizaciones).flat();
-        } catch {
-          opciones = [];
-        }
-        opciones.forEach(op => {
-          if (op?.id) allPersonalizationIds.push(op.id);
-        });
-      }
-    });
-
-    // Optimización: Obtener todas las recetas base en una sola aggregation
-    const baseRecipes = await Recipe.aggregate([
-      { $match: { producto_id: { $in: productIds.map(id => mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id) }, clientId: new mongoose.Types.ObjectId(clientId) }},
-      { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' }},
-      { $unwind: '$ingrediente' },
-      { $match: { 'ingrediente.activo': true }},
-      { $project: { 
-        producto_id: 1,
-        ingrediente_id: 1, 
-        cantidad: 1, 
-        nombre: '$ingrediente.nombre', 
-        unidad_medida: '$ingrediente.unidad_medida', 
-        categoria_reemplazo: '$ingrediente.categoria_reemplazo' 
-      }}
-    ]);
-    const baseRecipesMap = new Map();
-    baseRecipes.forEach(br => {
-      const key = br.producto_id.toString();
-      if (!baseRecipesMap.has(key)) baseRecipesMap.set(key, []);
-      baseRecipesMap.get(key).push(br);
-    });
-
-    // Optimización: Obtener todas las personalizaciones en una sola query
-    const personalizations = allPersonalizationIds.length > 0
-      ? await Personalization.find({ _id: { $in: allPersonalizationIds }, activo: true, clientId })
-      : [];
-    const personalizationsMap = new Map(personalizations.map(p => [p._id.toString(), p]));
-
-    // Optimización: Obtener todas las recetas de personalizaciones en una sola aggregation
-    const customRecipes = allPersonalizationIds.length > 0
-      ? await RecipePersonalization.aggregate([
-          { $match: { personalizacion_id: { $in: allPersonalizationIds.map(id => mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id) }, clientId: new mongoose.Types.ObjectId(clientId) }},
-          { $lookup: { from: 'ingredients', localField: 'ingrediente_id', foreignField: '_id', as: 'ingrediente' }},
-          { $unwind: '$ingrediente' },
-          { $match: { 'ingrediente.activo': true }},
-          { $project: { personalizacion_id: 1, ingrediente_id: 1, cantidad: 1, nombre: '$ingrediente.nombre', unidad_medida: '$ingrediente.unidad_medida' }}
-        ])
-      : [];
-    const customRecipesMap = new Map();
-    customRecipes.forEach(cr => {
-      const key = cr.personalizacion_id.toString();
-      if (!customRecipesMap.has(key)) customRecipesMap.set(key, []);
-      customRecipesMap.get(key).push(cr);
-    });
-
-    for (const detail of saleDetails) {
-      const qty = detail.cantidad;
-      
-      const productBaseRecipes = detail.producto_id ? (baseRecipesMap.get(detail.producto_id.toString()) || []) : [];
-      
-      // Identificar categorías de personalización seleccionadas
-      const categoriesToReplace = new Set();
-      const customRecipesToApply = [];
-
-      if (detail.personalizaciones) {
-        let opcionesSeleccionadas = [];
-        if (Array.isArray(detail.personalizaciones)) {
-          opcionesSeleccionadas = detail.personalizaciones;
-        } else if (typeof detail.personalizaciones === 'object') {
-          opcionesSeleccionadas = Object.values(detail.personalizaciones).flat();
-        }
-
-        for (const opcion of opcionesSeleccionadas) {
-          if (!opcion?.id) continue;
-          
-          // Obtener la personalización del mapa (bulk fetch)
-          const customDb = personalizationsMap.get(opcion.id.toString());
-          if (customDb && customDb.tipo) {
-            categoriesToReplace.add(customDb.tipo);
-          }
-
-          // Obtener la receta de la personalización del mapa (bulk fetch)
-          const custRecipes = customRecipesMap.get(opcion.id.toString()) || [];
-          customRecipesToApply.push(...custRecipes);
-        }
-      }
-
-      // Filtrar receta base: omitir ingredientes que tienen categoría de reemplazo
-      // si el cliente seleccionó una personalización de esa categoría
-      const finalBaseRecipe = productBaseRecipes.filter(br => {
-        if (br.categoria_reemplazo && categoriesToReplace.has(br.categoria_reemplazo)) {
-          return false; // Omitir este ingrediente de la receta base
-        }
-        return true; // Mantener este ingrediente
-      });
-
-      // Devolver ingredientes de la receta base filtrada
-      for (const row of finalBaseRecipe) {
-        await Ingredient.findOneAndUpdate({ _id: row.ingrediente_id, clientId }, { $inc: { stock_actual: row.cantidad * qty } });
-      }
-
-      // Devolver ingredientes de las personalizaciones seleccionadas
-      for (const row of customRecipesToApply) {
-        await Ingredient.findOneAndUpdate({ _id: row.ingrediente_id, clientId }, { $inc: { stock_actual: row.cantidad * qty } });
-      }
+    try {
+      await restoreStockForSale(sale._id, sale.clientId);
+    } catch (e) {
+      console.error(`[refundSale] Venta ${saleId} devuelta pero falló regresar stock:`, e.message);
     }
 
-    // Registrar la devolución
-    await logAction(userId, 'DEVOLUCION_VENTA', `Venta devuelta: Total: $${sale.total}, Motivo: ${motivo}`);
+    await logAction(userId, 'DEVOLUCION_VENTA', `Venta #${sale.numero_venta} devuelta: Total: $${sale.total}, Motivo: ${motivo}`);
 
-    await session.commitTransaction();
-    session.endSession();
-    return sale;
+    return await getSaleById(saleId);
   } catch (error) {
     console.error('Error al devolver venta:', error);
     throw error;

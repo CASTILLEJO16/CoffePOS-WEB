@@ -47,6 +47,19 @@ const CashRegisterSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // Ventas en dólares (equivalente MXN, ya incluidas en ventas_efectivo) y USD recibidos
+  ventas_dolar: {
+    type: Number,
+    default: 0
+  },
+  total_dolar: {
+    type: Number,
+    default: 0
+  },
+  total_vendido: {
+    type: Number,
+    default: 0
+  },
   total_descuentos: {
     type: Number,
     default: 0

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { QrCode, User, Phone, Mail, CheckCircle } from 'lucide-react';
-import { publicRegisterCustomer } from '../services/customerService.js';
+import { publicRegisterCustomer, getPublicCafeInfo, getPublicCafeIdFromUrl } from '../services/customerService.js';
 import LoyaltyCardGenerator from '../components/LoyaltyCardGenerator.jsx';
 import Swal from 'sweetalert2';
 
@@ -15,13 +15,17 @@ export default function CustomerRegistration() {
   const [generatedCardImage, setGeneratedCardImage] = useState(null);
   const [businessName, setBusinessName] = useState('Mi Cafetería');
 
+  const [cafeId] = useState(() => getPublicCafeIdFromUrl());
+
   useEffect(() => {
-    // Obtener businessName de localStorage
-    const savedBusinessName = localStorage.getItem('businessName');
-    if (savedBusinessName) {
-      setBusinessName(savedBusinessName);
-    }
-  }, []);
+    // Nombre de la cafetería del enlace QR (el cliente no tiene sesión ni localStorage del POS)
+    if (!cafeId) return;
+    getPublicCafeInfo(cafeId)
+      .then(res => {
+        if (res?.success && res.data?.businessName) setBusinessName(res.data.businessName);
+      })
+      .catch(() => {});
+  }, [cafeId]);
 
   const handleChange = (e) => {
     setFormData({
@@ -33,6 +37,11 @@ export default function CustomerRegistration() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (!cafeId) {
+      Swal.fire('Enlace inválido', 'Escanea el QR de registro que está en la cafetería.', 'error');
+      return;
+    }
+
     if (!formData.nombre.trim() || !formData.telefono.trim()) {
       Swal.fire('Error', 'Nombre y teléfono son requeridos', 'warning');
       return;
@@ -40,7 +49,7 @@ export default function CustomerRegistration() {
 
     try {
       setLoading(true);
-      const response = await publicRegisterCustomer(formData);
+      const response = await publicRegisterCustomer(formData, cafeId);
       
       if (response.success) {
         setRegisteredCard(response.data.loyaltyCard);
@@ -54,7 +63,7 @@ export default function CustomerRegistration() {
       }
     } catch (error) {
       console.error('Error registering:', error);
-      Swal.fire('Error', 'Error al registrar cliente', 'error');
+      Swal.fire('Error', error.response?.data?.message || 'Error al registrar cliente', 'error');
     } finally {
       setLoading(false);
     }

@@ -6,7 +6,9 @@
 import Customer from '../models/Customer.js';
 import LoyaltyCard from '../models/LoyaltyCard.js';
 import Config from '../models/Config.js';
+import Client from '../models/Client.js';
 import crypto from 'crypto';
+import mongoose from 'mongoose';
 import QRCode from 'qrcode';
 
 // Generar token QR único y seguro
@@ -14,23 +16,101 @@ function generateQRToken() {
   return crypto.randomBytes(16).toString('hex');
 }
 
+/**
+ * Resuelve la cafetería de las rutas públicas a partir del cafeId del enlace QR.
+ * Solo cafeterías activas.
+ */
+async function resolvePublicCafe(cafeId) {
+  if (!cafeId || !mongoose.Types.ObjectId.isValid(String(cafeId))) return null;
+  const cafe = await Client.findById(cafeId).select('name businessName status');
+  if (!cafe || cafe.status === 'blocked') return null;
+  return cafe;
+}
+
+// Información pública mínima de la cafetería (nombre para mostrar en el registro)
+export const getPublicCafeInfo = async (req, res) => {
+  try {
+    const cafe = await resolvePublicCafe(req.params.cafeId);
+    if (!cafe) {
+      return res.status(404).json({ success: false, message: 'Cafetería no encontrada' });
+    }
+    res.status(200).json({
+      success: true,
+      data: { businessName: cafe.businessName || cafe.name }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error al obtener cafetería' });
+  }
+};
+
+// Búsqueda pública de tarjeta por teléfono (desde el enlace QR de la cafetería)
+export const publicLookupCustomer = async (req, res) => {
+  try {
+    const cafe = await resolvePublicCafe(req.query?.cafeId);
+    if (!cafe) {
+      return res.status(400).json({
+        success: false,
+        message: 'Enlace inválido. Pide a la cafetería un QR actualizado.'
+      });
+    }
+    const telefono = String(req.params.telefono || '').trim();
+    const customer = await Customer.findOne({ telefono, clientId: cafe._id });
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Cliente no encontrado' });
+    }
+    const card = await LoyaltyCard.findOne({ customerId: customer._id, clientId: cafe._id });
+    if (!card) {
+      return res.status(404).json({ success: false, message: 'Cliente sin tarjeta de lealtad' });
+    }
+    const qrCodeDataURL = await QRCode.toDataURL(card.qr_token);
+    // Solo datos necesarios para mostrar la tarjeta
+    const publicCustomer = { nombre: customer.nombre, telefono: customer.telefono };
+    res.status(200).json({
+      success: true,
+      data: {
+        customer: publicCustomer,
+        loyaltyCard: {
+          _id: card._id,
+          qr_token: card.qr_token,
+          sellos_actuales: card.sellos_actuales,
+          sellos_requeridos: card.sellos_requeridos,
+          recompensas_disponibles: card.recompensas_disponibles,
+          estado: card.estado,
+          qr_code: qrCodeDataURL,
+          customer: publicCustomer
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error en búsqueda pública:', error);
+    res.status(500).json({ success: false, message: 'Error al buscar cliente' });
+  }
+};
+
 // Crear cliente individual
 export const createCustomer = async (req, res) => {
   try {
     const { nombre, telefono, email, notas } = req.body;
     let clientId = req.user?.clientId;
 
-    // Si no hay usuario autenticado (registro público), usar el primer cliente
+    // Registro público: la cafetería viene en el enlace del QR (cafeId).
+    // Antes se usaba "la primera cafetería creada", mezclando clientes entre cafeterías.
     if (!clientId) {
-      const Client = (await import('../models/Client.js')).default;
-      const defaultClient = await Client.findOne().sort({ createdAt: 1 });
-      if (!defaultClient) {
+      const cafe = await resolvePublicCafe(req.body?.cafeId);
+      if (!cafe) {
         return res.status(400).json({
           success: false,
-          message: 'No hay cafetería configurada'
+          message: 'Enlace de registro inválido. Pide a la cafetería un QR de registro actualizado.'
         });
       }
-      clientId = defaultClient._id;
+      clientId = cafe._id;
+    }
+
+    if (!nombre || !String(nombre).trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'El nombre es requerido'
+      });
     }
 
     if (!clientId) {
@@ -41,7 +121,7 @@ export const createCustomer = async (req, res) => {
     }
 
     // Validar teléfono
-    if (!telefono || telefono.trim().length < 10) {
+    if (!telefono || typeof telefono !== 'string' || telefono.trim().length < 10) {
       return res.status(400).json({
         success: false,
         message: 'El teléfono debe tener al menos 10 dígitos'
@@ -64,7 +144,7 @@ export const createCustomer = async (req, res) => {
     // Crear cliente
     const customer = await Customer.create({
       clientId,
-      nombre: nombre.trim(),
+      nombre: String(nombre).trim(),
       telefono: telefono.trim(),
       email: email?.trim() || null,
       notas: notas?.trim() || null
@@ -141,7 +221,7 @@ export const getCustomers = async (req, res) => {
 
     const customers = await Customer.find(query)
       .sort({ fecha_registro: -1 })
-      .populate('loyaltyCard');
+      .populate('loyaltyCardId');
 
     res.status(200).json({
       success: true,
@@ -164,7 +244,7 @@ export const getCustomerById = async (req, res) => {
     const customer = await Customer.findOne({ 
       _id: req.params.id, 
       clientId 
-    }).populate('loyaltyCard');
+    }).populate('loyaltyCardId');
 
     if (!customer) {
       return res.status(404).json({

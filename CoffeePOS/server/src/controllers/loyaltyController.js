@@ -98,7 +98,7 @@ export const getCustomerCard = async (req, res) => {
 export const addStamp = async (req, res) => {
   try {
     const clientId = req.user?.clientId;
-    const empleadoId = req.user?._id;
+    const empleadoId = req.user?.userId;
     const { qr_token, venta_id } = req.body;
 
     // Validar que la venta existe y pertenece al cliente
@@ -234,7 +234,7 @@ export const addStamp = async (req, res) => {
 export const redeemReward = async (req, res) => {
   try {
     const clientId = req.user?.clientId;
-    const empleadoId = req.user?._id;
+    const empleadoId = req.user?.userId;
     const { loyaltyCardId, venta_id, producto_recompensa, producto_id } = req.body;
 
     const card = await LoyaltyCard.findOne({ 
@@ -409,7 +409,7 @@ export const revertStamp = async (req, res) => {
         customerId: stamp.customerId,
         loyaltyCardId: card._id,
         venta_id,
-        empleado_id: req.user?._id,
+        empleado_id: req.user?.userId,
         tipo: 'revertido',
         numero_sello: stamp.numero_sello,
         motivo_reversion: motivo

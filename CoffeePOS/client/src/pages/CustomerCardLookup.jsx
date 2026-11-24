@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { QrCode, Search, User, Phone, CheckCircle, Download } from 'lucide-react';
-import { publicLookupCustomer } from '../services/customerService.js';
+import { publicLookupCustomer, getPublicCafeIdFromUrl } from '../services/customerService.js';
 import Swal from 'sweetalert2';
 
 export default function CustomerCardLookup() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [card, setCard] = useState(null);
+  const [cafeId] = useState(() => getPublicCafeIdFromUrl());
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -18,7 +19,11 @@ export default function CustomerCardLookup() {
 
     try {
       setLoading(true);
-      const response = await publicLookupCustomer(phone.trim());
+      if (!cafeId) {
+        Swal.fire('Enlace inválido', 'Abre esta página desde el QR de la cafetería.', 'error');
+        return;
+      }
+      const response = await publicLookupCustomer(phone.trim(), cafeId);
       
       if (response.success && response.data.loyaltyCard) {
         setCard(response.data.loyaltyCard);
@@ -28,7 +33,11 @@ export default function CustomerCardLookup() {
       }
     } catch (error) {
       console.error('Error searching:', error);
-      Swal.fire('Error', 'Error al buscar cliente', 'error');
+      if (error.response?.status === 404) {
+        Swal.fire('No encontrado', 'Cliente no encontrado o sin tarjeta de lealtad', 'warning');
+      } else {
+        Swal.fire('Error', error.response?.data?.message || 'Error al buscar cliente', 'error');
+      }
       setCard(null);
     } finally {
       setLoading(false);
@@ -315,7 +324,7 @@ export default function CustomerCardLookup() {
         <div style={styles.info}>
           <h3 style={styles.infoTitle}>¿No tienes tarjeta?</h3>
           <p style={styles.infoText}>Regístrate en el programa de lealtad para empezar a acumular sellos.</p>
-          <a href="/registro-cliente" style={styles.link}>Registrarme ahora</a>
+          <a href={cafeId ? `/registro-cliente?c=${encodeURIComponent(cafeId)}` : '/registro-cliente'} style={styles.link}>Registrarme ahora</a>
         </div>
       </div>
     </div>

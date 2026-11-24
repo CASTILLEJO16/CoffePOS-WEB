@@ -29,13 +29,14 @@ import CashPaymentModal from '../components/pos/CashPaymentModal.jsx';
 import DollarPaymentModal from '../components/pos/DollarPaymentModal.jsx';
 import MixedPaymentModal from '../components/pos/MixedPaymentModal.jsx';
 import { useToast } from '../hooks/useToast.js';
+import { isPromotionActiveNow } from '../utils/promotionEngine.js';
 import Swal from 'sweetalert2';
 import './POS.css';
 
 export default function POS() {
   const { t, language } = useTranslation();
   const currency = useCurrency(); // Force re-render on currency change
-  const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem, setPromotions: setContextPromotions, customerPhone, setCustomerPhone, loyaltyCard, setLoyaltyCard, loyaltyDiscount, setLoyaltyDiscount, loyaltyFreeProduct, setLoyaltyFreeProduct, loadCustomerLoyalty, calculateLoyaltyDiscount } = useOrder();
+  const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem, setPromotions: setContextPromotions, customerPhone, setCustomerPhone, loyaltyCard, setLoyaltyCard, loyaltyDiscount, setLoyaltyDiscount, loyaltyFreeProduct, setLoyaltyFreeProduct, loadCustomerLoyalty, calculateLoyaltyDiscount, promoDiscount } = useOrder();
   console.log('[POS] Estado de la orden - Items:', items.length, 'Subtotal:', subtotal, 'Impuestos:', impuestos, 'Total:', total);
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
@@ -81,6 +82,11 @@ export default function POS() {
   // Atajos de teclado (modo POS rápido)
   useEffect(() => {
     function handleKey(e) {
+      // Ignorar atajos mientras se escribe (buscador, teléfono, montos, modales con inputs)
+      const tag = (e.target?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable) return;
+      // Si hay otro modal abierto (efectivo, dólar, mixto, personalización), no interferir
+      if (document.querySelector('.swal2-container')) return;
       if (e.key === 'Enter') {
         if (!showPaymentModal) {
           handleCheckout();
@@ -194,7 +200,7 @@ export default function POS() {
       const response = await getPromotions();
       // getPromotions() ya devuelve el array directamente (desenvuelve .data.data internamente)
       const promosData = Array.isArray(response) ? response : [];
-      const activePromos = promosData.filter(p => p.estado === 'Activa');
+      const activePromos = promosData.filter(p => isPromotionActiveNow(p));
       setPromotions(activePromos);
       promotionsRef.current = activePromos;
 
@@ -1090,7 +1096,7 @@ export default function POS() {
                 ))}
               </div>
               
-              <OrderSummary
+              <OrderSummary promoDiscount={promoDiscount}
                 subtotal={subtotal}
                 impuestos={impuestos}
                 total={total}
@@ -1144,7 +1150,7 @@ export default function POS() {
                       <OrderItem key={item.uniqueId} item={item} onRemove={(id)=>{handleRemoveItem(id); if(items.length<=1) setShowMobileCart(false);}} onUpdateQuantity={(id,qty)=>updateQuantity(id,qty)} onEdit={handleEditItem} />
                     ))}
                   </div>
-                  <OrderSummary subtotal={subtotal} impuestos={impuestos} total={total} onCheckout={()=>{setShowMobileCart(false); handleCheckout();}} onCancel={()=>{handleCancelSale(); setShowMobileCart(false);}} onClear={()=>{handleClearOrder(); setShowMobileCart(false);}} disabled={processing} loyaltyDiscount={loyaltyDiscount} loyaltyFreeProduct={loyaltyFreeProduct} />
+                  <OrderSummary promoDiscount={promoDiscount} subtotal={subtotal} impuestos={impuestos} total={total} onCheckout={()=>{setShowMobileCart(false); handleCheckout();}} onCancel={()=>{handleCancelSale(); setShowMobileCart(false);}} onClear={()=>{handleClearOrder(); setShowMobileCart(false);}} disabled={processing} loyaltyDiscount={loyaltyDiscount} loyaltyFreeProduct={loyaltyFreeProduct} />
                 </>
               )}
             </div>

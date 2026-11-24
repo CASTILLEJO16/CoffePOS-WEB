@@ -3,6 +3,7 @@ import { getPromotions } from '../services/promotionService.js';
 import { getCustomerByPhone } from '../services/customerService.js';
 import { getCardByQRToken } from '../services/loyaltyService.js';
 import { calculateCustomizationPrice } from './AdminOrderContext.jsx';
+import { calculateCartTotals, getIVARate as getCartIVARate } from '../utils/cartTotals.js';
 
 const OrderContext = createContext();
 
@@ -11,6 +12,8 @@ const initialState = {
   subtotal: 0,
   impuestos: 0,
   total: 0,
+  promoDiscount: 0,
+  promoDetails: [],
   customerName: '',
   customerPhone: '',
   loyaltyCard: null,
@@ -20,18 +23,11 @@ const initialState = {
   productsMap: new Map()
 };
 
-function getIVARate() {
-  const val = localStorage.getItem('iva_rate');
-  const num = val ? parseFloat(val) : 0.16;
-  return Number.isFinite(num) ? num : 0.16;
-}
+const getIVARate = getCartIVARate;
 
-function calculateTotals(items) {
-  const subtotal = items.reduce((sum, item) => sum + item.importe, 0);
-  const ivaRate = getIVARate();
-  const impuestos = subtotal * ivaRate;
-  const total = subtotal + impuestos;
-  return { subtotal, impuestos, total };
+// Totales con la misma regla del servidor (incluye 2x1 / Compra X paga Y)
+function calculateTotals(items, promotions = []) {
+  return calculateCartTotals(items, promotions);
 }
 
 function calculatePriceWithDiscount(precio, descuento) {
@@ -86,17 +82,10 @@ function orderReducer(state, action) {
           ];
         }
 
-        const subtotal = newItems.reduce((sum, item) => sum + item.importe, 0);
-        const ivaRate = getIVARate();
-        const impuestos = subtotal * ivaRate;
-        const total = subtotal + impuestos;
-
         return {
           ...state,
           items: newItems,
-          subtotal,
-          impuestos,
-          total
+          ...calculateTotals(newItems, state.promotions)
         };
       }
 
@@ -145,17 +134,10 @@ function orderReducer(state, action) {
       }
 
       // Recalcular totales con el nuevo subtotal
-      const subtotal = newItems.reduce((sum, item) => sum + item.importe, 0);
-      const ivaRate = getIVARate();
-      const impuestos = subtotal * ivaRate;
-      const total = subtotal + impuestos;
-
       return {
         ...state,
         items: newItems,
-        subtotal,
-        impuestos,
-        total
+        ...calculateTotals(newItems, state.promotions)
       };
     }
 
@@ -163,17 +145,10 @@ function orderReducer(state, action) {
     case 'REMOVE_ITEM': {
       const { uniqueId } = action.payload;
       const newItems = state.items.filter(item => item.uniqueId !== uniqueId);
-      const subtotal = newItems.reduce((sum, item) => sum + item.importe, 0);
-      const ivaRate = getIVARate();
-      const impuestos = subtotal * ivaRate;
-      const total = subtotal + impuestos;
-
       return {
         ...state,
         items: newItems,
-        subtotal,
-        impuestos,
-        total
+        ...calculateTotals(newItems, state.promotions)
       };
     }
 
@@ -189,30 +164,21 @@ function orderReducer(state, action) {
           : item
       );
 
-      const subtotal = newItems.reduce((sum, item) => sum + item.importe, 0);
-      const ivaRate = getIVARate();
-      const impuestos = subtotal * ivaRate;
-      const total = subtotal + impuestos;
-
       return {
         ...state,
         items: newItems,
-        subtotal,
-        impuestos,
-        total
+        ...calculateTotals(newItems, state.promotions)
       };
     }
 
     case 'CLEAR_ORDER':
-      return initialState;
+      // Conservar las promociones cargadas (si no, el 2x1 deja de calcularse tras la 1a venta)
+      return { ...initialState, promotions: state.promotions, productsMap: state.productsMap };
 
     case 'RECALC': {
-      const { subtotal, impuestos, total } = calculateTotals(state.items);
       return {
         ...state,
-        subtotal,
-        impuestos,
-        total
+        ...calculateTotals(state.items, state.promotions)
       };
     }
 
@@ -245,17 +211,10 @@ function orderReducer(state, action) {
           : item
       );
 
-      const subtotal = newItems.reduce((sum, item) => sum + item.importe, 0);
-      const ivaRate = getIVARate();
-      const impuestos = subtotal * ivaRate;
-      const total = subtotal + impuestos;
-
       return {
         ...state,
         items: newItems,
-        subtotal,
-        impuestos,
-        total
+        ...calculateTotals(newItems, state.promotions)
       };
     }
 
@@ -273,7 +232,9 @@ function orderReducer(state, action) {
       return {
         ...state,
         promotions: validPromotions,
-        productsMap: mappedProducts
+        productsMap: mappedProducts,
+        // Recalcular: las promociones cambian el total
+        ...calculateTotals(state.items, validPromotions)
       };
     }
 

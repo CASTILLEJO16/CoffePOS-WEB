@@ -3,28 +3,30 @@
  * Gestión de cuentas/tickets abiertos
  */
 
+import mongoose from 'mongoose';
 import OpenTicket from '../models/OpenTicket.js';
 import OpenTicketItem from '../models/OpenTicketItem.js';
 import Customer from '../models/Customer.js';
-import Sale from '../models/Sale.js';
-import SaleDetail from '../models/SaleDetail.js';
 import Product from '../models/Product.js';
 import Config from '../models/Config.js';
+import { createSale } from '../services/saleService.js';
+import { nextSequence } from '../utils/sequence.js';
 
-// Generar número de ticket único
+// Generar número de ticket único (atómico: no se repite aunque se abran 2 al mismo tiempo)
 async function generateTicketNumber(clientId) {
-  const lastTicket = await OpenTicket.findOne({ clientId })
-    .sort({ numero_ticket: -1 })
-    .select('numero_ticket');
-  
-  return lastTicket ? lastTicket.numero_ticket + 1 : 1;
+  return nextSequence(clientId, 'numero_ticket', async () => {
+    const lastTicket = await OpenTicket.findOne({ clientId })
+      .sort({ numero_ticket: -1 })
+      .select('numero_ticket');
+    return lastTicket?.numero_ticket || 0;
+  });
 }
 
 // Crear ticket abierto
 export const createOpenTicket = async (req, res) => {
   try {
     const clientId = req.user?.clientId;
-    const empleadoId = req.user?._id;
+    const empleadoId = req.user?.userId;
     const { numero_mesa, customerId, observaciones } = req.body;
 
     // Validar cliente si se proporciona
@@ -188,15 +190,29 @@ export const addTicketItem = async (req, res) => {
       });
     }
 
-    const importe = cantidad * precio;
+    // Precio y nombre SIEMPRE desde la BD (el navegador podía mandar cualquier precio)
+    const qty = Number(cantidad);
+    if (!Number.isInteger(qty) || qty <= 0) {
+      return res.status(400).json({ success: false, message: 'Cantidad inválida' });
+    }
+    if (!producto_id || !mongoose.Types.ObjectId.isValid(String(producto_id))) {
+      return res.status(400).json({ success: false, message: 'Selecciona un producto válido' });
+    }
+    const product = await Product.findOne({ _id: producto_id, clientId, activo: true });
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Producto no encontrado o inactivo' });
+    }
+    const desc = Number(product.descuento) || 0;
+    const unitPrice = Math.round((desc > 0 ? product.precio * (1 - desc / 100) : product.precio) * 100) / 100;
+    const importe = Math.round(qty * unitPrice * 100) / 100;
 
     const item = await OpenTicketItem.create({
       clientId,
       openTicketId: ticket._id,
-      producto_id: producto_id || null,
-      producto_nombre,
-      cantidad,
-      precio,
+      producto_id: product._id,
+      producto_nombre: product.nombre,
+      cantidad: qty,
+      precio: unitPrice,
       importe,
       personalizaciones: personalizaciones || null,
       isCombo: isCombo || false,
@@ -260,8 +276,12 @@ export const updateTicketItem = async (req, res) => {
       });
     }
 
-    item.cantidad = cantidad;
-    item.importe = cantidad * item.precio;
+    const newQty = Number(cantidad);
+    if (!Number.isInteger(newQty) || newQty <= 0) {
+      return res.status(400).json({ success: false, message: 'Cantidad inválida' });
+    }
+    item.cantidad = newQty;
+    item.importe = Math.round(newQty * item.precio * 100) / 100;
     if (personalizaciones !== undefined) {
       item.personalizaciones = personalizaciones;
     }
@@ -353,119 +373,107 @@ export const deleteTicketItem = async (req, res) => {
 };
 
 // Cerrar ticket (convertir en venta)
+// Usa la MISMA lógica de venta del POS (createSale): precios del servidor, promociones,
+// descuento de stock, caja abierta del cajero y numeración atómica.
 export const closeTicket = async (req, res) => {
+  const clientId = req.user?.clientId;
+  const empleadoId = req.user?.userId;
+  const { ticketId } = req.params;
+  let lockedTicket = null;
+
   try {
-    const clientId = req.user?.clientId;
-    const empleadoId = req.user?._id;
-    const { ticketId } = req.params;
-    const { metodo_pago, monto_recibido, cambio, tipo_cambio, dolar_recibido, tipo_tarjeta, efectivo_mxn, efectivo_usd, tarjeta_credito, tarjeta_debito } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(ticketId)) {
+      return res.status(400).json({ success: false, message: 'ID de ticket inválido' });
+    }
 
-    const ticket = await OpenTicket.findOne({ 
-      _id: ticketId, 
-      clientId 
-    });
+    // Bloqueo atómico: solo una petición puede pasar el ticket de 'abierta' a 'en_proceso_cobro'
+    lockedTicket = await OpenTicket.findOneAndUpdate(
+      { _id: ticketId, clientId, estado: 'abierta' },
+      { estado: 'en_proceso_cobro' },
+      { new: true }
+    );
 
-    if (!ticket) {
-      return res.status(404).json({
+    if (!lockedTicket) {
+      const exists = await OpenTicket.exists({ _id: ticketId, clientId });
+      return res.status(exists ? 400 : 404).json({
         success: false,
-        message: 'Ticket no encontrado'
+        message: exists ? 'El ticket ya no está abierto' : 'Ticket no encontrado'
       });
     }
 
-    if (ticket.estado !== 'abierta') {
-      return res.status(400).json({
-        success: false,
-        message: 'El ticket ya no está abierto'
-      });
-    }
-
-    // Obtener items del ticket
-    const items = await OpenTicketItem.find({ openTicketId: ticket._id });
+    const items = await OpenTicketItem.find({ openTicketId: lockedTicket._id, clientId });
 
     if (items.length === 0) {
+      lockedTicket.estado = 'abierta';
+      await lockedTicket.save();
       return res.status(400).json({
         success: false,
         message: 'El ticket no tiene items'
       });
     }
 
-    // Obtener número de venta
-    const lastSale = await Sale.findOne({ clientId }).sort({ numero_venta: -1 });
-    const numero_venta = lastSale ? lastSale.numero_venta + 1 : 1;
+    const {
+      metodo_pago = 'efectivo', tipo_tarjeta, tipo_cambio, dolar_recibido,
+      efectivo_mxn, efectivo_usd, tarjeta_credito, tarjeta_debito, cambio_pesos
+    } = req.body || {};
 
-    // Marcar ticket en proceso de cobro
-    ticket.estado = 'en_proceso_cobro';
-    await ticket.save();
-
-    // Crear venta
-    const sale = await Sale.create({
-      clientId: ticket.clientId,
-      customerId: ticket.customerId,
-      numero_venta,
-      fecha: new Date(),
-      subtotal: ticket.subtotal,
-      impuestos: ticket.impuestos,
-      total: ticket.total,
+    const sale = await createSale({
+      items: items.map(i => ({
+        producto_id: i.producto_id,
+        cantidad: i.cantidad,
+        personalizaciones: i.personalizaciones || null,
+        precio_final: i.precio
+      })),
       metodo_pago,
       tipo_tarjeta,
-      usuario_id: empleadoId,
-      iva_rate: ticket.iva_rate,
-      monto_recibido,
-      cambio,
       tipo_cambio,
       dolar_recibido,
       efectivo_mxn,
       efectivo_usd,
       tarjeta_credito,
-      tarjeta_debito
-    });
+      tarjeta_debito,
+      cambio_pesos
+    }, empleadoId, clientId);
 
-    // Crear detalles de venta
-    for (const item of items) {
-      await SaleDetail.create({
-        clientId,
-        venta_id: sale._id,
-        customerId: ticket.customerId,
-        producto_id: item.producto_id,
-        producto_nombre: item.producto_nombre,
-        cantidad: item.cantidad,
-        precio: item.precio,
-        importe: item.importe,
-        personalizaciones: item.personalizaciones,
-        isCombo: item.isCombo,
-        comboData: item.comboData
-      });
-    }
-
-    // Actualizar ticket
-    ticket.estado = 'pagada';
-    ticket.venta_id = sale._id;
-    ticket.fecha_cierre = new Date();
-    await ticket.save();
+    lockedTicket.estado = 'pagada';
+    lockedTicket.venta_id = sale._id;
+    lockedTicket.fecha_cierre = new Date();
+    // Reflejar los importes reales cobrados
+    lockedTicket.subtotal = sale.subtotal;
+    lockedTicket.impuestos = sale.impuestos;
+    lockedTicket.total = sale.total;
+    await lockedTicket.save();
 
     res.status(200).json({
       success: true,
       message: 'Ticket cerrado y venta registrada exitosamente',
-      data: { ticket, sale }
+      data: { ticket: lockedTicket, sale },
+      stockAlertas: sale.stockAlertas || null,
+      hasStockAlertas: sale.hasStockAlertas || false
     });
   } catch (error) {
     console.error('Error al cerrar ticket:', error);
-    
+
     // Revertir estado del ticket en caso de error
     try {
-      const ticket = await OpenTicket.findById(req.params.ticketId);
-      if (ticket && ticket.estado === 'en_proceso_cobro') {
-        ticket.estado = 'abierta';
-        await ticket.save();
+      if (lockedTicket) {
+        await OpenTicket.updateOne(
+          { _id: lockedTicket._id, estado: 'en_proceso_cobro' },
+          { estado: 'abierta' }
+        );
       }
     } catch (e) {
       console.error('Error al revertir estado del ticket:', e);
     }
 
-    res.status(500).json({
+    const isStockError = error.code === 'INSUFFICIENT_STOCK';
+    const isUserError = isStockError || /caja abierta|no encontrado|inválid/i.test(error.message || '');
+    res.status(isUserError ? 400 : 500).json({
       success: false,
-      message: 'Error al cerrar ticket',
-      error: error.message
+      message: error.message || 'Error al cerrar ticket',
+      error: error.message,
+      code: error.code,
+      faltantes: error.faltantes || null
     });
   }
 };

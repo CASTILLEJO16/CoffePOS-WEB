@@ -371,7 +371,13 @@ export default function LoyaltyCard() {
 
   const downloadPublicQR = () => {
     const baseUrl = window.location.origin;
-    const qrUrl = `${baseUrl}/qr-publico`;
+    // El QR incluye la cafetería para que los clientes se registren en la correcta
+    const cafeId = user?.clientId;
+    if (!cafeId) {
+      Swal.fire('Error', 'No se pudo identificar la cafetería. Vuelve a iniciar sesión.', 'error');
+      return;
+    }
+    const qrUrl = `${baseUrl}/qr-publico?c=${encodeURIComponent(cafeId)}`;
     
     // Crear un canvas temporal para generar el QR
     const canvas = document.createElement('canvas');

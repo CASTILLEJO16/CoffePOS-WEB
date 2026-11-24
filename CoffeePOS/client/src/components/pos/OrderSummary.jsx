@@ -3,7 +3,7 @@ import { formatCurrency } from '../../utils/formatCurrency.js';
 import { useTranslation, useCurrency } from '../../utils/i18n/useTranslation.js';
 import Button from '../common/Button.jsx';
 
-export default function OrderSummary({ subtotal, impuestos, total, onCheckout, onCancel, onClear, disabled, loyaltyDiscount = 0, loyaltyFreeProduct = null }) {
+export default function OrderSummary({ subtotal, impuestos, total, onCheckout, onCancel, onClear, disabled, loyaltyDiscount = 0, loyaltyFreeProduct = null, promoDiscount = 0 }) {
   const { t, language } = useTranslation();
   const currency = useCurrency(); // Force re-render on currency change
   // 🔥 Calcular IVA en tiempo real (evita valores viejos en el state)
@@ -25,8 +25,15 @@ export default function OrderSummary({ subtotal, impuestos, total, onCheckout, o
       <div className="order-summary-totals">
         <div className="summary-row">
           <span className="summary-label">{t('Subtotal')}</span>
-          <span className="summary-value">{formatCurrency(subtotal)}</span>
+          {/* subtotal ya viene con el descuento de promociones: mostrar el bruto */}
+          <span className="summary-value">{formatCurrency(subtotal + (promoDiscount || 0))}</span>
         </div>
+        {promoDiscount > 0 && (
+          <div className="summary-row" style={{ color: '#10b981' }}>
+            <span className="summary-label">{t('Promociones')}</span>
+            <span className="summary-value">-{formatCurrency(promoDiscount)}</span>
+          </div>
+        )}
         {loyaltyDiscount > 0 && (
           <div className="summary-row" style={{ color: '#10b981' }}>
             <span className="summary-label">{t('Descuento Lealtad')} ({loyaltyDiscount}%)</span>
