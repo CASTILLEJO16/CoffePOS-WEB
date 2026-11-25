@@ -231,15 +231,9 @@ function formatCurrency(value) {
     }).format(value);
   }
   
+  // Conteos (número de ventas, piezas vendidas): sin signo de pesos ni decimales.
   function formatNumber(value) {
-    if (currency === 'USD') {
-      return `$${Number(value).toFixed(2)}`;
-    }
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-      minimumFractionDigits: 2
-    }).format(value);
+    return new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(Number(value) || 0);
   }
 
   // Preparar datos para gráficos y tablas

@@ -260,7 +260,16 @@
   .header-user {
     gap: 8px;
   }
+  /* En celular solo se ve el punto verde; el nombre de la caja tapaba el logo */
   .cash-register-status {
-    padding: 4px 8px;
+    padding: 8px;
+  }
+  .cash-register-status .status-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 }

@@ -6,8 +6,9 @@ import { useCurrency } from '../../utils/i18n/useTranslation.js';
 export default function OrderItem({ item, onUpdateQuantity, onRemove, onEdit }) {
   const currency = useCurrency(); // Force re-render on currency change
   const hasCustomizations = item.personalizaciones && Object.keys(item.personalizaciones).length > 0;
-  const hasPromotion = item.promoDescuento && item.promoDescuento > 0;
-  const hasBuyXPayYPromo = item.promoAplicada && (item.promoAplicada.includes('2x1') || item.promoAplicada.includes('X/Y'));
+  // Booleanos explícitos: si quedaran como 0 / '' React los pintaría en pantalla ("0" suelto).
+  const hasPromotion = Boolean(item.promoDescuento && item.promoDescuento > 0);
+  const hasBuyXPayYPromo = Boolean(item.promoAplicada && (item.promoAplicada.includes('2x1') || item.promoAplicada.includes('X/Y')));
   const isCombo = item.personalizaciones?.isCombo || item.isCombo;
   const comboProducts = item.personalizaciones?.comboProducts || item.comboProducts;
 
@@ -17,6 +18,16 @@ export default function OrderItem({ item, onUpdateQuantity, onRemove, onEdit }) 
     const parts = [];
     const p = item.personalizaciones;
 
+    // Formato actual (ProductCustomizationModal): { [tipo]: [{ id, name, price }] }
+    Object.entries(p).forEach(([key, value]) => {
+      // 'toppings' (plural) es del formato antiguo y se procesa abajo
+      if (key === 'comboProducts' || key === 'toppings' || !Array.isArray(value)) return;
+      value.forEach(opt => {
+        if (opt?.name) parts.push(opt.name);
+      });
+    });
+
+    // Formato antiguo: { milkType: {...}, toppings: [...], syrup: {...}, ... }
     if (p.milkType && p.milkType.id !== 'entera') {
       parts.push(p.milkType.name);
     }
@@ -41,7 +52,10 @@ export default function OrderItem({ item, onUpdateQuantity, onRemove, onEdit }) 
       parts.push(p.teaOption.name);
     }
 
-    return parts.length > 0 ? parts.join(' • ') : null;
+    // 'syrup' existe en ambos formatos: en el nuevo es un arreglo y el bloque antiguo
+    // agregaría undefined. Se descartan vacíos para no dejar un "•" colgando.
+    const clean = parts.filter(Boolean);
+    return clean.length > 0 ? clean.join(' • ') : null;
   };
 
   const customizationText = getCustomizationText();

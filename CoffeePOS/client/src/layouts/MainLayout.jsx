@@ -100,7 +100,10 @@ export default function MainLayout({ children }) {
           </div>
           <div className="header-user">
             {cashRegister && (
-              <div className="cash-register-status">
+              <div
+                className="cash-register-status"
+                title={`${cashRegister.nombre_caja || `Caja #${cashRegister._id || cashRegister.id}`} Abierta`}
+              >
                 <span className="status-dot"></span>
                 <span className="status-text">{cashRegister.nombre_caja || `Caja #${cashRegister._id || cashRegister.id}`} Abierta</span>
               </div>
