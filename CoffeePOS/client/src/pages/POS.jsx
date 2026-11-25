@@ -20,6 +20,7 @@ import { Coffee, Search, DollarSign, CreditCard, Smartphone, X, Sun, Moon, LogOu
 import api from '../services/api.js';
 import { printTicket } from '../services/ticketService.js';
 import { printLabels } from '../services/labelService.js';
+import { cachePrintSettings } from '../utils/printUtils.js';
 import { getLoyaltyConfig } from '../services/loyaltyService.js';
 import { getAllConfig } from '../services/configService.js';
 import { getMyClient } from '../services/clientService.js';
@@ -29,6 +30,7 @@ import CashPaymentModal from '../components/pos/CashPaymentModal.jsx';
 import DollarPaymentModal from '../components/pos/DollarPaymentModal.jsx';
 import MixedPaymentModal from '../components/pos/MixedPaymentModal.jsx';
 import { useToast } from '../hooks/useToast.js';
+import PosLoyaltyBox, { loyaltyResultToast } from '../components/loyalty/PosLoyaltyBox.jsx';
 import { isPromotionActiveNow } from '../utils/promotionEngine.js';
 import Swal from 'sweetalert2';
 import './POS.css';
@@ -36,7 +38,7 @@ import './POS.css';
 export default function POS() {
   const { t, language } = useTranslation();
   const currency = useCurrency(); // Force re-render on currency change
-  const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem, setPromotions: setContextPromotions, customerPhone, setCustomerPhone, loyaltyCard, setLoyaltyCard, loyaltyDiscount, setLoyaltyDiscount, loyaltyFreeProduct, setLoyaltyFreeProduct, loadCustomerLoyalty, calculateLoyaltyDiscount, promoDiscount } = useOrder();
+  const { items, subtotal, impuestos, total, addItem, removeItem, updateQuantity, clearOrder, recalcTotals, customerName, setCustomerName, updateItem, setPromotions: setContextPromotions, customerPhone, setCustomerPhone, loyaltyCard, setLoyaltyCard, loyaltyDiscount, setLoyaltyDiscount, loyaltyFreeProduct, setLoyaltyFreeProduct, loadCustomerLoyalty, calculateLoyaltyDiscount, promoDiscount, loyaltyReward, setLoyaltyReward, loyaltyDiscountAmount, loyaltyRewardNote } = useOrder();
   console.log('[POS] Estado de la orden - Items:', items.length, 'Subtotal:', subtotal, 'Impuestos:', impuestos, 'Total:', total);
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
@@ -75,6 +77,13 @@ export default function POS() {
     } catch { return null; }
   });
   const { toast, showToast, hideToast } = useToast();
+
+  // Resultado del sello automático de lealtad al cobrar
+  useEffect(() => {
+    const onLoyalty = (e) => loyaltyResultToast(e.detail, showToast);
+    window.addEventListener('loyalty:result', onLoyalty);
+    return () => window.removeEventListener('loyalty:result', onLoyalty);
+  }, [showToast]);
 
   // Log inicial para depurar
   console.log('[POS] Componente montado - tipoCambio inicial:', 20.00);
@@ -151,33 +160,6 @@ export default function POS() {
     }
   };
 
-  const handleCustomerPhoneChange = async (phone) => {
-    setCustomerPhoneInput(phone);
-    if (phone.length >= 10) {
-      setLoadingLoyalty(true);
-      const card = await loadCustomerLoyalty(phone);
-      setLoadingLoyalty(false);
-      
-      if (card && loyaltyConfig) {
-        const { discount, freeProduct } = calculateLoyaltyDiscount(card, loyaltyConfig);
-        setLoyaltyDiscount(discount);
-        setLoyaltyFreeProduct(freeProduct);
-        
-        if (loyaltyDiscount > 0) {
-          showToast(`${t('¡Descuento de')} ${loyaltyDiscount}% ${t('aplicado por lealtad!')}`, 'success');
-        }
-        if (freeProduct) {
-          showToast(t('¡Producto gratis disponible por lealtad!'), 'success');
-        }
-      } else {
-        setLoyaltyDiscount(0);
-        setLoyaltyFreeProduct(null);
-      }
-    } else {
-      setLoyaltyDiscount(0);
-      setLoyaltyFreeProduct(null);
-    }
-  };
 
   // Escuchar cambios de promociones en tiempo real
   useEffect(() => {
@@ -335,6 +317,7 @@ export default function POS() {
       const config = await getAllConfig();
       const imprimirTicketConfig = config?.imprimir_ticket;
       const imprimirEtiquetasConfig = config?.imprimir_etiquetas;
+      cachePrintSettings(config); // tamaño de ticket/etiqueta
       // Si no existe la clave, default true para no romper flujo existente
       setImprimirTicket(imprimirTicketConfig === undefined || imprimirTicketConfig === '1' || imprimirTicketConfig === 'true');
       setImprimirEtiquetas(imprimirEtiquetasConfig === '1' || imprimirEtiquetasConfig === 'true');
@@ -425,6 +408,16 @@ export default function POS() {
       'COMBO': 'Combo'
     };
     return map[tipo] || tipo;
+  }
+
+  // Recompensa "producto gratis": si no está en la orden, se agrega igual que al tocarlo en el menú
+  function addRewardProduct(productId) {
+    const pid = String(productId);
+    if (items.some(it => String(it.producto_id) === pid)) return true;
+    const product = products.find(p => String(p._id || p.id) === pid && !p.isPromotion && !p.isCombo);
+    if (!product) return false;
+    handleProductClick(product);
+    return true;
   }
 
   function handleProductClick(product) {
@@ -653,6 +646,8 @@ export default function POS() {
       }
 
       const saleData = {
+        loyalty_qr_token: loyaltyCard?.qr_token || undefined,
+        loyalty_reward: loyaltyCard && loyaltyReward && loyaltyDiscountAmount > 0 ? loyaltyReward.key : undefined,
         items: items.map(item => ({
           producto_id: item.producto_id,
           cantidad: item.cantidad,
@@ -713,6 +708,8 @@ export default function POS() {
       setProcessing(true);
 
       const saleData = {
+        loyalty_qr_token: loyaltyCard?.qr_token || undefined,
+        loyalty_reward: loyaltyCard && loyaltyReward && loyaltyDiscountAmount > 0 ? loyaltyReward.key : undefined,
         items: items.map(item => ({
           producto_id: item.producto_id,
           cantidad: item.cantidad,
@@ -767,6 +764,8 @@ export default function POS() {
 
       setProcessing(true);
       const saleData = {
+        loyalty_qr_token: loyaltyCard?.qr_token || undefined,
+        loyalty_reward: loyaltyCard && loyaltyReward && loyaltyDiscountAmount > 0 ? loyaltyReward.key : undefined,
         items: items.map(item => ({
           producto_id: item.producto_id,
           cantidad: item.cantidad,
@@ -821,6 +820,8 @@ export default function POS() {
       setProcessing(true);
 
       const saleData = {
+        loyalty_qr_token: loyaltyCard?.qr_token || undefined,
+        loyalty_reward: loyaltyCard && loyaltyReward && loyaltyDiscountAmount > 0 ? loyaltyReward.key : undefined,
         items: items.map(item => ({
           producto_id: item.producto_id,
           cantidad: item.cantidad,
@@ -872,6 +873,8 @@ export default function POS() {
       setProcessing(true);
 
       const saleData = {
+        loyalty_qr_token: loyaltyCard?.qr_token || undefined,
+        loyalty_reward: loyaltyCard && loyaltyReward && loyaltyDiscountAmount > 0 ? loyaltyReward.key : undefined,
         items: items.map(item => ({
           producto_id: item.producto_id,
           cantidad: item.cantidad,
@@ -1048,35 +1051,19 @@ export default function POS() {
               style={{ width: '100%', padding: '10px', fontSize: '14px' }}
             />
           </div>
-          <div className="customer-phone-input" style={{ marginBottom: '15px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Phone size={18} />
-              <input
-                type="tel"
-                placeholder="Teléfono del cliente (para descuento de lealtad)"
-                className="form-input"
-                value={customerPhoneInput}
-                onChange={(e) => handleCustomerPhoneChange(e.target.value)}
-                style={{ flex: 1, padding: '10px', fontSize: '14px' }}
-              />
-              {loadingLoyalty && <span style={{ fontSize: '12px' }}>Buscando...</span>}
-            </div>
-            {loyaltyCard && (
-              <div style={{ marginTop: '8px', fontSize: '12px', color: '#10b981' }}>
-                ✓ Cliente con {loyaltyCard.sellos_actuales} sellos
-              </div>
-            )}
-            {loyaltyDiscount > 0 && (
-              <div style={{ marginTop: '8px', fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>
-                ✓ Descuento de {loyaltyDiscount}% aplicado
-              </div>
-            )}
-            {loyaltyFreeProduct && (
-              <div style={{ marginTop: '8px', fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>
-                ✓ Producto gratis disponible: {loyaltyFreeProduct.description}
-              </div>
-            )}
-          </div>
+          <PosLoyaltyBox
+            card={loyaltyCard}
+            onCardChange={setLoyaltyCard}
+            onCustomerName={(n) => { if (!customerName) setCustomerName(n); }}
+            reward={loyaltyReward}
+            onRewardChange={setLoyaltyReward}
+            discountAmount={loyaltyDiscountAmount}
+            rewardNote={loyaltyRewardNote}
+            config={loyaltyConfig}
+            onAddProduct={addRewardProduct}
+            showToast={showToast}
+            disabled={processing}
+          />
           
           {items.length === 0 ? (
             <div className="order-empty">
@@ -1096,7 +1083,7 @@ export default function POS() {
                 ))}
               </div>
               
-              <OrderSummary promoDiscount={promoDiscount}
+              <OrderSummary promoDiscount={promoDiscount} loyaltyDiscountAmount={loyaltyDiscountAmount} loyaltyRewardLabel={loyaltyReward?.description}
                 subtotal={subtotal}
                 impuestos={impuestos}
                 total={total}
@@ -1104,8 +1091,6 @@ export default function POS() {
                 onCancel={handleCancelSale}
                 onClear={handleClearOrder}
                 disabled={processing}
-                loyaltyDiscount={loyaltyDiscount}
-                loyaltyFreeProduct={loyaltyFreeProduct}
               />
               {/* Atajos de teclado accesibles */}
               <div style={{ fontSize: 11, opacity: 0.7, marginTop: 8 }}>
@@ -1143,6 +1128,19 @@ export default function POS() {
               <div className="customer-name-input">
                 <input type="text" placeholder="Nombre del cliente (para etiqueta)" className="form-input" value={customerName} onChange={(e)=>setCustomerName(e.target.value)} style={{ width:'100%', padding:'10px', fontSize:'14px' }} />
               </div>
+              <PosLoyaltyBox
+                card={loyaltyCard}
+                onCardChange={setLoyaltyCard}
+                onCustomerName={(n) => { if (!customerName) setCustomerName(n); }}
+                reward={loyaltyReward}
+                onRewardChange={setLoyaltyReward}
+                discountAmount={loyaltyDiscountAmount}
+                rewardNote={loyaltyRewardNote}
+                config={loyaltyConfig}
+                onAddProduct={addRewardProduct}
+                showToast={showToast}
+                disabled={processing}
+              />
               {items.length===0 ? <div className="order-empty"><p>No hay productos en la orden</p></div> : (
                 <>
                   <div className="order-items" style={{flex:'none'}}>
@@ -1150,7 +1148,7 @@ export default function POS() {
                       <OrderItem key={item.uniqueId} item={item} onRemove={(id)=>{handleRemoveItem(id); if(items.length<=1) setShowMobileCart(false);}} onUpdateQuantity={(id,qty)=>updateQuantity(id,qty)} onEdit={handleEditItem} />
                     ))}
                   </div>
-                  <OrderSummary promoDiscount={promoDiscount} subtotal={subtotal} impuestos={impuestos} total={total} onCheckout={()=>{setShowMobileCart(false); handleCheckout();}} onCancel={()=>{handleCancelSale(); setShowMobileCart(false);}} onClear={()=>{handleClearOrder(); setShowMobileCart(false);}} disabled={processing} loyaltyDiscount={loyaltyDiscount} loyaltyFreeProduct={loyaltyFreeProduct} />
+                  <OrderSummary promoDiscount={promoDiscount} loyaltyDiscountAmount={loyaltyDiscountAmount} loyaltyRewardLabel={loyaltyReward?.description} subtotal={subtotal} impuestos={impuestos} total={total} onCheckout={()=>{setShowMobileCart(false); handleCheckout();}} onCancel={()=>{handleCancelSale(); setShowMobileCart(false);}} onClear={()=>{handleClearOrder(); setShowMobileCart(false);}} disabled={processing} />
                 </>
               )}
             </div>

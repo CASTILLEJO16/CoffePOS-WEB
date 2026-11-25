@@ -46,6 +46,20 @@ const rewardSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  // 'main' (tarjeta completa) o 'tier:<id>' (nivel)
+  clave: {
+    type: String,
+    default: 'main'
+  },
+  descuento: {
+    type: Number,
+    default: 0
+  },
+  // true si la venta se canceló/devolvió y la recompensa se le regresó al cliente
+  revertida: {
+    type: Boolean,
+    default: false
+  },
   fecha_canje: {
     type: Date,
     default: Date.now

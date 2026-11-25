@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
-import { QrCode, Search, Plus, User, Award, Clock, X, Download, CheckCircle, Filter, Settings, Trash2, Plus as Add, Camera } from 'lucide-react';
+import { QrCode, Search, Plus, User, Award, Clock, X, Download, CheckCircle, Filter, Settings, Trash2, Plus as Add, Camera, UserX, UserCheck } from 'lucide-react';
 import { getCardByQRToken, addStamp, redeemReward, getLoyaltyConfig, getAllLoyaltyCards, updateLoyaltyConfig } from '../services/loyaltyService.js';
-import { getCustomerByPhone } from '../services/customerService.js';
+import { getCustomerByPhone, setCustomerStatus, deleteCustomer } from '../services/customerService.js';
+import { getProducts } from '../services/productService.js';
+import CameraQrScanner from '../components/loyalty/CameraQrScanner.jsx';
+import { extractToken } from '../components/loyalty/PosLoyaltyBox.jsx';
 import LoyaltyCardGenerator from '../components/LoyaltyCardGenerator.jsx';
 import Swal from 'sweetalert2';
 import QRCode from 'qrcode';
@@ -16,6 +19,7 @@ export default function LoyaltyCard() {
   const [card, setCard] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   const [manualPhone, setManualPhone] = useState('');
   const [config, setConfig] = useState(null);
   const [lastSaleId, setLastSaleId] = useState('');
@@ -24,12 +28,14 @@ export default function LoyaltyCard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [rewards, setRewards] = useState([]);
+  const [menuProducts, setMenuProducts] = useState([]);
   const [configForm, setConfigForm] = useState({
     enabled: true,
     programName: 'Programa de Lealtad',
     stampsRequired: 10,
     minPurchase: 0,
-    rewardProduct: 'Café gratis'
+    rewardProduct: 'Café gratis',
+    rewardProductId: ''
   });
   const [generatedCardImage, setGeneratedCardImage] = useState(null);
   const [businessName, setBusinessName] = useState('Mi Cafetería');
@@ -53,7 +59,8 @@ export default function LoyaltyCard() {
         programName: response.data.programName,
         stampsRequired: response.data.stampsRequired,
         minPurchase: response.data.minPurchase,
-        rewardProduct: response.data.rewardProduct
+        rewardProduct: response.data.rewardProduct,
+        rewardProductId: response.data.rewardProductId || ''
       });
       setRewards(response.data.rewards || []);
     } catch (error) {
@@ -79,10 +86,22 @@ export default function LoyaltyCard() {
     loadAllCards();
   }, [searchTerm]);
 
-  const handleQRScan = async (token) => {
-    if (!token) return;
-    setQrToken(token);
+  useEffect(() => {
+    if (!showConfigModal || menuProducts.length > 0) return;
+    getProducts()
+      .then(list => setMenuProducts((list || []).filter(p => p && p._id && !p.isPromotion && !p.isCombo)))
+      .catch(() => setMenuProducts([]));
+  }, [showConfigModal]);
+
+  const handleQRScan = async (raw) => {
+    const token = extractToken(raw);
     setShowScanner(false);
+    setShowCamera(false);
+    if (!token) {
+      Swal.fire('Código inválido', 'Ese código no es una tarjeta de lealtad', 'warning');
+      return;
+    }
+    setQrToken(token);
     await loadCard(token);
     setShowAllCards(false);
   };
@@ -100,7 +119,7 @@ export default function LoyaltyCard() {
       }
     } catch (error) {
       console.error('Error loading card:', error);
-      Swal.fire('Error', 'Error al cargar la tarjeta', 'error');
+      Swal.fire('Error', error.response?.data?.message || 'Error al cargar la tarjeta', 'error');
       setCard(null);
     } finally {
       setLoading(false);
@@ -121,23 +140,24 @@ export default function LoyaltyCard() {
     try {
       setLoading(true);
       const response = await getCustomerByPhone(manualPhone.trim());
-      if (response.success && response.data.loyaltyCard) {
-        setCard(response.data.loyaltyCard);
-        setQrToken(response.data.loyaltyCard.qr_token);
+      const foundCard = response.success ? response.data?.loyaltyCardId : null;
+      if (foundCard?.qr_token) {
+        setCard({ ...foundCard, customerId: response.data });
+        setQrToken(foundCard.qr_token);
         setShowAllCards(false);
-        
-        // Generar QR code
-        const qrResponse = await getCardByQRToken(response.data.loyaltyCard.qr_token);
-        if (qrResponse.success) {
-          setCard(qrResponse.data);
-        }
+        // Datos completos + imagen del QR (solo si la tarjeta está activa)
+        try {
+          const qrResponse = await getCardByQRToken(foundCard.qr_token);
+          if (qrResponse.success) setCard(qrResponse.data);
+        } catch { /* tarjeta bloqueada: se muestra con los datos básicos */ }
       } else {
         Swal.fire('No encontrado', 'Cliente no encontrado o sin tarjeta de lealtad', 'warning');
         setCard(null);
       }
     } catch (error) {
       console.error('Error searching customer:', error);
-      Swal.fire('Error', 'Error al buscar cliente', 'error');
+      const notFound = error.response?.status === 404;
+      Swal.fire(notFound ? 'No encontrado' : 'Error', notFound ? 'No hay cliente con ese teléfono' : 'Error al buscar cliente', notFound ? 'warning' : 'error');
       setCard(null);
     } finally {
       setLoading(false);
@@ -146,13 +166,13 @@ export default function LoyaltyCard() {
 
   const handleAddStamp = async () => {
     if (!lastSaleId.trim()) {
-      Swal.fire('Error', 'Ingresa el ID de la venta', 'warning');
+      Swal.fire('Falta el número de venta', 'Escribe el número de venta que aparece en el ticket (ej. 130). En el POS el sello se agrega solo al cobrar.', 'warning');
       return;
     }
     try {
       const result = await Swal.fire({
         title: '¿Agregar sello?',
-        text: `Agregar sello para ${card.customerId?.nombre || 'cliente'}`,
+        text: `Agregar sello a ${card.customerId?.nombre || 'cliente'} por la venta #${lastSaleId.trim().replace(/^#/, '')}`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonText: 'Sí, agregar',
@@ -162,8 +182,8 @@ export default function LoyaltyCard() {
       if (result.isConfirmed) {
         setLoading(true);
         const response = await addStamp({
-          qr_token: qrToken,
-          venta_id: lastSaleId.trim()
+          loyaltyCardId: card._id,
+          numero_venta: lastSaleId.trim()
         });
 
         if (response.success) {
@@ -181,7 +201,7 @@ export default function LoyaltyCard() {
       }
     } catch (error) {
       console.error('Error adding stamp:', error);
-      Swal.fire('Error', 'Error al agregar sello', 'error');
+      Swal.fire('No se agregó el sello', error.response?.data?.message || 'Error al agregar sello', 'error');
     } finally {
       setLoading(false);
     }
@@ -202,7 +222,6 @@ export default function LoyaltyCard() {
         setLoading(true);
         const response = await redeemReward({
           loyaltyCardId: card._id,
-          venta_id: lastSaleId.trim() || null,
           producto_recompensa: config?.rewardProduct || 'Café gratis'
         });
 
@@ -220,7 +239,7 @@ export default function LoyaltyCard() {
       }
     } catch (error) {
       console.error('Error redeeming reward:', error);
-      Swal.fire('Error', 'Error al canjear recompensa', 'error');
+      Swal.fire('Error', error.response?.data?.message || 'Error al canjear recompensa', 'error');
     } finally {
       setLoading(false);
     }
@@ -228,7 +247,7 @@ export default function LoyaltyCard() {
 
   const handleDownloadQR = async () => {
     if (!card || !card.qr_token) return;
-    
+
     // Usar la imagen generada si existe, si no generarla
     if (generatedCardImage) {
       try {
@@ -238,7 +257,7 @@ export default function LoyaltyCard() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
+
         Swal.fire({
           title: '¡Descargado!',
           text: 'La tarjeta se ha descargado correctamente',
@@ -259,7 +278,7 @@ export default function LoyaltyCard() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
+
         Swal.fire({
           title: '¡Descargado!',
           text: 'El QR se ha descargado correctamente',
@@ -271,6 +290,66 @@ export default function LoyaltyCard() {
         console.error('Error downloading QR:', error);
         Swal.fire('Error', 'Error al descargar el QR', 'error');
       }
+    }
+  };
+
+  const handleToggleStatus = async () => {
+    const customerId = card?.customerId?._id;
+    if (!customerId) return;
+    const darDeBaja = card.estado === 'activa';
+    const result = await Swal.fire({
+      title: darDeBaja ? '¿Dar de baja a este cliente?' : '¿Reactivar a este cliente?',
+      text: darDeBaja
+        ? 'Su tarjeta queda bloqueada: no recibe sellos ni puede canjear. Se conserva su historial y puedes reactivarlo después.'
+        : 'Su tarjeta vuelve a estar activa con los sellos que tenía.',
+      icon: darDeBaja ? 'warning' : 'question',
+      showCancelButton: true,
+      confirmButtonText: darDeBaja ? 'Sí, dar de baja' : 'Sí, reactivar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: darDeBaja ? '#f59e0b' : '#10b981'
+    });
+    if (!result.isConfirmed) return;
+    try {
+      setLoading(true);
+      const response = await setCustomerStatus(customerId, !darDeBaja);
+      setCard({ ...card, estado: response.data?.loyaltyCard?.estado || (darDeBaja ? 'bloqueada' : 'activa') });
+      await loadAllCards();
+      Swal.fire({ title: response.message, icon: 'success', timer: 1800, showConfirmButton: false });
+    } catch (error) {
+      Swal.fire('Error', error.response?.data?.message || 'No se pudo cambiar el estado', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCustomer = async () => {
+    const customerId = card?.customerId?._id;
+    if (!customerId) return;
+    const nombre = card.customerId?.nombre || 'este cliente';
+    const result = await Swal.fire({
+      title: `¿Eliminar a ${nombre}?`,
+      html: 'Se borran <b>definitivamente</b> el cliente, su tarjeta, sus sellos y recompensas. Las ventas no se tocan.<br><br>Esto no se puede deshacer. Si solo quieres que deje de usarla, mejor <b>dale de baja</b>.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#ef4444',
+      input: 'text',
+      inputPlaceholder: 'Escribe ELIMINAR para confirmar',
+      inputValidator: (v) => (v || '').trim().toUpperCase() === 'ELIMINAR' ? undefined : 'Escribe ELIMINAR para confirmar'
+    });
+    if (!result.isConfirmed) return;
+    try {
+      setLoading(true);
+      const response = await deleteCustomer(customerId);
+      setCard(null);
+      setShowAllCards(true);
+      await loadAllCards();
+      Swal.fire({ title: response.message || 'Cliente eliminado', icon: 'success', timer: 1800, showConfirmButton: false });
+    } catch (error) {
+      Swal.fire('Error', error.response?.data?.message || 'No se pudo eliminar', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -302,8 +381,8 @@ export default function LoyaltyCard() {
     return (
       <div className="cards-grid">
         {allCards.map((cardItem) => (
-          <div 
-            key={cardItem._id} 
+          <div
+            key={cardItem._id}
             className="card-item"
             onClick={() => selectCard(cardItem)}
           >
@@ -349,14 +428,16 @@ export default function LoyaltyCard() {
       }
     } catch (error) {
       console.error('Error saving config:', error);
-      Swal.fire('Error', 'Error al guardar configuración', 'error');
+      Swal.fire('No se guardó', error.response?.data?.message || 'Error al guardar configuración', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const addReward = () => {
-    setRewards([...rewards, { stamps: 5, type: 'discount', value: 10, description: 'Descuento' }]);
+    const req = Number(configForm.stampsRequired) || 10;
+    const stamps = Math.max(1, Math.min(req - 1, Math.floor(req / 2)));
+    setRewards([...rewards, { stamps, type: 'discount', value: 10, description: '10% de descuento' }]);
   };
 
   const removeReward = (index) => {
@@ -364,8 +445,7 @@ export default function LoyaltyCard() {
   };
 
   const updateReward = (index, field, value) => {
-    const updatedRewards = [...rewards];
-    updatedRewards[index][field] = value;
+    const updatedRewards = rewards.map((r, i) => (i === index ? { ...r, [field]: value } : r));
     setRewards(updatedRewards);
   };
 
@@ -378,7 +458,7 @@ export default function LoyaltyCard() {
       return;
     }
     const qrUrl = `${baseUrl}/qr-publico?c=${encodeURIComponent(cafeId)}`;
-    
+
     // Crear un canvas temporal para generar el QR
     const canvas = document.createElement('canvas');
     QRCode.toCanvas(canvas, qrUrl, { width: 400, margin: 2 }, (error) => {
@@ -387,7 +467,7 @@ export default function LoyaltyCard() {
         Swal.fire('Error', 'Error al generar QR', 'error');
         return;
       }
-      
+
       // Descargar el QR como imagen
       const link = document.createElement('a');
       link.download = 'qr-registro-clientes.png';
@@ -395,7 +475,7 @@ export default function LoyaltyCard() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       Swal.fire({
         title: '¡QR Descargado!',
         text: 'Este QR es para que los clientes se registren. Imprímelo y colócalo visible.',
@@ -447,7 +527,7 @@ export default function LoyaltyCard() {
                 <X size={24} />
               </button>
             </div>
-            
+
             <div className="config-form">
               <div className="form-group">
                 <label>Nombre del Programa</label>
@@ -474,7 +554,8 @@ export default function LoyaltyCard() {
                 <input
                   type="number"
                   value={configForm.stampsRequired}
-                  onChange={(e) => setConfigForm({...configForm, stampsRequired: parseInt(e.target.value)})}
+                  min="1"
+                  onChange={(e) => setConfigForm({...configForm, stampsRequired: Math.max(1, parseInt(e.target.value) || 1)})}
                 />
               </div>
 
@@ -488,17 +569,27 @@ export default function LoyaltyCard() {
               </div>
 
               <div className="form-group">
-                <label>Producto de Recompensa Principal</label>
+                <label>Recompensa al completar la tarjeta</label>
                 <input
                   type="text"
                   value={configForm.rewardProduct}
                   onChange={(e) => setConfigForm({...configForm, rewardProduct: e.target.value})}
                 />
+                <select
+                  value={configForm.rewardProductId || ''}
+                  onChange={(e) => setConfigForm({...configForm, rewardProductId: e.target.value})}
+                  style={{ marginTop: 6 }}
+                >
+                  <option value="">Sin producto ligado (el cajero lo entrega con "Canjear")</option>
+                  {menuProducts.map(p => (
+                    <option key={p._id} value={p._id}>{p.nombre} — se descuenta su precio al cobrar</option>
+                  ))}
+                </select>
               </div>
 
               <div className="rewards-section">
                 <div className="rewards-header">
-                  <h3>Recompensas Adicionales</h3>
+                  <h3>Recompensas por nivel <small style={{ fontWeight: 400, fontSize: 12, opacity: 0.75 }}>(se usan una vez por tarjeta, en la compra siguiente a llegar a esos sellos)</small></h3>
                   <button onClick={addReward} className="btn btn-sm btn-primary">
                     <Add size={16} /> Agregar
                   </button>
@@ -508,9 +599,11 @@ export default function LoyaltyCard() {
                   <div key={index} className="reward-item">
                     <div className="reward-fields">
                       <div className="reward-field">
-                        <label>Sellos</label>
+                        <label>Al llegar a (sellos)</label>
                         <input
                           type="number"
+                          min="1"
+                          max={Math.max(1, (Number(configForm.stampsRequired) || 10) - 1)}
                           value={reward.stamps}
                           onChange={(e) => updateReward(index, 'stamps', parseInt(e.target.value))}
                         />
@@ -525,14 +618,31 @@ export default function LoyaltyCard() {
                           <option value="free">Producto Gratis</option>
                         </select>
                       </div>
-                      <div className="reward-field">
-                        <label>Valor</label>
-                        <input
-                          type="number"
-                          value={reward.value}
-                          onChange={(e) => updateReward(index, 'value', parseFloat(e.target.value))}
-                        />
-                      </div>
+                      {reward.type === 'free' ? (
+                        <div className="reward-field">
+                          <label>Producto</label>
+                          <select
+                            value={reward.product_id || ''}
+                            onChange={(e) => updateReward(index, 'product_id', e.target.value || null)}
+                          >
+                            <option value="">Lo entrega el cajero (Canjear)</option>
+                            {menuProducts.map(p => (
+                              <option key={p._id} value={p._id}>{p.nombre}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <div className="reward-field">
+                          <label>Descuento %</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={reward.value}
+                            onChange={(e) => updateReward(index, 'value', parseFloat(e.target.value))}
+                          />
+                        </div>
+                      )}
                       <div className="reward-field">
                         <label>Descripción</label>
                         <input
@@ -583,7 +693,8 @@ export default function LoyaltyCard() {
               <div className="search-inputs">
                 <input
                   type="text"
-                  placeholder="ID de venta para sello"
+                  placeholder="No. de venta del ticket (ej. 130)"
+                  inputMode="numeric"
                   value={lastSaleId}
                   onChange={(e) => setLastSaleId(e.target.value)}
                   className="sale-input"
@@ -599,7 +710,10 @@ export default function LoyaltyCard() {
                   <Search size={20} /> Buscar
                 </button>
                 <button onClick={() => setShowScanner(true)} className="btn btn-primary">
-                  <Camera size={20} /> Ingresar QR
+                  <QrCode size={20} /> Lector QR
+                </button>
+                <button onClick={() => setShowCamera(true)} className="btn btn-primary">
+                  <Camera size={20} /> Cámara
                 </button>
               </div>
             </div>
@@ -628,6 +742,10 @@ export default function LoyaltyCard() {
             </div>
           )}
 
+          {showCamera && (
+            <CameraQrScanner onDetect={handleQRScan} onClose={() => setShowCamera(false)} />
+          )}
+
           {loading && <div className="loading">Cargando...</div>}
 
           {card && (
@@ -647,7 +765,7 @@ export default function LoyaltyCard() {
                   <h2>{config?.programName || 'Programa de Lealtad'}</h2>
                   <span className={`status ${card.estado}`}>{card.estado}</span>
                 </div>
-                
+
                 <div className="customer-info">
                   <User size={20} />
                   <span>{card.customerId?.nombre || 'Cliente'}</span>
@@ -701,6 +819,23 @@ export default function LoyaltyCard() {
                       </button>
                     )}
                   </>
+                )}
+                {card.estado !== 'activa' && (
+                  <div className="card-inactive-note" style={{ color: '#b45309', fontWeight: 600 }}>
+                    Cliente dado de baja: no recibe sellos ni puede canjear.
+                  </div>
+                )}
+                {isAdmin && card.customerId?._id && (
+                  <div className="admin-customer-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                    <button onClick={handleToggleStatus} className="btn btn-secondary" disabled={loading}>
+                      {card.estado === 'activa'
+                        ? <><UserX size={18} /> Dar de baja</>
+                        : <><UserCheck size={18} /> Reactivar</>}
+                    </button>
+                    <button onClick={handleDeleteCustomer} className="btn btn-danger" disabled={loading}>
+                      <Trash2 size={18} /> Eliminar cliente
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

@@ -25,6 +25,7 @@ import promotionRoutes from './routes/promotionRoutes.js';
 import customerRoutes from './routes/customerRoutes.js';
 import loyaltyRoutes from './routes/loyaltyRoutes.js';
 import openTicketRoutes from './routes/openTicketRoutes.js';
+import walletRoutes from './routes/walletRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -62,7 +63,7 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) return callback(null, true);
     // Localhost solo en puertos específicos (desarrollo local más seguro)
     if (process.env.NODE_ENV !== 'production') {
-      const localhostPorts = ['3000', '5173', '5174'];
+      const localhostPorts = ['3000', '3002', '5173', '5174']; // 3002 = DeveloperPanel (vite)
       const portMatch = origin.match(/localhost:(\d+)/) || origin.match(/127\.0\.0\.1:(\d+)/);
       if (portMatch && localhostPorts.includes(portMatch[1])) {
         return callback(null, true);
@@ -110,6 +111,7 @@ app.use('/api/promociones', promotionRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/loyalty', loyaltyRoutes);
 app.use('/api/opentickets', openTicketRoutes);
+app.use('/api/wallet', walletRoutes);
 
 // Ruta de health check
 app.get('/api/health', (req, res) => {

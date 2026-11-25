@@ -77,6 +77,17 @@ const SaleSchema = new mongoose.Schema({
   motivo_devolucion: {
     type: String
   },
+  // Programa de lealtad: descuento aplicado en esta venta y la recompensa que lo generó
+  descuento_lealtad: {
+    type: Number,
+    default: 0
+  },
+  recompensa_lealtad: {
+    clave: String,        // 'main' o 'tier:<id>'
+    tipo: String,         // 'discount' | 'free'
+    descripcion: String,
+    loyaltyCardId: { type: mongoose.Schema.Types.ObjectId, ref: 'LoyaltyCard' }
+  },
   tipo_cambio: {
     type: Number
   },

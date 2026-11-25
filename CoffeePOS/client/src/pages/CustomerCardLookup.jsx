@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { QrCode, Search, User, Phone, CheckCircle, Download } from 'lucide-react';
 import { publicLookupCustomer, getPublicCafeIdFromUrl } from '../services/customerService.js';
 import Swal from 'sweetalert2';
+import GoogleWalletButton from '../components/GoogleWalletButton.jsx';
 
 export default function CustomerCardLookup() {
   const [phone, setPhone] = useState('');
@@ -318,6 +319,7 @@ export default function CustomerCardLookup() {
             <button onClick={downloadQR} style={{...styles.button, ...styles.buttonSecondary}}>
               <Download size={20} /> Descargar QR
             </button>
+            <GoogleWalletButton qrToken={card.qr_token} />
           </div>
         )}
 

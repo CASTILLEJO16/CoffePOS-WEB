@@ -4,7 +4,7 @@
 
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import { authenticateToken as authenticate } from '../middlewares/authMiddleware.js';
+import { authenticateToken as authenticate, requireAdmin } from '../middlewares/authMiddleware.js';
 import * as customerController from '../controllers/customerController.js';
 
 const router = express.Router();
@@ -35,6 +35,8 @@ router.get('/phone/:telefono', customerController.getCustomerByPhone);
 
 router.get('/:id', customerController.getCustomerById);
 router.put('/:id', customerController.updateCustomer);
-router.patch('/:id/status', customerController.toggleCustomerStatus);
+// Baja / eliminación: solo el admin de la cafetería
+router.patch('/:id/status', requireAdmin, customerController.toggleCustomerStatus);
+router.delete('/:id', requireAdmin, customerController.deleteCustomer);
 
 export default router;

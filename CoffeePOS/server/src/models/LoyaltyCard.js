@@ -50,6 +50,11 @@ const loyaltyCardSchema = new mongoose.Schema({
   },
   ultima_recompensa_canjeada: {
     type: Date
+  },
+  // Ids de los niveles de recompensa ya usados en el ciclo actual (se vacía al empezar ciclo)
+  niveles_usados: {
+    type: [String],
+    default: []
   }
 }, {
   timestamps: true

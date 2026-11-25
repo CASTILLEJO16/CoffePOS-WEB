@@ -67,3 +67,15 @@ export const toggleCustomerStatus = async (id) => {
   const response = await api.patch(`/customers/${id}/status`);
   return response.data;
 };
+
+// Dar de baja (activo=false) o reactivar (activo=true) a un cliente — solo admin
+export const setCustomerStatus = async (id, activo) => {
+  const response = await api.patch(`/customers/${id}/status`, { activo });
+  return response.data;
+};
+
+// Eliminar cliente definitivamente (tarjeta, sellos y recompensas) — solo admin
+export const deleteCustomer = async (id) => {
+  const response = await api.delete(`/customers/${id}`);
+  return response.data;
+};

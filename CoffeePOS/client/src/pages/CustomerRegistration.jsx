@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { QrCode, User, Phone, Mail, CheckCircle } from 'lucide-react';
 import { publicRegisterCustomer, getPublicCafeInfo, getPublicCafeIdFromUrl } from '../services/customerService.js';
 import LoyaltyCardGenerator from '../components/LoyaltyCardGenerator.jsx';
+import GoogleWalletButton from '../components/GoogleWalletButton.jsx';
 import Swal from 'sweetalert2';
 
 export default function CustomerRegistration() {
@@ -321,6 +322,7 @@ export default function CustomerRegistration() {
             <button onClick={downloadQR} style={styles.button} disabled={!generatedCardImage}>
               <QrCode size={24} /> Guardar Tarjeta en Fotos
             </button>
+            <GoogleWalletButton qrToken={registeredCard.qr_token} style={{ marginTop: '12px' }} />
             <p style={styles.instructions}>
               <strong>Instrucciones:</strong>
               <br />

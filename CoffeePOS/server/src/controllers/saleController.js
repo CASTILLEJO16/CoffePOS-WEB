@@ -4,6 +4,40 @@ import { logAction } from '../services/logService.js';
 import mongoose from 'mongoose';
 import Sale from '../models/Sale.js';
 import { belongsToRequester } from '../utils/tenant.js';
+import { stampCardForSale, revertStampForSale, revertRewardForSale, LoyaltyError } from '../services/loyaltyService.js';
+
+/**
+ * Sello automático: si el cajero escaneó la tarjeta del cliente, la venta da su sello.
+ * Nunca hace fallar la venta (ya está cobrada): solo informa el resultado al POS.
+ */
+async function applyLoyaltyStamp(req, sale) {
+  const qrToken = req.body?.loyalty_qr_token;
+  const cardId = req.body?.loyalty_card_id;
+  if (!qrToken && !cardId) return null;
+  try {
+    const saleDoc = await Sale.findOne({ _id: sale._id, clientId: req.user?.clientId });
+    return await stampCardForSale({
+      clientId: req.user?.clientId,
+      sale: saleDoc,
+      qrToken,
+      cardId,
+      empleadoId: req.user?.userId
+    });
+  } catch (error) {
+    if (!error.status) console.error('Error al otorgar sello automático:', error);
+    return { stamped: false, message: error.status ? error.message : 'No se pudo agregar el sello' };
+  }
+}
+
+/** Quita el sello de una venta cancelada/devuelta (no bloquea la operación). */
+async function revertLoyaltyStamp(req, saleId, clientId, motivo) {
+  try {
+    await revertStampForSale({ clientId, saleId, empleadoId: req.user?.userId, motivo });
+    await revertRewardForSale({ clientId, saleId }); // regresar el descuento/premio usado en la venta
+  } catch (error) {
+    console.error(`[lealtad] No se pudo revertir el sello de la venta ${saleId}:`, error.message);
+  }
+}
 
 /**
  * Controlador de Ventas
@@ -134,10 +168,12 @@ export async function createSale(req, res) {
     const clientId = req.user?.clientId;
 
     const sale = await saleService.createSale(saleData, userId, clientId);
+    const loyalty = await applyLoyaltyStamp(req, sale);
 
     res.status(201).json({
       success: true,
       data: sale,
+      loyalty,
       stockAlertas: sale.stockAlertas || null,
       hasStockAlertas: sale.hasStockAlertas || false
     });
@@ -145,7 +181,8 @@ export async function createSale(req, res) {
     console.error('Error en createSale:', error);
     // Stock insuficiente -> 400 con detalles para que el POS muestre alerta de "sin stock"
     const isStockError = error.code === 'INSUFFICIENT_STOCK' || error.message?.includes('Stock insuficiente');
-    const status = isStockError ? 400 : 500;
+    // Errores de lealtad (recompensa ya usada, tarjeta bloqueada...) traen su propio status 4xx
+    const status = isStockError ? 400 : (error instanceof LoyaltyError ? error.status : 500);
     res.status(status).json({
       success: false,
       error: error.message,
@@ -176,6 +213,7 @@ export async function cancelSale(req, res) {
     }
 
     await saleService.cancelSale(id, userId);
+    await revertLoyaltyStamp(req, id, saleOwner.clientId, 'Venta cancelada');
 
     res.json({
       success: true,
@@ -235,6 +273,7 @@ export async function refundSale(req, res) {
 
     // Realizar la devolución
     await saleService.refundSale(id, userId, motivo, clientId);
+    await revertLoyaltyStamp(req, id, saleOwner.clientId, motivo ? `Devolución: ${motivo}` : 'Venta devuelta');
 
     res.json({
       success: true,

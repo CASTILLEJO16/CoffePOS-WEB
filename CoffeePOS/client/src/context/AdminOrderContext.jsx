@@ -1,6 +1,7 @@
 import { createContext, useContext, useReducer } from 'react';
 import { getCustomerByPhone } from '../services/customerService.js';
 import { calculateCartTotals, getIVARate as getCartIVARate } from '../utils/cartTotals.js';
+import { computeRewardDiscount, round2 as round2Loyalty } from '../utils/loyaltyRewards.js';
 
 /**
  * Contexto de Orden exclusivo para el Admin.
@@ -35,6 +36,7 @@ const initialState = {
   loyaltyCard: null,
   loyaltyDiscount: 0,
   loyaltyFreeProduct: null,
+  loyaltyReward: null,
   promotions: [],
   productsMap: new Map()
 };
@@ -223,7 +225,15 @@ function orderReducer(state, action) {
     case 'SET_LOYALTY_CARD': {
       return {
         ...state,
-        loyaltyCard: action.payload
+        loyaltyCard: action.payload,
+        loyaltyReward: action.payload ? state.loyaltyReward : null
+      };
+    }
+
+    case 'SET_LOYALTY_REWARD': {
+      return {
+        ...state,
+        loyaltyReward: action.payload || null
       };
     }
 
@@ -264,6 +274,7 @@ export function AdminOrderProvider({ children }) {
 
   const setCustomerPhone = (phone) => dispatch({ type: 'SET_CUSTOMER_PHONE', payload: phone });
   const setLoyaltyCard = (card) => dispatch({ type: 'SET_LOYALTY_CARD', payload: card });
+  const setLoyaltyReward = (reward) => dispatch({ type: 'SET_LOYALTY_REWARD', payload: reward });
   const setLoyaltyDiscount = (discount) => dispatch({ type: 'SET_LOYALTY_DISCOUNT', payload: discount });
   const setLoyaltyFreeProduct = (product) => dispatch({ type: 'SET_LOYALTY_FREE_PRODUCT', payload: product });
 
@@ -312,8 +323,32 @@ export function AdminOrderProvider({ children }) {
     return { discount: 0, freeProduct: null };
   };
 
-  const value = { 
-    ...state, 
+  // Recompensa de lealtad aplicada a esta orden: descuento REAL (el servidor cobra exactamente esto,
+  // con la misma función computeRewardDiscount). Se aplica después de promociones y antes del IVA.
+  const loyaltyCalc = state.loyaltyReward
+    ? computeRewardDiscount(
+        state.loyaltyReward,
+        (state.items || []).map(i => ({
+          producto_id: String(i.producto_id),
+          precio: Number(i.precio_final) || 0,
+          isCombo: !!(i.isCombo || i.personalizaciones?.isCombo)
+        })),
+        state.subtotal
+      )
+    : { amount: 0, reason: null };
+  const loyaltyDiscountAmount = loyaltyCalc.amount || 0;
+  const finalSubtotal = loyaltyDiscountAmount > 0 ? round2Loyalty(state.subtotal - loyaltyDiscountAmount) : state.subtotal;
+  const finalImpuestos = loyaltyDiscountAmount > 0 ? round2Loyalty(finalSubtotal * getCartIVARate()) : state.impuestos;
+  const finalTotal = loyaltyDiscountAmount > 0 ? round2Loyalty(finalSubtotal + finalImpuestos) : state.total;
+
+  const value = {
+    ...state,
+    subtotal: finalSubtotal,
+    impuestos: finalImpuestos,
+    total: finalTotal,
+    loyaltyDiscountAmount,
+    loyaltyRewardNote: state.loyaltyReward ? loyaltyCalc.reason : null,
+    setLoyaltyReward,
     addItem, 
     removeItem, 
     updateQuantity, 

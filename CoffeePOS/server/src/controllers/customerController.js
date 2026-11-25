@@ -10,6 +10,10 @@ import Client from '../models/Client.js';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 import QRCode from 'qrcode';
+import StampHistory from '../models/StampHistory.js';
+import Reward from '../models/Reward.js';
+import { logAction } from '../services/logService.js';
+import { syncGoogleCard, disableGoogleCard } from '../services/googleWalletService.js';
 
 // Generar token QR único y seguro
 function generateQRToken() {
@@ -344,44 +348,73 @@ export const updateCustomer = async (req, res) => {
   }
 };
 
-// Bloquear/desbloquear cliente
+// Dar de baja / reactivar cliente (solo admin). La baja bloquea su tarjeta:
+// no puede recibir sellos ni canjear, pero se conserva su historial.
 export const toggleCustomerStatus = async (req, res) => {
   try {
     const clientId = req.user?.clientId;
-    const customer = await Customer.findOne({ 
-      _id: req.params.id, 
-      clientId 
-    });
-
+    if (!mongoose.Types.ObjectId.isValid(String(req.params.id))) {
+      return res.status(400).json({ success: false, message: 'Cliente inválido' });
+    }
+    const customer = await Customer.findOne({ _id: req.params.id, clientId });
     if (!customer) {
-      return res.status(404).json({
-        success: false,
-        message: 'Cliente no encontrado'
-      });
+      return res.status(404).json({ success: false, message: 'Cliente no encontrado' });
     }
 
-    // Actualizar estado de la tarjeta de lealt
-    const loyaltyCard = await LoyaltyCard.findOne({ 
-      customerId: customer._id, 
-      clientId 
-    });
-
-    if (loyaltyCard) {
-      loyaltyCard.estado = loyaltyCard.estado === 'activa' ? 'bloqueada' : 'activa';
-      await loyaltyCard.save();
+    const loyaltyCard = await LoyaltyCard.findOne({ customerId: customer._id, clientId });
+    if (!loyaltyCard) {
+      return res.status(404).json({ success: false, message: 'El cliente no tiene tarjeta de lealtad' });
     }
+
+    // Si mandan "activo" explícito se respeta; si no, se alterna
+    const activar = typeof req.body?.activo === 'boolean' ? req.body.activo : loyaltyCard.estado !== 'activa';
+    loyaltyCard.estado = activar ? 'activa' : 'bloqueada';
+    await loyaltyCard.save();
+    syncGoogleCard(loyaltyCard._id); // Google Wallet muestra la tarjeta como inactiva
 
     res.status(200).json({
       success: true,
-      message: 'Estado del cliente actualizado',
+      message: activar ? 'Cliente reactivado' : 'Cliente dado de baja',
       data: { loyaltyCard }
     });
   } catch (error) {
     console.error('Error al actualizar estado del cliente:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al actualizar estado',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error al actualizar estado' });
+  }
+};
+
+// Eliminar cliente definitivamente (solo admin): borra cliente, tarjeta,
+// historial de sellos y recompensas. Las ventas no se tocan.
+export const deleteCustomer = async (req, res) => {
+  try {
+    const clientId = req.user?.clientId;
+    if (!mongoose.Types.ObjectId.isValid(String(req.params.id))) {
+      return res.status(400).json({ success: false, message: 'Cliente inválido' });
+    }
+    const customer = await Customer.findOne({ _id: req.params.id, clientId });
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Cliente no encontrado' });
+    }
+
+    const cards = await LoyaltyCard.find({ customerId: customer._id, clientId }).select('_id');
+    const session = await Customer.startSession();
+    try {
+      await session.withTransaction(async () => {
+        await StampHistory.deleteMany({ customerId: customer._id, clientId }, { session });
+        await Reward.deleteMany({ customerId: customer._id, clientId }, { session });
+        await LoyaltyCard.deleteMany({ customerId: customer._id, clientId }, { session });
+        await Customer.deleteOne({ _id: customer._id, clientId }, { session });
+      });
+    } finally {
+      await session.endSession();
+    }
+    cards.forEach(c => disableGoogleCard(c._id));
+
+    await logAction(req.user?.userId, 'ELIMINAR_CLIENTE_LEALTAD', `Cliente eliminado: ${customer.nombre} (${customer.telefono})`);
+
+    res.status(200).json({ success: true, message: `Cliente ${customer.nombre} eliminado` });
+  } catch (error) {
+    console.error('Error al eliminar cliente:', error);
+    res.status(500).json({ success: false, message: 'Error al eliminar cliente' });
   }
 };

@@ -7,21 +7,30 @@ import LoyaltyCard from '../models/LoyaltyCard.js';
 import Customer from '../models/Customer.js';
 import StampHistory from '../models/StampHistory.js';
 import Reward from '../models/Reward.js';
-import Sale from '../models/Sale.js';
 import Config from '../models/Config.js';
 import Client from '../models/Client.js';
 import QRCode from 'qrcode';
+import mongoose from 'mongoose';
+import crypto from 'crypto';
+import Product from '../models/Product.js';
+import { syncGoogleCard, syncGoogleClass } from '../services/googleWalletService.js';
+import {
+  LoyaltyError,
+  findCard,
+  findSaleForStamp,
+  stampCardForSale,
+  revertStampForSale,
+  cardSummary,
+  getProgramConfig,
+  redeemManualReward,
+  availableRewardsForCard
+} from '../services/loyaltyService.js';
 
 // Obtener tarjeta por token QR
 export const getCardByQRToken = async (req, res) => {
   try {
     const clientId = req.user?.clientId;
-    const { qr_token } = req.params;
-
-    const card = await LoyaltyCard.findOne({ 
-      qr_token: qr_token.trim(), 
-      clientId 
-    }).populate('customerId');
+    const card = await findCard({ clientId, qrToken: req.params.qr_token });
 
     if (!card) {
       return res.status(404).json({
@@ -44,7 +53,8 @@ export const getCardByQRToken = async (req, res) => {
       success: true,
       data: {
         ...card.toJSON(),
-        qr_code: qrCodeDataURL
+        qr_code: qrCodeDataURL,
+        recompensas: await availableRewardsForCard(clientId, card)
       }
     });
   } catch (error) {
@@ -94,215 +104,61 @@ export const getCustomerCard = async (req, res) => {
   }
 };
 
-// Agregar sello a tarjeta
+// Agregar sello manual (desde la pantalla de Lealtad): el cajero escanea la tarjeta
+// y escribe el número de venta del ticket (ej. 130). En el POS el sello es automático.
 export const addStamp = async (req, res) => {
   try {
     const clientId = req.user?.clientId;
-    const empleadoId = req.user?.userId;
-    const { qr_token, venta_id } = req.body;
+    const { qr_token, loyaltyCardId, venta_id, numero_venta } = req.body;
 
-    // Validar que la venta existe y pertenece al cliente
-    const sale = await Sale.findOne({ 
-      _id: venta_id, 
-      clientId,
-      cancelada: false 
-    });
-
+    const saleRef = numero_venta ?? venta_id;
+    if (!saleRef || !String(saleRef).trim()) {
+      return res.status(400).json({ success: false, message: 'Escribe el número de venta del ticket' });
+    }
+    const sale = await findSaleForStamp(clientId, saleRef);
     if (!sale) {
-      return res.status(404).json({
-        success: false,
-        message: 'Venta no encontrada o cancelada'
-      });
+      return res.status(404).json({ success: false, message: `No existe la venta #${String(saleRef).replace(/^#/, '')}` });
     }
 
-    // Verificar que esta venta no haya generado sellos ya
-    const existingStamp = await StampHistory.findOne({
-      venta_id,
+    const result = await stampCardForSale({
       clientId,
-      tipo: 'otorgado'
+      sale,
+      qrToken: qr_token,
+      cardId: loyaltyCardId,
+      empleadoId: req.user?.userId
     });
 
-    if (existingStamp) {
-      return res.status(400).json({
-        success: false,
-        message: 'Esta venta ya generó un sello'
-      });
-    }
-
-    // Obtener tarjeta
-    const card = await LoyaltyCard.findOne({ 
-      qr_token: qr_token.trim(), 
-      clientId 
-    }).populate('customerId');
-
-    if (!card) {
-      return res.status(404).json({
-        success: false,
-        message: 'Código QR inválido'
-      });
-    }
-
-    if (card.estado !== 'activa') {
-      return res.status(400).json({
-        success: false,
-        message: `La tarjeta está ${card.estado}`
-      });
-    }
-
-    // Verificar si ya completó los sellos
-    if (card.sellos_actuales >= card.sellos_requeridos) {
-      return res.status(400).json({
-        success: false,
-        message: 'La tarjeta ya tiene todos los sellos. Canjee la recompensa primero.'
-      });
-    }
-
-    // Verificar monto mínimo si está configurado
-    const config = await Config.findOne({ 
-      clientId, 
-      clave: 'loyalty_min_purchase' 
-    });
-    const minPurchase = config ? parseFloat(config.valor) : 0;
-
-    if (minPurchase > 0 && sale.total < minPurchase) {
-      return res.status(400).json({
-        success: false,
-        message: `El monto mínimo para sello es ${minPurchase}`
-      });
-    }
-
-    // Iniciar sesión para transacción
-    const session = await LoyaltyCard.startSession();
-    session.startTransaction();
-
-    try {
-      // Incrementar sellos
-      card.sellos_actuales += 1;
-      await card.save({ session });
-
-      // Registrar en historial
-      await StampHistory.create([{
-        clientId,
-        customerId: card.customerId._id,
-        loyaltyCardId: card._id,
-        venta_id,
-        empleado_id: empleadoId,
-        tipo: 'otorgado',
-        numero_sello: card.sellos_actuales
-      }], { session });
-
-      // Verificar si completó los sellos
-      let rewardUnlocked = false;
-      if (card.sellos_actuales >= card.sellos_requeridos) {
-        card.recompensas_disponibles += 1;
-        await card.save({ session });
-        rewardUnlocked = true;
-      }
-
-      await session.commitTransaction();
-      session.endSession();
-
-      res.status(200).json({
-        success: true,
-        message: rewardUnlocked 
-          ? '¡Sello agregado! ¡Recompensa desbloqueada!'
-          : 'Sello agregado exitosamente',
-        data: {
-          card: {
-            ...card.toJSON(),
-            customer: card.customerId
-          },
-          rewardUnlocked
-        }
-      });
-    } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
-      throw error;
-    }
+    res.status(200).json({ success: true, message: result.message, data: result });
   } catch (error) {
+    if (error instanceof LoyaltyError) {
+      return res.status(error.status).json({ success: false, message: error.message, code: error.code });
+    }
     console.error('Error al agregar sello:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al agregar sello',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error al agregar sello' });
   }
 };
 
-// Canjear recompensa
+// Canjear recompensa a mano (botón "Canjear"): para premios que el cajero entrega sin cobrarlos
+// en una venta (producto sin ligar). Los descuentos y productos ligados se aplican al cobrar.
 export const redeemReward = async (req, res) => {
   try {
-    const clientId = req.user?.clientId;
-    const empleadoId = req.user?.userId;
-    const { loyaltyCardId, venta_id, producto_recompensa, producto_id } = req.body;
-
-    const card = await LoyaltyCard.findOne({ 
-      _id: loyaltyCardId, 
-      clientId 
-    }).populate('customerId');
-
-    if (!card) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tarjeta no encontrada'
-      });
-    }
-
-    if (card.recompensas_disponibles < 1) {
-      return res.status(400).json({
-        success: false,
-        message: 'No hay recompensas disponibles para canjear'
-      });
-    }
-
-    // Iniciar transacción
-    const session = await LoyaltyCard.startSession();
-    session.startTransaction();
-
-    try {
-      // Registrar recompensa
-      await Reward.create([{
-        clientId,
-        customerId: card.customerId._id,
-        loyaltyCardId: card._id,
-        venta_id,
-        empleado_id: empleadoId,
-        producto_recompensa,
-        producto_id,
-        ciclo: card.ciclo_actual
-      }], { session });
-
-      // Decrementar recompensas disponibles
-      card.recompensas_disponibles -= 1;
-      card.ultima_recompensa_canjeada = new Date();
-      
-      // Reiniciar ciclo de sellos
-      card.sellos_actuales = 0;
-      card.ciclo_actual += 1;
-      
-      await card.save({ session });
-
-      await session.commitTransaction();
-      session.endSession();
-
-      res.status(200).json({
-        success: true,
-        message: 'Recompensa canjeada exitosamente. Nuevo ciclo iniciado.',
-        data: card
-      });
-    } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
-      throw error;
-    }
-  } catch (error) {
-    console.error('Error al canjear recompensa:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al canjear recompensa',
-      error: error.message
+    const { loyaltyCardId, qr_token, rewardKey } = req.body;
+    const { card, customer, reward } = await redeemManualReward({
+      clientId: req.user?.clientId,
+      cardId: loyaltyCardId,
+      qrToken: qr_token,
+      rewardKey: rewardKey || 'main',
+      empleadoId: req.user?.userId
     });
+    const data = { ...card.toJSON(), customerId: customer };
+    data.recompensas = await availableRewardsForCard(req.user?.clientId, card);
+    res.status(200).json({ success: true, message: `Recompensa canjeada: ${reward.description}`, data });
+  } catch (error) {
+    if (error instanceof LoyaltyError) {
+      return res.status(error.status).json({ success: false, message: error.message, code: error.code });
+    }
+    console.error('Error al canjear recompensa:', error);
+    res.status(500).json({ success: false, message: 'Error al canjear recompensa' });
   }
 };
 
@@ -362,148 +218,111 @@ export const getRewards = async (req, res) => {
   }
 };
 
-// Revertir sello (para ventas canceladas/devueltas)
+// Revertir sello de una venta (las cancelaciones/devoluciones ya lo hacen solas)
 export const revertStamp = async (req, res) => {
   try {
     const clientId = req.user?.clientId;
-    const { venta_id, motivo } = req.body;
-
-    if (!clientId) {
-      return res.status(400).json({ success: false, message: 'Usuario sin cafetería asignada' });
+    const { venta_id, numero_venta, motivo } = req.body;
+    const sale = await findSaleForStamp(clientId, numero_venta ?? venta_id);
+    if (!sale) {
+      return res.status(404).json({ success: false, message: 'Venta no encontrada' });
     }
-
-    // Solo sellos de la misma cafetería
-    const stamp = await StampHistory.findOne({
-      venta_id,
-      clientId,
-      tipo: 'otorgado'
-    }).populate('loyaltyCardId');
-
-    if (!stamp) {
-      return res.status(404).json({
-        success: false,
-        message: 'No hay sello asociado a esta venta'
-      });
+    const result = await revertStampForSale({ clientId, saleId: sale._id, empleadoId: req.user?.userId, motivo });
+    if (!result) {
+      return res.status(404).json({ success: false, message: 'No hay sello vigente asociado a esta venta' });
     }
-
-    const card = stamp.loyaltyCardId;
-
-    // Iniciar transacción
-    const session = await LoyaltyCard.startSession();
-    session.startTransaction();
-
-    try {
-      // Decrementar sellos
-      card.sellos_actuales = Math.max(0, card.sellos_actuales - 1);
-      
-      // Si se había desbloqueado recompensa, decrementarla
-      if (card.sellos_actuales + 1 >= card.sellos_requeridos) {
-        card.recompensas_disponibles = Math.max(0, card.recompensas_disponibles - 1);
-      }
-      
-      await card.save({ session });
-
-      // Registrar reversión
-      await StampHistory.create([{
-        clientId,
-        customerId: stamp.customerId,
-        loyaltyCardId: card._id,
-        venta_id,
-        empleado_id: req.user?.userId,
-        tipo: 'revertido',
-        numero_sello: stamp.numero_sello,
-        motivo_reversion: motivo
-      }], { session });
-
-      await session.commitTransaction();
-      session.endSession();
-
-      res.status(200).json({
-        success: true,
-        message: 'Sello revertido exitosamente',
-        data: card
-      });
-    } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
-      throw error;
-    }
+    res.status(200).json({ success: true, message: 'Sello revertido exitosamente', data: result });
   } catch (error) {
     console.error('Error al revertir sello:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al revertir sello',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error al revertir sello' });
   }
 };
 
 // Obtener configuración de lealtad
 export const getLoyaltyConfig = async (req, res) => {
   try {
-    const clientId = req.user?.clientId;
-    
-    const configs = await Config.find({ clientId });
-    const configMap = {};
-    configs.forEach(c => {
-      configMap[c.clave] = c.valor;
-    });
-
-    // Parsear recompensas múltiples
-    let rewards = [];
-    try {
-      const rewardsStr = configMap.loyalty_rewards || '[]';
-      rewards = JSON.parse(rewardsStr);
-    } catch (e) {
-      rewards = [];
-    }
-
-    res.status(200).json({
-      success: true,
-      data: {
-        enabled: configMap.loyalty_enabled === 'true',
-        programName: configMap.loyalty_program_name || 'Programa de Lealtad',
-        stampsRequired: parseInt(configMap.loyalty_stamps_required) || 10,
-        minPurchase: parseFloat(configMap.loyalty_min_purchase) || 0,
-        rewardProduct: configMap.loyalty_reward_product || 'Café gratis',
-        rewardProductId: configMap.loyalty_reward_product_id || null,
-        rewards: rewards // Array de recompensas configuradas
-      }
-    });
+    const config = await getProgramConfig(req.user?.clientId);
+    res.status(200).json({ success: true, data: config });
   } catch (error) {
     console.error('Error al obtener configuración de lealtad:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al obtener configuración',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error al obtener configuración' });
   }
 };
 
-// Actualizar configuración de lealtad
+// Actualizar configuración de lealtad (solo admin). Valida todo: lo que se guarde aquí
+// es lo que el POS cobra de verdad.
 export const updateLoyaltyConfig = async (req, res) => {
   try {
     const clientId = req.user?.clientId;
-    const { 
-      enabled, 
-      programName, 
-      stampsRequired, 
-      minPurchase, 
-      rewardProduct,
-      rewardProductId,
-      rewards 
-    } = req.body;
+    const { enabled, programName, minPurchase, rewardProduct, rewardProductId, rewards } = req.body;
+
+    const stampsRequired = parseInt(req.body.stampsRequired, 10);
+    if (!Number.isFinite(stampsRequired) || stampsRequired < 1 || stampsRequired > 100) {
+      return res.status(400).json({ success: false, message: 'Los sellos requeridos deben ser entre 1 y 100' });
+    }
+    const min = Number(minPurchase) || 0;
+    if (min < 0) return res.status(400).json({ success: false, message: 'La compra mínima no puede ser negativa' });
+
+    const validProductId = async (id) => {
+      if (!id) return null;
+      if (!mongoose.Types.ObjectId.isValid(String(id))) return false;
+      const p = await Product.findOne({ _id: id, clientId }).select('_id');
+      return p ? String(p._id) : false;
+    };
+
+    const mainProductId = await validProductId(rewardProductId);
+    if (mainProductId === false) {
+      return res.status(400).json({ success: false, message: 'El producto de la recompensa principal no existe' });
+    }
+
+    // Niveles: validar uno por uno y darles un id estable (para saber cuáles ya usó cada cliente)
+    const cleanTiers = [];
+    const list = Array.isArray(rewards) ? rewards : [];
+    for (const [i, r] of list.entries()) {
+      const n = i + 1;
+      const stamps = parseInt(r?.stamps, 10);
+      const type = r?.type === 'free' ? 'free' : 'discount';
+      const value = Number(r?.value) || 0;
+      if (!Number.isFinite(stamps) || stamps < 1 || stamps >= stampsRequired) {
+        return res.status(400).json({ success: false, message: `Recompensa ${n}: los sellos deben ser entre 1 y ${stampsRequired - 1} (con ${stampsRequired} se completa la tarjeta)` });
+      }
+      if (type === 'discount' && (value <= 0 || value > 100)) {
+        return res.status(400).json({ success: false, message: `Recompensa ${n}: el descuento debe ser entre 1% y 100%` });
+      }
+      const productId = type === 'free' ? await validProductId(r?.product_id) : null;
+      if (productId === false) {
+        return res.status(400).json({ success: false, message: `Recompensa ${n}: el producto no existe` });
+      }
+      const id = typeof r?.id === 'string' && /^[a-z0-9_-]{4,40}$/i.test(r.id)
+        ? r.id
+        : 'r' + crypto.randomBytes(5).toString('hex');
+      cleanTiers.push({
+        id,
+        stamps,
+        type,
+        value: type === 'discount' ? value : 0,
+        product_id: productId,
+        description: String(r?.description || '').trim().slice(0, 80)
+          || (type === 'discount' ? `${value}% de descuento` : 'Producto gratis')
+      });
+    }
+    const stampsUsed = new Set();
+    for (const t of cleanTiers) {
+      if (stampsUsed.has(t.stamps)) {
+        return res.status(400).json({ success: false, message: `Hay dos recompensas en ${t.stamps} sellos. Deja solo una por nivel.` });
+      }
+      stampsUsed.add(t.stamps);
+    }
 
     const configs = [
-      { clave: 'loyalty_enabled', valor: String(enabled) },
-      { clave: 'loyalty_program_name', valor: programName },
+      { clave: 'loyalty_enabled', valor: String(enabled !== false) },
+      { clave: 'loyalty_program_name', valor: String(programName || 'Programa de Lealtad').slice(0, 60) },
       { clave: 'loyalty_stamps_required', valor: String(stampsRequired) },
-      { clave: 'loyalty_min_purchase', valor: String(minPurchase) },
-      { clave: 'loyalty_reward_product', valor: rewardProduct },
-      { clave: 'loyalty_reward_product_id', valor: rewardProductId || '' },
-      { clave: 'loyalty_rewards', valor: JSON.stringify(rewards || []) }
+      { clave: 'loyalty_min_purchase', valor: String(min) },
+      { clave: 'loyalty_reward_product', valor: String(rewardProduct || 'Café gratis').slice(0, 80) },
+      { clave: 'loyalty_reward_product_id', valor: mainProductId || '' },
+      { clave: 'loyalty_rewards', valor: JSON.stringify(cleanTiers) }
     ];
-
     for (const config of configs) {
       await Config.findOneAndUpdate(
         { clave: config.clave, clientId },
@@ -512,17 +331,16 @@ export const updateLoyaltyConfig = async (req, res) => {
       );
     }
 
+    syncGoogleClass(clientId); // Nombre del programa en Google Wallet (no bloquea)
+
     res.status(200).json({
       success: true,
-      message: 'Configuración actualizada exitosamente'
+      message: 'Configuración actualizada exitosamente',
+      data: await getProgramConfig(clientId)
     });
   } catch (error) {
     console.error('Error al actualizar configuración de lealtad:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al actualizar configuración',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error al actualizar configuración' });
   }
 };
 

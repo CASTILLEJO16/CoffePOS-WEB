@@ -17,6 +17,7 @@ import Personalization from '../models/Personalization.js';
 import Promotion from '../models/Promotion.js';
 import { computeBuyXPayYDiscounts, isPromotionActiveNow } from './promotionEngine.js';
 import { nextSequence } from '../utils/sequence.js';
+import { prepareRewardForSale, consumeRewardInSale } from './loyaltyService.js';
 
 /**
  * Servicio de Ventas
@@ -418,7 +419,23 @@ async function createSaleOnce(saleData, usuarioId = null, clientId = null) {
     const promotionDiscount = Math.min(round2(promotionDiscountRaw), round2(subtotal));
 
     // Totales finales CON el descuento de promociones (antes se calculaban pero no se guardaban)
-    const adjustedSubtotal = round2(subtotal - promotionDiscount);
+    // Recompensa de lealtad (descuento % o producto gratis). Se valida y calcula AQUÍ con
+    // datos de la BD: el navegador solo dice cuál quiere usar. Misma lógica que el POS (loyaltyRewards).
+    let loyaltyPrepared = null;
+    let loyaltyDiscount = 0;
+    if (saleData.loyalty_reward) {
+      loyaltyPrepared = await prepareRewardForSale({
+        clientId,
+        qrToken: saleData.loyalty_qr_token,
+        rewardKey: String(saleData.loyalty_reward),
+        items: processedItems.map(i => ({ producto_id: i.producto_id.toString(), precio: i.precio, isCombo: i.isCombo })),
+        baseSubtotal: round2(subtotal - promotionDiscount),
+        session
+      });
+      loyaltyDiscount = loyaltyPrepared.amount;
+    }
+
+    const adjustedSubtotal = round2(subtotal - promotionDiscount - loyaltyDiscount);
     const adjustedImpuestos = round2(adjustedSubtotal * ivaRate);
     const adjustedTotal = round2(adjustedSubtotal + adjustedImpuestos);
 
@@ -647,6 +664,15 @@ async function createSaleOnce(saleData, usuarioId = null, clientId = null) {
       total: adjustedTotal,
       descuento_promociones: promotionDiscount,
       promociones_aplicadas: promotionDetails,
+      descuento_lealtad: loyaltyDiscount,
+      recompensa_lealtad: loyaltyPrepared
+        ? {
+            clave: loyaltyPrepared.reward.key,
+            tipo: loyaltyPrepared.reward.type,
+            descripcion: loyaltyPrepared.reward.description,
+            loyaltyCardId: loyaltyPrepared.card._id
+          }
+        : undefined,
       metodo_pago,
       tipo_tarjeta: saleData.tipo_tarjeta || null,
       usuario_id: usuarioId,
@@ -666,6 +692,11 @@ async function createSaleOnce(saleData, usuarioId = null, clientId = null) {
     }], { session });
 
     const ventaId = newSale[0]._id;
+
+    // Consumir la recompensa en la misma transacción: si otra caja ya la usó, la venta no se guarda
+    if (loyaltyPrepared) {
+      await consumeRewardInSale({ clientId, prepared: loyaltyPrepared, ventaId, empleadoId: usuarioId, session });
+    }
 
     // Insertar detalles (optimizado: usar productos ya obtenidos)
     for (const item of processedItems) {

@@ -53,6 +53,14 @@ export async function createSale(saleData) {
   if (stockAlertas) data.stockAlertas = stockAlertas;
   if (hasStockAlertas) data.hasStockAlertas = hasStockAlertas;
 
+  // Resultado del sello automático de lealtad (si se escaneó una tarjeta)
+  if (response.data.loyalty) {
+    data.loyalty = response.data.loyalty;
+    try {
+      window.dispatchEvent(new CustomEvent('loyalty:result', { detail: response.data.loyalty }));
+    } catch {}
+  }
+
   return data;
 }
 
