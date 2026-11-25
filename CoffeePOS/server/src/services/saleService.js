@@ -648,7 +648,7 @@ async function createSaleOnce(saleData, usuarioId = null, clientId = null) {
     const nextNumeroVenta = await nextSequence(clientId, 'numero_venta', async () => {
       const lastSale = await Sale.findOne({ clientId }).sort({ numero_venta: -1 }).select('numero_venta');
       return lastSale?.numero_venta || 0;
-    });
+    }, async (n) => !!(await Sale.exists({ clientId, numero_venta: n })));
 
     // Obtener configuración de idioma y moneda del cliente
     const configIdioma = await Config.findOne({ clave: 'idioma', clientId });

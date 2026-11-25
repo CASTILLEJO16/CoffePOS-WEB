@@ -129,6 +129,7 @@ const SaleSchema = new mongoose.Schema({
 });
 
 // Índices compuestos para optimizar queries frecuentes
+SaleSchema.index({ clientId: 1, numero_venta: -1 }); // Folio: último número y búsqueda por número de ticket
 SaleSchema.index({ clientId: 1, fecha: -1 }); // Para queries por cliente y fecha (KPIs, reportes)
 SaleSchema.index({ clientId: 1, usuario_id: 1 }); // Para ventas por usuario
 SaleSchema.index({ clientId: 1, cancelada: 1 }); // Para ventas activas por cliente

@@ -14,8 +14,11 @@ import Counter from '../models/Counter.js';
  * @param {string|ObjectId} clientId
  * @param {string} name - nombre de la secuencia (ej. 'numero_venta')
  * @param {() => Promise<number>} getCurrentMax - máximo actual en los datos existentes
+ * @param {(n: number) => Promise<boolean>} [isTaken] - ¿ya existe un registro con ese número?
+ *        Si el contador se quedó atrás (p. ej. otra versión del sistema siguió numerando
+ *        sin usarlo), se pone al día solo con el máximo real y nunca entrega un número repetido.
  */
-export async function nextSequence(clientId, name, getCurrentMax) {
+export async function nextSequence(clientId, name, getCurrentMax, isTaken = null) {
   const exists = await Counter.exists({ clientId, name });
   if (!exists) {
     const currentMax = Number(await getCurrentMax()) || 0;
@@ -31,10 +34,16 @@ export async function nextSequence(clientId, name, getCurrentMax) {
     }
   }
 
-  const counter = await Counter.findOneAndUpdate(
-    { clientId, name },
-    { $inc: { seq: 1 } },
-    { new: true, upsert: true }
-  );
-  return counter.seq;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const counter = await Counter.findOneAndUpdate(
+      { clientId, name },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+    if (!isTaken || !(await isTaken(counter.seq))) return counter.seq;
+    // Contador atrasado: alcanzar el máximo real y volver a pedir número
+    const currentMax = Number(await getCurrentMax()) || 0;
+    await Counter.updateOne({ clientId, name }, { $max: { seq: currentMax } });
+  }
+  throw new Error(`No se pudo generar un número de ${name} único`);
 }

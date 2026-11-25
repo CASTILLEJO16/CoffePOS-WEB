@@ -19,7 +19,7 @@ async function generateTicketNumber(clientId) {
       .sort({ numero_ticket: -1 })
       .select('numero_ticket');
     return lastTicket?.numero_ticket || 0;
-  });
+  }, async (n) => !!(await OpenTicket.exists({ clientId, numero_ticket: n })));
 }
 
 // Crear ticket abierto
