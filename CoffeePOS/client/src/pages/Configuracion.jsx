@@ -5,7 +5,28 @@ import { getCashRegisterNames, createCashRegisterName } from '../services/cashRe
 import { getMyClient } from '../services/clientService.js';
 import Loader from '../components/common/Loader.jsx';
 import Swal from 'sweetalert2';
+import { TICKET_WIDTHS, LABEL_SIZES, cachePrintSettings } from '../utils/printUtils.js';
+import { printTicket } from '../services/ticketService.js';
+import { printLabels } from '../services/labelService.js';
 import './Configuracion.css';
+
+// Venta de ejemplo para probar la impresora sin hacer una venta real
+const SAMPLE_SALE = {
+  numero_venta: 123,
+  fecha: new Date().toISOString(),
+  metodo_pago: 'efectivo',
+  subtotal: 179,
+  impuestos: 28.64,
+  total: 207.64,
+  iva_rate: 0.16,
+  usuario_id: { nombre: 'Cajero de prueba' },
+  detalles: [
+    { producto_nombre: 'Latte Vainilla Grande', cantidad: 2, precio: 58.5, descuento: 10,
+      personalizaciones: { leche: [{ name: 'Leche de avena', price: 8 }], jarabe: [{ name: 'Vainilla', price: 0 }], topping: [{ name: 'Canela', price: 0 }] } },
+    { producto_nombre: 'Frappé Caramelo con Crema Batida Extra', cantidad: 1, precio: 62,
+      personalizaciones: { leche: [{ name: 'Deslactosada', price: 0 }], topping: [{ name: 'Crema batida', price: 0 }, { name: 'Chispas de chocolate', price: 0 }, { name: 'Caramelo', price: 0 }], hielo: [{ name: 'Poco hielo', price: 0 }] } }
+  ]
+};
 
 export default function Configuracion() {
   const [config, setConfig] = useState({
@@ -94,6 +115,7 @@ export default function Configuracion() {
     try {
       console.log('[Configuracion] Enviando configuración al backend:', config);
       await updateConfig(config);
+      cachePrintSettings(config); // tamaño de ticket/etiqueta para imprimir en este dispositivo
       console.log('[Configuracion] Configuración guardada exitosamente');
 
       // 🔁 Volver a pedir configuración REAL del backend
@@ -323,6 +345,48 @@ export default function Configuracion() {
             </div>
             <p style={{fontSize: '0.85rem', color: '#666', marginTop: '-10px', paddingLeft: '30px'}}>
               Los vendedores podrán vender el producto pero el stock se irá haciendo negativo.
+            </p>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="ticket_ancho">Ancho del papel del ticket</label>
+              <select
+                id="ticket_ancho"
+                className="form-input"
+                value={config.ticket_ancho || '80'}
+                onChange={(e) => setConfig({ ...config, ticket_ancho: e.target.value })}
+              >
+                {Object.entries(TICKET_WIDTHS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="etiqueta_tamano">Tamaño de la etiqueta</label>
+              <select
+                id="etiqueta_tamano"
+                className="form-input"
+                value={config.etiqueta_tamano || '50x25'}
+                onChange={(e) => setConfig({ ...config, etiqueta_tamano: e.target.value })}
+              >
+                {Object.entries(LABEL_SIZES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => { cachePrintSettings({ ticket_ancho: config.ticket_ancho || '80' }); printTicket(SAMPLE_SALE, 'Ana'); }}
+              >
+                Imprimir ticket de prueba
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => { cachePrintSettings({ etiqueta_tamano: config.etiqueta_tamano || '50x25' }); printLabels(SAMPLE_SALE, 'Ana'); }}
+              >
+                Imprimir etiquetas de prueba
+              </button>
+            </div>
+            <p style={{fontSize: '0.85rem', color: '#666', marginTop: 0, marginBottom: '12px'}}>
+              En la ventana de impresión elige tu impresora, márgenes "Ninguno" y escala 100%.
             </p>
 
             <button className="save-button" onClick={handleSaveConfig} style={{marginTop: 15}}>

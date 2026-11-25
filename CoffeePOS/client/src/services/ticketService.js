@@ -1,550 +1,287 @@
 import { formatBusinessDateTime } from '../utils/dateTime.js';
 import { translations } from '../utils/i18n/translations.js';
-
-/* @jsxImportSource react */
+import {
+  getCustomizationList,
+  getItemNote,
+  getPrintSettings,
+  escapeHtml,
+  printHtmlDocument
+} from '../utils/printUtils.js';
 
 /**
  * Servicio de Tickets para Cliente
- * Genera e imprime tickets de venta
+ * Genera e imprime tickets de venta para impresora térmica (80 mm o 58 mm).
+ *
+ * Correcciones respecto a la versión anterior:
+ *  - Ancho real de rollo térmico (antes 110 mm: se cortaban los precios en 80 mm).
+ *  - Alto automático (antes 220 mm fijos: tickets largos se partían, cortos gastaban papel).
+ *  - El descuento del producto ya viene en el precio: antes se restaba otra vez en el ticket
+ *    y las líneas no cuadraban con el subtotal.
+ *  - Se muestran todas las personalizaciones (antes solo las que tenían costo extra).
+ *  - Se muestran promociones (2x1) y lealtad como líneas propias para que todo cuadre.
+ *  - "Redondeo / Total efectivo" solo en pagos en efectivo.
+ *  - Todo en negro (los grises salen tenues en térmica) y textos escapados.
  */
 
-/**
- * Obtiene la traducción para una clave según el idioma
- */
+/** Traducción según el idioma del ticket. */
 function t(key, language = 'es') {
   const lang = language || localStorage.getItem('idioma') || 'es';
-  return translations[lang]?.[key] || translations['es'][key] || key;
+  return translations[lang]?.[key] || translations.es?.[key] || key;
 }
 
-/**
- * Sanitiza texto para inserción segura en HTML del ticket (evita XSS)
- */
-function escapeHtml(str) {
-  if (str == null) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+const METODOS = {
+  efectivo: 'Efectivo',
+  tarjeta: 'Tarjeta',
+  usd: 'Dólares',
+  dolar: 'Dólares',
+  mixto: 'Mixto',
+  transferencia: 'Transferencia'
+};
+
+function round2(n) {
+  return Math.round((Number(n) || 0) * 100) / 100;
 }
 
 /**
  * Genera un ticket en formato HTML para impresión
  * @param {Object} sale - Venta con detalles
  * @param {string} customerName - Nombre del cliente (opcional)
- * @param {{businessName?: string, address?: string}} businessInfo - Info cafetería (de Client.businessName/address)
+ * @param {{businessName?: string, address?: string}} businessInfo - Info cafetería
  * @returns {string} HTML del ticket
  */
 export function generateTicketHTML(sale, customerName = null, businessInfo = null) {
-  const formatDate = (dateString) => formatBusinessDateTime(dateString);
-
-  const formatCurrency = (value) => {
-    const num = Number(value);
-    const safe = Number.isFinite(num) ? num : 0;
-    const currency = sale.moneda_predeterminada || localStorage.getItem('moneda_predeterminada') || 'MXN';
-    const language = sale.idioma || localStorage.getItem('idioma') || 'es';
-    const locale = language === 'en' ? 'en-US' : 'es-MX';
-    
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 2
-    }).format(safe);
-  };
-
-  // Usar tipo de cambio guardado en la venta, si no existe usar el del sistema (no hardcodear 18)
-  const tipoCambio = Number(sale.tipo_cambio || 20);
-
-  // Redondeo a 0.05 (típico efectivo MXN). Ajusta si quieres 0.10
-  const roundCash = (amount) => {
-    return Math.round(amount / 0.05) * 0.05;
-  };
-
-  const totalRedondeado = roundCash(sale.total);
-  const diferenciaRedondeo = Number((totalRedondeado - sale.total).toFixed(2));
-  const totalUSD = Number((sale.total / tipoCambio).toFixed(2));
-  const totalRedondeadoUSD = Number((totalRedondeado / tipoCambio).toFixed(2));
-
-  const itemsHTML = sale.detalles.map(detail => {
-    const extras = getCustomizationItems(detail.personalizaciones);
-    const hasDiscount = detail.descuento && detail.descuento > 0;
-    const isCombo = detail.personalizaciones?.isCombo || detail.isCombo;
-    const comboProducts = detail.personalizaciones?.comboProducts || detail.comboProducts;
-    const nombreProducto = detail.producto_nombre || detail.producto_id?.nombre || detail.nombre || 'Producto';
-
-    let rows = '';
-
-    // Si es un combo, mostrar el combo con desglose de productos
-    if (isCombo && comboProducts && comboProducts.length > 0) {
-      // Línea principal del combo
-      rows += `
-      <tr class="ticket-item" style="border-top: 1px dashed #000;">
-        <td class="ticket-qty">${detail.cantidad}</td>
-        <td class="ticket-name" style="font-weight: bold;">📦 ${nombreProducto}</td>
-        <td class="ticket-price">${formatCurrency(detail.precio)}</td>
-        <td class="ticket-total">${formatCurrency(detail.precio * detail.cantidad)}</td>
-      </tr>`;
-
-      // Desglose de productos del combo
-      comboProducts.forEach(cp => {
-        const qty = cp.cantidadCombo || 1;
-        rows += `
-        <tr class="ticket-item">
-          <td></td>
-          <td class="ticket-name ticket-extra">  • ${cp.nombre} (x${qty})</td>
-          <td class="ticket-price"></td>
-          <td class="ticket-total"></td>
-        </tr>`;
-      });
-    } else {
-      // Producto normal
-      // Calcular base sin extras (detail.precio ya incluye extras)
-      const extrasPerUnit = extras.reduce((s, e) => s + (e.price || 0), 0);
-      const basePrecioUnit = detail.precio - extrasPerUnit;
-      const baseImporte = basePrecioUnit * detail.cantidad;
-
-      // línea principal del producto (precio base sin extras)
-      rows = `
-      <tr class="ticket-item">
-        <td class="ticket-qty">${detail.cantidad}</td>
-        <td class="ticket-name">${nombreProducto}${hasDiscount ? ` <span style="color: var(--color-warning); font-size: 0.8em;">(-${detail.descuento}%)</span>` : ''}</td>
-        <td class="ticket-price">${formatCurrency(basePrecioUnit)}</td>
-        <td class="ticket-total">${formatCurrency(baseImporte)}</td>
-      </tr>`;
-
-      // línea de descuento si aplica (sobre base)
-      if (hasDiscount) {
-        const discountAmount = basePrecioUnit * (detail.descuento / 100) * detail.cantidad;
-        rows += `
-        <tr class="ticket-item">
-          <td></td>
-          <td class="ticket-name ticket-extra" style="color: var(--color-success);">Descuento</td>
-          <td class="ticket-price" style="color: var(--color-success);">-${detail.descuento}%</td>
-          <td class="ticket-total" style="color: var(--color-success);">-${formatCurrency(discountAmount)}</td>
-        </tr>`;
-      }
-
-      // líneas separadas de extras (ya no duplica en total, solo desglose)
-      if (extras.length > 0) {
-        extras.forEach(extra => {
-          rows += `
-          <tr class="ticket-item">
-            <td></td>
-            <td class="ticket-name ticket-extra">+ ${extra.name}</td>
-            <td class="ticket-price">${formatCurrency(extra.price)}</td>
-            <td class="ticket-total">${formatCurrency(extra.price * detail.cantidad)}</td>
-          </tr>`;
-        });
-      }
-    }
-
-    return rows;
-  }).join('');
-
-  // IVA dinámico confiable desde backend
-  const ivaPercent = sale.iva_rate
-    ? Math.round(sale.iva_rate * 100)
-    : (sale.subtotal > 0
-        ? Math.round((sale.impuestos / sale.subtotal) * 100)
-        : 0);
-
-  // Info de cafetería - viene de Client.businessName/address (DeveloperPanel)
-  // Fallback compatible: si sale trae datos embebidos, usar esos
-  const rawBusinessName = businessInfo?.businessName ?? sale.businessName ?? sale.business_name ?? null;
-  const rawAddress = businessInfo?.address ?? sale.businessAddress ?? sale.business_address ?? sale.address ?? null;
-  // Permitir fallback a localStorage si POS cacheó el nombre
-  const cachedBusinessName = !rawBusinessName ? (typeof localStorage !== 'undefined' ? localStorage.getItem('businessName') : null) : null;
-  const cachedAddress = !rawAddress ? (typeof localStorage !== 'undefined' ? localStorage.getItem('businessAddress') : null) : null;
-  const displayBusinessName = escapeHtml(rawBusinessName || cachedBusinessName || 'CAFETERÍA POS');
-  const displayAddress = rawAddress || cachedAddress ? escapeHtml(rawAddress || cachedAddress) : null;
-
-  // Número de ticket amigable: folio secuencial por cafetería (numero_venta), no ObjectId
-  let rawTicketNumber;
-  if (sale.numero_venta != null && sale.numero_venta !== '') {
-    rawTicketNumber = String(sale.numero_venta).padStart(4, '0');
-  } else if (sale.numeroVenta != null) {
-    rawTicketNumber = String(sale.numeroVenta).padStart(4, '0');
-  } else {
-    const fallbackId = sale.id || sale._id;
-    rawTicketNumber = fallbackId ? String(fallbackId).slice(-6).toUpperCase() : 'N/A';
-  }
-  const ticketId = escapeHtml(rawTicketNumber);
-  const safeCustomerName = customerName ? escapeHtml(customerName) : null;
-  const escapedBusinessHeader = displayBusinessName;
+  const { ticket } = getPrintSettings();
+  const narrow = ticket.paper <= 58;
   const lang = sale.idioma || localStorage.getItem('idioma') || 'es';
 
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title></title>
-      <style>
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-        @page { margin: 0; size: 110mm 220mm; }
-        body {
-          font-family: 'Courier New', monospace;
-          font-size: 12px;
-          width: 110mm;
-          padding: 5mm;
-          margin: 0 auto;
-          background: white;
-        }
-        
-        .ticket {
-          width: 100%;
-        }
-        
-        .ticket-header {
-          text-align: center;
-          border-bottom: 2px dashed #000;
-          padding-bottom: 5px;
-          margin-bottom: 10px;
-        }
-        
-        .ticket-header h1 {
-          font-size: 16px;
-          margin-bottom: 4px;
-          word-break: break-word;
-        }
-        .ticket-address {
-          font-size: 10px;
-          color: #333;
-          margin-bottom: 2px;
-          word-break: break-word;
-        }
-        
-        .ticket-info {
-          margin-bottom: 10px;
-          font-size: 11px;
-        }
-        
-        .ticket-info-row {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 2px;
-        }
-        
-        .ticket-items {
-          margin-bottom: 10px;
-        }
-        
-        .ticket-items table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-        
-        .ticket-item td {
-          padding: 2px 0;
-        }
-        
-        .ticket-qty {
-          text-align: left;
-          width: 15%;
-        }
-        
-        .ticket-name {
-          text-align: left;
-          width: 45%;
-          font-weight: bold;
-        }
-        
-        .ticket-customization {
-          font-size: 9px;
-          color: #666;
-          font-style: italic;
-        }
-
-        .ticket-extra {
-          font-weight: normal;
-          font-size: 11px;
-          padding-left: 6px;
-        }
-        
-        .ticket-price {
-          text-align: right;
-          width: 20%;
-        }
-        
-        .ticket-total {
-          text-align: right;
-          width: 20%;
-        }
-        
-        .ticket-totals {
-          border-top: 2px dashed #000;
-          padding-top: 5px;
-        }
-        
-        .ticket-total-row {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 3px;
-        }
-        
-        .ticket-grand-total {
-          font-weight: bold;
-          font-size: 14px;
-          border-top: 1px solid #000;
-          padding-top: 5px;
-          margin-top: 5px;
-        }
-        
-        .ticket-footer {
-          text-align: center;
-          border-top: 2px dashed #000;
-          padding-top: 10px;
-          margin-top: 10px;
-          font-size: 11px;
-        }
-        
-        @page { margin: 0; size: 110mm 220mm; }
-        @media print {
-          html, body { margin: 0; padding: 0; }
-          body { width: 110mm; margin: 0 auto; padding: 0; }
-          @page { margin: 0; size: 110mm 220mm; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="ticket">
-        <div class="ticket-header">
-          <h1>${escapedBusinessHeader}</h1>
-          ${displayAddress ? `<p class="ticket-address">${displayAddress}</p>` : ''}
-        </div>
-        
-        <div class="ticket-info">
-          <div class="ticket-info-row">
-            <span>${t('Ticket #:', lang)}</span>
-            <span>${ticketId}</span>
-          </div>
-          <div class="ticket-info-row">
-            <span>${t('Fecha:', lang)}</span>
-            <span>${formatDate(sale.fecha)}</span>
-          </div>
-          ${safeCustomerName ? `
-          <div class="ticket-info-row">
-            <span>${t('Cliente:', lang)}</span>
-            <span>${safeCustomerName}</span>
-          </div>` : ''}
-          <div class="ticket-info-row">
-            <span>${t('Método:', lang)}</span>
-            <span>${sale.metodo_pago.toUpperCase()}${sale.metodo_pago === 'tarjeta' && sale.tipo_tarjeta ? ` (${sale.tipo_tarjeta.toUpperCase()})` : ''}</span>
-          </div>
-        </div>
-
-        ${sale.metodo_pago === 'mixto' ? `
-        <div class="ticket-info" style="border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px;">
-          <div style="font-weight: bold; margin-bottom: 3px;">${t('Desglose de Pago:', lang)}</div>
-          ${sale.efectivo_mxn > 0 ? `
-          <div class="ticket-info-row">
-            <span>${t('Efectivo MXN:', lang)}</span>
-            <span>${formatCurrency(sale.efectivo_mxn)}</span>
-          </div>` : ''}
-          ${sale.efectivo_usd > 0 ? `
-          <div class="ticket-info-row">
-            <span>${t('Efectivo USD:', lang)}</span>
-            <span>${formatCurrency(sale.efectivo_usd)}</span>
-          </div>
-          <div class="ticket-info-row">
-            <span>  ${t('(= MXN):', lang)}</span>
-            <span>${formatCurrency(sale.efectivo_usd * (sale.tipo_cambio || 20))}</span>
-          </div>` : ''}
-          ${sale.tarjeta_credito > 0 ? `
-          <div class="ticket-info-row">
-            <span>${t('Tarjeta Crédito:', lang)}</span>
-            <span>${formatCurrency(sale.tarjeta_credito)}</span>
-          </div>` : ''}
-          ${sale.tarjeta_debito > 0 ? `
-          <div class="ticket-info-row">
-            <span>${t('Tarjeta Débito:', lang)}</span>
-            <span>${formatCurrency(sale.tarjeta_debito)}</span>
-          </div>` : ''}
-          ${sale.tipo_cambio ? `
-          <div class="ticket-info-row" style="margin-top: 3px; border-top: 1px solid #000; padding-top: 3px;">
-            <span>${t('Tipo de Cambio:', lang)}</span>
-            <span>1 USD = $${Number(sale.tipo_cambio).toFixed(2)}</span>
-          </div>` : ''}
-        </div>` : ''}
-
-        ${sale.metodo_pago === 'dolar' ? `
-        <div class="ticket-info" style="border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px;">
-          <div class="ticket-info-row">
-            <span>${t('Monto USD:', lang)}</span>
-            <span>${formatCurrency(sale.monto_dolar)}</span>
-          </div>
-          ${sale.dolar_recibido ? `
-          <div class="ticket-info-row">
-            <span>${t('Recibido USD:', lang)}</span>
-            <span>${formatCurrency(sale.dolar_recibido)}</span>
-          </div>` : ''}
-          ${sale.cambio_pesos !== null && sale.cambio_pesos !== undefined ? `
-          <div class="ticket-info-row">
-            <span>${t('Cambio MXN:', lang)}</span>
-            <span>${formatCurrency(sale.cambio_pesos)}</span>
-          </div>` : ''}
-          ${sale.tipo_cambio ? `
-          <div class="ticket-info-row" style="margin-top: 3px; border-top: 1px solid #000; padding-top: 3px;">
-            <span>${t('Tipo de Cambio:', lang)}</span>
-            <span>1 USD = $${Number(sale.tipo_cambio).toFixed(2)}</span>
-          </div>` : ''}
-        </div>` : ''}
-
-        <div class="ticket-items">
-          <table>
-            <thead>
-              <tr>
-                <th class="ticket-qty">${t('CANT', lang)}</th>
-                <th class="ticket-name">${t('PRODUCTO', lang)}</th>
-                <th class="ticket-price">${t('PRECIO', lang)}</th>
-                <th class="ticket-total">${t('TOTAL', lang)}</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemsHTML}
-            </tbody>
-          </table>
-        </div>
-        
-        <div class="ticket-totals">
-          <div class="ticket-total-row">
-            <span>${t('Subtotal:', lang)}</span>
-            <span>${formatCurrency(sale.subtotal)}</span>
-          </div>
-          <div class="ticket-total-row">
-            <span>${t('IVA (%):', lang).replace('%', ivaPercent)}</span>
-            <span>${formatCurrency(sale.impuestos)}</span>
-          </div>
-          <div class="ticket-total-row ticket-grand-total">
-            <span>${t('TOTAL', lang)}:</span>
-            <span>${formatCurrency(sale.total)}</span>
-          </div>
-          ${sale.metodo_pago !== 'mixto' && sale.metodo_pago !== 'dolar' ? `
-          <div class="ticket-total-row">
-            <span>${t('Redondeo:', lang)}</span>
-            <span>${formatCurrency(diferenciaRedondeo)}</span>
-          </div>
-          <div class="ticket-total-row ticket-grand-total">
-            <span>${t('TOTAL EFECTIVO:', lang)}</span>
-            <span>${formatCurrency(totalRedondeado)}</span>
-          </div>
-          <div class="ticket-total-row">
-            <span>${t('Total USD:', lang)}</span>
-            <span>$${totalUSD.toFixed(2)} USD</span>
-          </div>
-          <div class="ticket-total-row">
-            <span>${t('Total USD (Redondeado):', lang)}</span>
-            <span>$${totalRedondeadoUSD.toFixed(2)} USD</span>
-          </div>` : ''}
-        </div>
-        
-        <div class="ticket-footer">
-          <p>${t('¡Gracias por su compra!', lang)}</p>
-          <p style="margin-top: 6px; font-size: 10px; color: #555;">${t('Desarrollado por CoffeePOS', lang)}</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-}
-
-function getCustomizationText(personalizaciones) {
-  if (!personalizaciones) return null;
-  
-  const parts = [];
-  const p = personalizaciones;
-
-  // helper para mostrar nombre + precio extra
-  const formatOpt = (opt) => {
-    if (!opt) return null;
-    const price = opt.price || 0;
-    return price > 0 ? opt.name + ' (+$' + price.toFixed(2) + ')' : opt.name;
-  };
-  
-  if (p.milkType && p.milkType.id !== 'entera') {
-    parts.push(formatOpt(p.milkType));
-  }
-  
-  if (p.toppings && p.toppings.length > 0) {
-    parts.push(p.toppings.map(t => formatOpt(t)).join(', '));
-  }
-  
-  if (p.coldFoam && p.coldFoam.id !== 'none') {
-    parts.push(formatOpt(p.coldFoam));
-  }
-  
-  if (p.syrup && p.syrup.id !== 'none') {
-    parts.push(formatOpt(p.syrup));
-  }
-  
-  if (p.sweetness && p.sweetness.id !== '50') {
-    parts.push(formatOpt(p.sweetness));
-  }
-  
-  if (p.teaOption && p.teaOption.id !== 'hot') {
-    parts.push(formatOpt(p.teaOption));
-  }
-  
-  return parts.length > 0 ? parts.join(' • ') : null;
-}
-
-// 🔥 obtener lista de extras con precio
-function getCustomizationItems(personalizaciones) {
-  if (!personalizaciones) return [];
-
-  const items = [];
-  const pushIfValid = (opt) => {
-    if (!opt) return;
-    if (Array.isArray(opt)) {
-      opt.forEach(o => pushIfValid(o));
-      return;
-    }
-    if (opt.price && opt.price > 0) {
-      items.push({ name: opt.name || 'Extra', price: opt.price });
-    }
+  const currency = sale.moneda_predeterminada || localStorage.getItem('moneda_predeterminada') || 'MXN';
+  const money = (value) => {
+    const num = Number(value);
+    return new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'es-MX', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2
+    }).format(Number.isFinite(num) ? num : 0);
   };
 
-  // 🔥 recorrer cualquier estructura dinámica
-  Object.values(personalizaciones).forEach(val => {
-    pushIfValid(val);
-  });
+  // ---------- Partidas ----------
+  const rowsHTML = (sale.detalles || []).map(detail => {
+    let p = detail.personalizaciones;
+    if (typeof p === 'string') { try { p = JSON.parse(p); } catch { p = null; } }
+    const isCombo = p?.isCombo || detail.isCombo;
+    const comboProducts = p?.comboProducts || detail.comboProducts;
+    const qty = Number(detail.cantidad) || 1;
+    const name = escapeHtml(detail.producto_nombre || detail.producto_id?.nombre || detail.nombre || 'Producto');
+    const unit = Number(detail.precio) || 0; // precio unitario FINAL (ya con descuento y extras)
+    const lineTotal = round2(unit * qty);
 
-  return items;
+    let html = `
+      <div class="item">
+        <div class="item-main">
+          <span class="item-qty">${qty}</span>
+          <span class="item-name">${name}</span>
+          <span class="item-total">${money(lineTotal)}</span>
+        </div>`;
+
+    if (isCombo && Array.isArray(comboProducts) && comboProducts.length > 0) {
+      comboProducts.forEach(cp => {
+        html += `<div class="item-sub">· ${escapeHtml(cp.nombre)}${(cp.cantidadCombo || 1) > 1 ? ` x${cp.cantidadCombo}` : ''}</div>`;
+      });
+    } else {
+      // Personalizaciones: todas (las que cuestan muestran su precio)
+      getCustomizationList(p).forEach(c => {
+        html += `<div class="item-sub">· ${escapeHtml(c.name)}${c.price > 0 ? ` <span class="sub-price">+${money(c.price)}</span>` : ''}</div>`;
+      });
+      const note = getItemNote(detail);
+      if (note) html += `<div class="item-sub"><i>${escapeHtml(note)}</i></div>`;
+
+      // Descuento del producto: el precio ya lo trae, aquí solo se informa (no se resta otra vez)
+      const desc = Number(detail.descuento) || 0;
+      if (desc > 0 && desc < 100) {
+        html += `<div class="item-sub">${t('Incluye descuento', lang)} ${desc}%</div>`;
+      }
+      if (qty > 1) {
+        html += `<div class="item-sub">${qty} × ${money(unit)}</div>`;
+      }
+      if (detail.promocion_nombre && detail.promocion_tipo !== 'COMBO') {
+        html += `<div class="item-sub">${t('Promoción', lang)}: ${escapeHtml(detail.promocion_nombre)}</div>`;
+      }
+    }
+    html += '</div>';
+    return html;
+  }).join('');
+
+  // ---------- Encabezado ----------
+  const rawBusinessName = businessInfo?.businessName ?? sale.businessName ?? sale.business_name ?? null;
+  const rawAddress = businessInfo?.address ?? sale.businessAddress ?? sale.business_address ?? sale.address ?? null;
+  const cachedBusinessName = !rawBusinessName ? localStorage.getItem('businessName') : null;
+  const cachedAddress = !rawAddress ? localStorage.getItem('businessAddress') : null;
+  const businessName = escapeHtml(rawBusinessName || cachedBusinessName || 'CAFETERÍA');
+  const address = rawAddress || cachedAddress ? escapeHtml(rawAddress || cachedAddress) : null;
+
+  let folio;
+  if (sale.numero_venta != null && sale.numero_venta !== '') folio = String(sale.numero_venta).padStart(4, '0');
+  else if (sale.numeroVenta != null) folio = String(sale.numeroVenta).padStart(4, '0');
+  else folio = String(sale.id || sale._id || 'N/A').slice(-6).toUpperCase();
+
+  const cashier = sale.usuario_id?.nombre || sale.usuario_nombre || null;
+  const metodo = METODOS[sale.metodo_pago] || String(sale.metodo_pago || '').toUpperCase();
+  const tarjeta = sale.metodo_pago === 'tarjeta' && sale.tipo_tarjeta ? ` (${escapeHtml(String(sale.tipo_tarjeta))})` : '';
+
+  // ---------- Totales ----------
+  const promo = Number(sale.descuento_promociones) || 0;
+  const loyalty = Number(sale.descuento_lealtad) || 0;
+  // Suma de las partidas = subtotal + descuentos de venta (2x1 y lealtad)
+  const itemsSum = round2(Number(sale.subtotal || 0) + promo + loyalty);
+  const ivaPercent = sale.iva_rate != null
+    ? Math.round(Number(sale.iva_rate) * 100)
+    : (sale.subtotal > 0 ? Math.round((sale.impuestos / sale.subtotal) * 100) : 0);
+
+  const tipoCambio = Number(sale.tipo_cambio) || 20;
+  const isCash = sale.metodo_pago === 'efectivo';
+  const cashTotal = Math.round(Number(sale.total || 0) / 0.05) * 0.05; // redondeo a 5 centavos
+  const cashDiff = round2(cashTotal - Number(sale.total || 0));
+
+  const row = (label, value, cls = '') => `<div class="row ${cls}"><span>${label}</span><span>${value}</span></div>`;
+
+  let paymentHTML = '';
+  if (sale.metodo_pago === 'mixto') {
+    paymentHTML += `<div class="section-title">${t('Desglose de Pago:', lang)}</div>`;
+    if (sale.efectivo_mxn > 0) paymentHTML += row(t('Efectivo MXN:', lang), money(sale.efectivo_mxn));
+    if (sale.efectivo_usd > 0) {
+      paymentHTML += row(t('Efectivo USD:', lang), `$${Number(sale.efectivo_usd).toFixed(2)} USD`);
+      paymentHTML += row(`&nbsp;&nbsp;${t('(= MXN):', lang)}`, money(sale.efectivo_usd * tipoCambio));
+    }
+    if (sale.tarjeta_credito > 0) paymentHTML += row(t('Tarjeta Crédito:', lang), money(sale.tarjeta_credito));
+    if (sale.tarjeta_debito > 0) paymentHTML += row(t('Tarjeta Débito:', lang), money(sale.tarjeta_debito));
+    if (sale.cambio_pesos > 0) paymentHTML += row(t('Cambio MXN:', lang), money(sale.cambio_pesos));
+    if (sale.tipo_cambio) paymentHTML += row(t('Tipo de Cambio:', lang), `1 USD = $${tipoCambio.toFixed(2)}`, 'small');
+  } else if (sale.metodo_pago === 'dolar' || sale.metodo_pago === 'usd') {
+    if (sale.monto_dolar) paymentHTML += row(t('Monto USD:', lang), `$${Number(sale.monto_dolar).toFixed(2)} USD`);
+    if (sale.dolar_recibido) paymentHTML += row(t('Recibido USD:', lang), `$${Number(sale.dolar_recibido).toFixed(2)} USD`);
+    if (sale.cambio_pesos != null) paymentHTML += row(t('Cambio MXN:', lang), money(sale.cambio_pesos));
+    if (sale.tipo_cambio) paymentHTML += row(t('Tipo de Cambio:', lang), `1 USD = $${tipoCambio.toFixed(2)}`, 'small');
+  } else if (isCash) {
+    if (Math.abs(cashDiff) >= 0.01) {
+      paymentHTML += row(t('Redondeo:', lang), money(cashDiff), 'small');
+      paymentHTML += row(t('TOTAL EFECTIVO:', lang), money(cashTotal), 'strong');
+    }
+    paymentHTML += row(t('Total USD:', lang), `$${(Number(sale.total || 0) / tipoCambio).toFixed(2)} USD`, 'small');
+  }
+
+  const W = ticket.printable; // ancho imprimible en mm
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Ticket #${escapeHtml(folio)}</title>
+<style>
+  /* Sin tamaño fijo: la impresora térmica usa su rollo y el alto sale según el contenido */
+  @page { margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #fff; }
+  body {
+    width: ${ticket.paper}mm;
+    padding: 3mm ${(ticket.paper - W) / 2}mm 6mm;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: ${narrow ? '10.5px' : '12px'};
+    line-height: 1.3;
+    color: #000;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .ticket { width: ${W}mm; }
+  .center { text-align: center; }
+  .header { text-align: center; padding-bottom: 2mm; border-bottom: 1px dashed #000; margin-bottom: 2mm; }
+  .header h1 { font-size: ${narrow ? '14px' : '16px'}; font-weight: 900; line-height: 1.15; overflow-wrap: anywhere; }
+  .address { font-size: ${narrow ? '9.5px' : '10.5px'}; margin-top: 1mm; overflow-wrap: anywhere; }
+  .folio { font-size: ${narrow ? '16px' : '20px'}; font-weight: 900; margin: 1.5mm 0 0.5mm; letter-spacing: 0.04em; }
+  .row { display: flex; justify-content: space-between; gap: 2mm; }
+  .row span:last-child { text-align: right; white-space: nowrap; }
+  .row span:first-child { overflow-wrap: anywhere; }
+  .small { font-size: 0.9em; }
+  .strong { font-weight: 900; }
+  .info { padding-bottom: 2mm; border-bottom: 1px dashed #000; margin-bottom: 2mm; }
+  .info .row span:first-child { flex: none; white-space: nowrap; }
+  .info .row span:last-child { white-space: normal; overflow-wrap: anywhere; }
+  .items-head { display: flex; font-weight: 900; font-size: 0.9em; border-bottom: 1px solid #000; padding-bottom: 0.5mm; margin-bottom: 1mm; }
+  .items-head .h-qty, .item-qty { width: ${narrow ? '7mm' : '10mm'}; flex: none; padding-right: 1mm; }
+  .items-head .h-name, .item-name { flex: 1; min-width: 0; }
+  .items-head .h-total, .item-total { flex: none; text-align: right; white-space: nowrap; padding-left: 1.5mm; }
+  .item { padding: 0.8mm 0; }
+  .item + .item { border-top: 1px dotted #000; }
+  .item-main { display: flex; align-items: baseline; }
+  .item-name { font-weight: 700; overflow-wrap: anywhere; }
+  .item-sub { padding-left: ${narrow ? '7mm' : '10mm'}; font-size: 0.92em; overflow-wrap: anywhere; }
+  .sub-price { white-space: nowrap; }
+  .totals { border-top: 1px dashed #000; margin-top: 1.5mm; padding-top: 1.5mm; }
+  .grand { font-size: ${narrow ? '14px' : '16px'}; font-weight: 900; border-top: 1px solid #000; margin-top: 1mm; padding-top: 1mm; }
+  .section-title { font-weight: 900; margin-top: 1.5mm; }
+  .payment { border-top: 1px dashed #000; margin-top: 1.5mm; padding-top: 1.5mm; }
+  .footer { text-align: center; border-top: 1px dashed #000; margin-top: 2mm; padding-top: 2mm; }
+  .footer .small { margin-top: 1mm; }
+  @media screen {
+    body { margin: 4mm auto; box-shadow: 0 0 0 1px #d1d5db; }
+  }
+</style>
+</head>
+<body>
+<div class="ticket">
+  <div class="header">
+    <h1>${businessName}</h1>
+    ${address ? `<div class="address">${address}</div>` : ''}
+    <div class="folio">#${escapeHtml(folio)}</div>
+  </div>
+
+  <div class="info">
+    ${row(t('Fecha:', lang), escapeHtml(formatBusinessDateTime(sale.fecha)))}
+    ${customerName ? row(t('Cliente:', lang), escapeHtml(customerName)) : ''}
+    ${cashier ? row(t('Atendió:', lang), escapeHtml(cashier)) : ''}
+    ${row(t('Método:', lang), `${escapeHtml(t(metodo, lang))}${tarjeta}`)}
+  </div>
+
+  <div class="items-head">
+    <span class="h-qty">${t('CANT', lang)}</span>
+    <span class="h-name">${t('PRODUCTO', lang)}</span>
+    <span class="h-total">${t('TOTAL', lang)}</span>
+  </div>
+  ${rowsHTML}
+
+  <div class="totals">
+    ${promo > 0 || loyalty > 0 ? row(t('Suma:', lang), money(itemsSum)) : ''}
+    ${promo > 0 ? row(t('Promociones', lang), `-${money(promo)}`) : ''}
+    ${loyalty > 0 ? row(`${t('Lealtad', lang)}${sale.recompensa_lealtad?.descripcion ? ` (${escapeHtml(sale.recompensa_lealtad.descripcion)})` : ''}`, `-${money(loyalty)}`) : ''}
+    ${row(t('Subtotal:', lang), money(sale.subtotal))}
+    ${row(t('IVA (%):', lang).replace('%', ivaPercent + '%'), money(sale.impuestos))}
+    ${row(`${t('TOTAL', lang)}:`, money(sale.total), 'grand')}
+  </div>
+
+  ${paymentHTML ? `<div class="payment">${paymentHTML}</div>` : ''}
+
+  <div class="footer">
+    <div>${t('¡Gracias por su compra!', lang)}</div>
+    <div class="small">${t('Desarrollado por CoffeePOS', lang)}</div>
+  </div>
+</div>
+</body>
+</html>`;
 }
 
 /**
  * Imprime un ticket de venta
  * @param {Object} sale - Venta con detalles
  * @param {string} customerName - Nombre del cliente (opcional)
- * @param {{businessName?: string, address?: string}} businessInfo - opcional, si no se pasa se toma de localStorage/sale
+ * @param {{businessName?: string, address?: string}} businessInfo - opcional; si no, se toma de localStorage/sale
  */
 export function printTicket(sale, customerName = null, businessInfo = null) {
-  // Auto-resolver businessInfo si no se pasó: intenta localStorage cache sin fetch bloqueante
   let resolvedBusiness = businessInfo;
   if (!resolvedBusiness) {
     try {
       const bName = localStorage.getItem('businessName');
       const bAddr = localStorage.getItem('businessAddress');
       if (bName || bAddr) resolvedBusiness = { businessName: bName, address: bAddr };
-    } catch {}
+    } catch { /* sin caché */ }
   }
-  const ticketHTML = generateTicketHTML(sale, customerName, resolvedBusiness);
-  
-  const printWindow = window.open('', '_blank');
-  if (printWindow) {
-    printWindow.document.write(ticketHTML);
-    printWindow.document.close();
-    
-    printWindow.onload = function() {
-      printWindow.print();
-      printWindow.close();
-    };
-  } else {
-    console.error('No se pudo abrir la ventana de impresión');
-  }
+  printHtmlDocument(generateTicketHTML(sale, customerName, resolvedBusiness), { closeDelay: 500 });
 }
