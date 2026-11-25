@@ -1,32 +1,18 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Package, BarChart3, Wallet, Settings, Users, DollarSign, MoreHorizontal, X, Coffee, LogOut, Tag } from 'lucide-react';
+import { MoreHorizontal, X, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useStockAlerts } from '../../hooks/useStockAlerts.js';
+import { ADMIN_MENU, SELLER_MENU, isMenuItemActive } from '../../utils/navigation.js';
 import Swal from 'sweetalert2';
 import './MobileBottomNav.css';
 
-const adminPrimary = [
-  { path: '/admin/pos', icon: ShoppingCart, label: 'POS' },
-  { path: '/admin', icon: Package, label: 'Productos', exact: true },
-  { path: '/admin/ventas', icon: DollarSign, label: 'Ventas' },
-  { path: '/admin/kpis', icon: BarChart3, label: 'KPIs' },
-];
-
-const adminMore = [
-  { path: '/admin/promociones', icon: Tag, label: 'Promociones' },
-  { path: '/admin/personalizaciones', icon: Settings, label: 'Personalizaciones' },
-  { path: '/admin/usuarios', icon: Users, label: 'Usuarios' },
-  { path: '/admin/almacen', icon: Package, label: 'Almacén' },
-  { path: '/admin/cortes-caja', icon: Wallet, label: 'Cortes' },
-  { path: '/admin/configuracion', icon: Settings, label: 'Config' },
-];
-
-const sellerPrimary = [
-  { path: '/', icon: ShoppingCart, label: 'POS', exact: true },
-  { path: '/ventas', icon: BarChart3, label: 'Ventas' },
-  { path: '/almacen', icon: Package, label: 'Almacén' },
-];
+function StockBadge({ count }) {
+  if (!count) return null;
+  return (
+    <span className="mobile-nav-badge">{count > 99 ? '99+' : count}</span>
+  );
+}
 
 export default function MobileBottomNav({ variant = 'seller' }) {
   const location = useLocation();
@@ -35,9 +21,10 @@ export default function MobileBottomNav({ variant = 'seller' }) {
   const { total: stockTotal } = useStockAlerts({ enabled: true });
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const isAdmin = variant === 'admin';
-  const primary = isAdmin ? adminPrimary : sellerPrimary;
-  const moreItems = isAdmin ? adminMore : [];
+  // Misma lista de módulos que el menú de escritorio (utils/navigation.js)
+  const menu = variant === 'admin' ? ADMIN_MENU : SELLER_MENU;
+  const primary = menu.filter(item => item.mobilePrimary);
+  const moreItems = menu.filter(item => !item.mobilePrimary);
 
   function handleLogout() {
     setMoreOpen(false);
@@ -57,13 +44,11 @@ export default function MobileBottomNav({ variant = 'seller' }) {
     });
   }
 
-  function isActive(item) {
-    if (item.exact) return location.pathname === item.path;
-    return location.pathname === item.path || location.pathname.startsWith(item.path + '/');
-  }
+  const isActive = (item) => isMenuItemActive(item, location.pathname);
 
   const hasMore = moreItems.length > 0;
   const isMoreActive = hasMore && moreItems.some(isActive);
+  const moreHasStockAlert = moreItems.some(i => i.stockBadge) && stockTotal > 0;
 
   return (
     <>
@@ -81,7 +66,10 @@ export default function MobileBottomNav({ variant = 'seller' }) {
                 const active = isActive(item);
                 return (
                   <Link key={item.path} to={item.path} onClick={() => setMoreOpen(false)} className={`mobile-more-link ${active ? 'active' : ''}`}>
-                    <span className="mobile-more-icon-wrap"><Icon size={20} /></span>
+                    <span className="mobile-more-icon-wrap">
+                      <Icon size={20} />
+                      {item.stockBadge && <StockBadge count={stockTotal} />}
+                    </span>
                     <span className="mobile-more-label">{item.label}</span>
                   </Link>
                 );
@@ -96,21 +84,22 @@ export default function MobileBottomNav({ variant = 'seller' }) {
           {primary.map(item => {
             const Icon = item.icon;
             const active = isActive(item);
-            const isAlmacen = item.label === 'Almacén' || item.path.includes('almacen');
-            const showBadge = isAlmacen && stockTotal > 0;
             return (
-              <Link key={item.path} to={item.path} className={`mobile-nav-item ${active ? 'active' : ''}`}>
-                <span className="mobile-nav-icon" style={{position:'relative'}}>
+              <Link key={item.path} to={item.path} className={`mobile-nav-item ${active ? 'active' : ''}`} aria-label={item.label}>
+                <span className="mobile-nav-icon">
                   <Icon size={22} />
-                  {showBadge && <span style={{position:'absolute',top:-6,right:-8,minWidth:16,height:16,padding:'0 3px',borderRadius:999,background:'#ef4444',color:'#fff',fontSize:10,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',border:'2px solid #fff'}}>{stockTotal>99?'99+':stockTotal}</span>}
+                  {item.stockBadge && <StockBadge count={stockTotal} />}
                 </span>
-                <span className="mobile-nav-label">{item.label}</span>
+                <span className="mobile-nav-label">{item.short || item.label}</span>
               </Link>
             );
           })}
           {hasMore && (
             <button className={`mobile-nav-item mobile-nav-more ${isMoreActive || moreOpen ? 'active' : ''}`} onClick={() => setMoreOpen(v => !v)} aria-label="Más opciones" aria-expanded={moreOpen}>
-              <span className="mobile-nav-icon">{moreOpen ? <X size={22} /> : <MoreHorizontal size={22} />}</span>
+              <span className="mobile-nav-icon">
+                {moreOpen ? <X size={22} /> : <MoreHorizontal size={22} />}
+                {!moreOpen && moreHasStockAlert && <span className="mobile-nav-dot" />}
+              </span>
               <span className="mobile-nav-label">Más</span>
             </button>
           )}

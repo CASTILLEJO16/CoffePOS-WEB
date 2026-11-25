@@ -5,22 +5,11 @@ import { ShoppingCart, Package, Settings, Users, DollarSign, LogOut, Coffee, Sun
 import Swal from 'sweetalert2';
 import StockAlertBell from '../common/StockAlertBell.jsx';
 import { useStockAlerts } from '../../hooks/useStockAlerts.js';
+import { ADMIN_MENU } from '../../utils/navigation.js';
 import './AdminSidebar.css';
 
-const menuItems = [
-  { path: '/admin/pos',              icon: ShoppingCart, label: 'Punto de Venta' },
-  { path: '/admin',                  icon: Package, label: 'Productos',      exact: true },
-  { path: '/admin/personalizaciones',icon: Settings, label: 'Personalizaciones' },
-  { path: '/admin/promociones',      icon: Flame, label: 'Promociones' },
-  { path: '/admin/usuarios',         icon: Users, label: 'Usuarios' },
-  { path: '/admin/ventas',           icon: DollarSign, label: 'Ventas' },
-  { path: '/admin/kpis',             icon: BarChart3, label: 'KPIs de Ventas' },
-  { path: '/admin/almacen',          icon: Package, label: 'Almacén' },
-  { path: '/admin/cortes-caja',      icon: Wallet, label: 'Cortes de Caja' },
-  { path: '/admin/lealtad',          icon: QrCode, label: 'Tarjeta Lealtad' },
-  { path: '/admin/tickets-abiertos', icon: Table, label: 'Tickets Abiertos' },
-  { path: '/admin/configuracion',    icon: Settings, label: 'Configuración' },
-];
+// Lista compartida con el menú del celular (utils/navigation.js)
+const menuItems = ADMIN_MENU;
 
 export default function AdminSidebar() {
   const location = useLocation();

@@ -8,6 +8,7 @@ import Swal from 'sweetalert2';
 import MobileBottomNav from '../components/common/MobileBottomNav.jsx';
 import StockAlertBell from '../components/common/StockAlertBell.jsx';
 import StockAlertBanner from '../components/common/StockAlertBanner.jsx';
+import { SELLER_MENU } from '../utils/navigation.js';
 import './MainLayout.css';
 
 export default function MainLayout({ children }) {
@@ -69,13 +70,8 @@ export default function MainLayout({ children }) {
     });
   }
 
-  const menuItems = [
-    { path: '/', icon: ShoppingCart, label: 'Punto de Venta' },
-    { path: '/ventas', icon: BarChart3, label: 'Mis Ventas' },
-    { path: '/lealtad', icon: QrCode, label: 'Tarjeta Lealtad' },
-    { path: '/tickets-abiertos', icon: Table, label: 'Tickets Abiertos' },
-    { path: '/almacen', icon: Package, label: 'Almacén' },
-  ];
+  // Lista compartida con el menú del celular (utils/navigation.js)
+  const menuItems = SELLER_MENU;
 
   return (
     <div className="main-layout">
@@ -134,7 +130,8 @@ export default function MainLayout({ children }) {
         <StockAlertBanner />
         {children || <Outlet />}
       </main>
-      <MobileBottomNav variant="seller" />
+      {/* El admin también pasa por aquí (apertura de caja): mostrarle su menú */}
+      <MobileBottomNav variant={(user?.rol || user?.role) === 'admin' ? 'admin' : 'seller'} />
     </div>
   );
 }

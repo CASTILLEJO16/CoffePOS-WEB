@@ -203,3 +203,44 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* Indicadores de alerta de stock (antes iban en estilos en línea) */
+.mobile-nav-icon,
+.mobile-more-icon-wrap {
+  position: relative;
+}
+.mobile-nav-badge {
+  position: absolute;
+  top: -6px;
+  right: -9px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-surface, #fff);
+}
+.mobile-nav-dot {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid var(--color-surface, #fff);
+}
+/* Que la barra no tape el final de las páginas */
+@media (max-width: 1024px) {
+  .mobile-more-grid {
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+}
